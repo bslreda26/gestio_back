@@ -1,0 +1,135 @@
+export type ProduitPricingInput = {
+  prixAchatHt: number
+  prixVenteHt: number
+  frais: number
+  tauxTva: number
+}
+
+export type ProduitPricingResult = {
+  prixAchatTtc: number
+  prixVenteTtc: number
+  plancher: number
+}
+
+export class PlancherValidationError extends Error {
+  constructor(
+    public prixUnitaire: number,
+    public plancher: number,
+    public produitNom?: string
+  ) {
+    const label = produitNom ? ` pour ${produitNom}` : ''
+    super(
+      `Le prix facturé (${prixUnitaire}) est inférieur au plancher (${plancher})${label}`
+    )
+    this.name = 'PlancherValidationError'
+  }
+}
+
+export function roundMoney(value: number): number {
+  return Math.round(value * 100) / 100
+}
+
+/** Marge unitaire catalogue : prix vente TTC − plancher */
+export function calcMargeLigne(prixVenteTtc: number, plancher: number): number {
+  return roundMoney(prixVenteTtc - plancher)
+}
+
+export function calcTtc(prixHt: number, tauxTva: number): number {
+  return roundMoney(prixHt * (1 + tauxTva / 100))
+}
+
+export function calcHt(prixTtc: number, tauxTva: number): number {
+  return roundMoney(prixTtc / (1 + tauxTva / 100))
+}
+
+export function calcPlancher(prixAchatTtc: number, frais: number): number {
+  return roundMoney(prixAchatTtc + frais)
+}
+
+export function calcProduitPricing(input: ProduitPricingInput): ProduitPricingResult {
+  const prixAchatTtc = calcTtc(input.prixAchatHt, input.tauxTva)
+  const prixVenteTtc = calcTtc(input.prixVenteHt, input.tauxTva)
+  const plancher = calcPlancher(prixAchatTtc, input.frais)
+
+  return { prixAchatTtc, prixVenteTtc, plancher }
+}
+
+export type ProduitPricingFromVenteTtcInput = {
+  prixAchatHt: number
+  prixVenteTtc: number
+  frais: number
+  tauxTva: number
+}
+
+export function calcProduitPricingFromVenteTtc(
+  input: ProduitPricingFromVenteTtcInput
+): ProduitPricingResult & { prixVenteHt: number } {
+  const prixAchatTtc = calcTtc(input.prixAchatHt, input.tauxTva)
+  const prixVenteTtc = roundMoney(input.prixVenteTtc)
+  const prixVenteHt = calcHt(prixVenteTtc, input.tauxTva)
+  const plancher = calcPlancher(prixAchatTtc, input.frais)
+
+  return { prixAchatTtc, prixVenteTtc, plancher, prixVenteHt }
+}
+
+export function updatePrixAchatFromAchat(prixUnitaireHt: number, tauxTva: number) {
+  return {
+    prixAchatHt: roundMoney(prixUnitaireHt),
+    prixAchatTtc: calcTtc(prixUnitaireHt, tauxTva),
+  }
+}
+
+export type AchatReceptionPricingInput = {
+  stockAvant: number
+  quantiteRecue: number
+  prixUnitaireHt: number
+  fraisUnitaire: number
+  ancienPrixAchatHt: number
+  ancienFrais: number
+  tauxTva: number
+}
+
+/** Coût moyen pondéré : (stock × valeur actuelle + qté reçue × nouvelle valeur) / nouveau stock */
+export function calcCmup(
+  stockAvant: number,
+  valeurUnitaireAvant: number,
+  quantiteRecue: number,
+  valeurUnitaireRecue: number
+): number {
+  const stockTotal = stockAvant + quantiteRecue
+  if (stockTotal <= 0) return roundMoney(valeurUnitaireRecue)
+  if (stockAvant <= 0) return roundMoney(valeurUnitaireRecue)
+  return roundMoney(
+    (stockAvant * valeurUnitaireAvant + quantiteRecue * valeurUnitaireRecue) / stockTotal
+  )
+}
+
+/** Met à jour prix achat (CMUP), frais et plancher du produit après réception d'un achat */
+export function updateProduitFromAchatReception(input: AchatReceptionPricingInput) {
+  const prixAchatHt = calcCmup(
+    input.stockAvant,
+    input.ancienPrixAchatHt,
+    input.quantiteRecue,
+    input.prixUnitaireHt
+  )
+  const frais = calcCmup(
+    input.stockAvant,
+    input.ancienFrais,
+    input.quantiteRecue,
+    input.fraisUnitaire
+  )
+  const prixAchatTtc = calcTtc(prixAchatHt, input.tauxTva)
+  const plancher = calcPlancher(prixAchatTtc, frais)
+
+  return { prixAchatHt, prixAchatTtc, frais, plancher }
+}
+
+export function validatePrixPlancher(
+  prixUnitaire: number,
+  plancher: number,
+  produitNom?: string
+): void {
+  if (prixUnitaire < plancher) {
+    throw new PlancherValidationError(prixUnitaire, plancher, produitNom)
+  }
+}

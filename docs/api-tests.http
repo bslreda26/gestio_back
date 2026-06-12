@@ -1,0 +1,108 @@
+### Gestion Commerciale — manual API tests
+### Base URL (dev server)
+@baseUrl = http://localhost:3333/api/v1
+@token = {{login.response.body.data.token}}
+
+### 1. Health
+GET http://localhost:3333/health
+
+### 2. Login admin
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@gestion.com",
+  "password": "Admin@123456"
+}
+
+### 3. Current user
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{token}}
+
+### 4. Create devis (no stock impact)
+POST {{baseUrl}}/ventes/create
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "statut": "devis",
+  "client_id": 1,
+  "date_vente": "2026-06-10",
+  "lignes": [{ "produit_id": 1, "quantite": 1, "prix_unitaire": 20000 }]
+}
+
+### 5. Create facture (stock sortie)
+POST {{baseUrl}}/ventes/create
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "statut": "facture",
+  "client_id": 1,
+  "date_vente": "2026-06-10",
+  "lignes": [{ "produit_id": 2, "quantite": 1, "prix_unitaire": 15000 }]
+}
+
+### 6. Paiement espèces vente
+POST {{baseUrl}}/ventes/paiement
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "vente_id": 1,
+  "montant": 20000,
+  "mode_paiement": "especes",
+  "date_paiement": "2026-06-10"
+}
+
+### 7. Caisse solde
+GET {{baseUrl}}/caisse/solde
+Authorization: Bearer {{token}}
+
+### 8. Dépense (sortie caisse)
+POST {{baseUrl}}/depenses/create
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "libelle": "Transport",
+  "categorie": "transport",
+  "montant": 2500,
+  "date_depense": "2026-06-10"
+}
+
+### 9. Achat + réception
+POST {{baseUrl}}/achats/create
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "fournisseur_id": 1,
+  "date_achat": "2026-06-10",
+  "lignes": [{ "produit_id": 3, "quantite": 5, "prix_unitaire_ht": 600 }]
+}
+
+###
+POST {{baseUrl}}/achats/recevoir
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "id": 1,
+  "lignes": [{ "ligne_id": 1, "quantite_recue": 5 }]
+}
+
+### 10. Stock valorisation
+GET {{baseUrl}}/stock/valorisation
+Authorization: Bearer {{token}}
+
+### 11. Facture retour (admin)
+POST {{baseUrl}}/ventes/retour
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "facture_id": 1,
+  "lignes": [{ "ligne_id": 1, "quantite": 1 }]
+}

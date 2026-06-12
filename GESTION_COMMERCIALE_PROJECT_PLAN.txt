@@ -1,0 +1,1721 @@
+
+================================================================================
+         GESTION COMMERCIALE — PLAN COMPLET DU PROJET
+         Application de Gestion Commerciale Full-Stack
+================================================================================
+
+  Stack : React + TypeScript + Vite (Frontend)
+           AdonisJS v6 + TypeScript (Backend)
+           MySQL (Base de données)
+
+  Modules : Ventes · Achats · Clients · Fournisseurs · Stock · TVA · Caisse · Rapports
+
+================================================================================
+                              TABLE DES MATIÈRES
+================================================================================
+
+  1.  Vue d'ensemble du projet
+  2.  Stack technologique
+  3.  Architecture globale
+  4.  Structure des dossiers — Backend (AdonisJS)
+  5.  Structure des dossiers — Frontend (React Vite)
+  6.  Modèle de base de données (Tables & Relations)
+  7.  API Endpoints — Routes Backend
+  8.  Modules fonctionnels détaillés
+  9.  Authentification & Sécurité
+  10. Gestion du Stock (logique métier)
+  10b. TVA, Prix & Plancher (logique métier)
+  10c. Caisse & Mouvements (logique métier)
+  11. Rapports & Statistiques
+  12. Plan de développement (Phases)
+  13. Variables d'environnement
+  14. Scripts de démarrage
+  15. Bonnes pratiques & Recommandations
+
+================================================================================
+  1. VUE D'ENSEMBLE DU PROJET
+================================================================================
+
+  Nom du projet   : Gestion Commerciale
+  Type            : Application Web Full-Stack (SPA + REST API)
+  Objectif        : Gérer les opérations commerciales d'une entreprise :
+                    achats auprès des fournisseurs, ventes aux clients,
+                    suivi du stock, gestion TVA (18%, 9%, 0%), prix HT/TTC,
+                    frais et plancher par article, caisse (entrées espèces,
+                    sorties dépenses), et génération de rapports.
+
+  Acteurs principaux :
+    - Administrateur  : Accès total à tous les modules
+    - Gestionnaire    : Accès aux ventes, achats, stock
+    - Caissier        : Accès aux ventes et à la caisse (consultation + dépenses)
+    - Lecteur         : Accès en lecture aux rapports
+
+  État d'avancement (backend — gestio_backend/) :
+    - API REST complète sous /api/v1 (convention POST search/show/create/update)
+    - 26 migrations MySQL (users → métier → points_de_vente → reglements → rate_limits)
+    - Multi point de vente : middleware point_de_vente, scoping données, numéros préfixés
+    - Auth par access tokens (@adonisjs/auth), RBAC via role_middleware
+    - Rate limiting login (@adonisjs/limiter) — production : LIMITER_STORE=database
+    - Services métier : pricing, vente, vente_lock, achat, caisse, stock, rapports,
+      reglement, point_de_vente, code_generator
+    - Tests : 25 specs Japa (MySQL gestio_test, transactions rollback)
+    - Frontend React : à développer (sections 5 et phases 1–6 marquées en conséquence)
+
+================================================================================
+  2. STACK TECHNOLOGIQUE
+================================================================================
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │  FRONTEND                                                   │
+  │  ─────────────────────────────────────────────────────────  │
+  │  Framework     : React 18 + TypeScript                      │
+  │  Build Tool    : Vite 5                                     │
+  │  Routing       : React Router v6                            │
+  │  State Mgmt    : Zustand (global) + React Query (server)    │
+  │  UI Library    : shadcn/ui + Tailwind CSS                   │
+  │  Forms         : React Hook Form + Zod (validation)         │
+  │  Charts        : Recharts                                   │
+  │  Tables        : TanStack Table v8                          │
+  │  HTTP Client   : Axios                                      │
+  │  Icons         : Lucide React                               │
+  │  Date          : date-fns                                   │
+  │  PDF Export    : jsPDF + html2canvas                        │
+  │  Excel Export  : xlsx (SheetJS)                             │
+  └─────────────────────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │  BACKEND                                                    │
+  │  ─────────────────────────────────────────────────────────  │
+  │  Framework     : AdonisJS v7 (Node.js)                      │
+  │  Language      : TypeScript                                 │
+  │  ORM           : Lucid ORM (inclus dans AdonisJS)           │
+  │  Auth          : @adonisjs/auth (Access Tokens API + Sessions web) │
+  │  Rate limiter  : @adonisjs/limiter (login brute-force)      │
+  │  Driver MySQL  : mysql2 (dépendance directe package.json)   │
+  │  Validation    : VineJS                                     │
+  │  Middleware    : Auth, RBAC, Point de vente, CORS, Shield   │
+  │  Migrations    : Lucid Migrations                           │
+  │  Seeders       : Lucid Seeders                              │
+  └─────────────────────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │  BASE DE DONNÉES                                            │
+  │  ─────────────────────────────────────────────────────────  │
+  │  SGBD          : MySQL 8.0+                                 │
+  │  Charset       : utf8mb4                                    │
+  │  Collation     : utf8mb4_unicode_ci                         │
+  └─────────────────────────────────────────────────────────────┘
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │  INFRASTRUCTURE (recommandée)                               │
+  │  ─────────────────────────────────────────────────────────  │
+  │  Serveur       : Ubuntu 22.04 LTS                           │
+  │  Process Mgr   : PM2                                        │
+  │  Reverse Proxy : Nginx                                      │
+  │  SSL           : Let's Encrypt (Certbot)                    │
+  │  CI/CD         : GitHub Actions                             │
+  └─────────────────────────────────────────────────────────────┘
+
+================================================================================
+  3. ARCHITECTURE GLOBALE
+================================================================================
+
+  Client (Browser)
+       │
+       │  HTTPS Requests
+       ▼
+  ┌─────────────┐
+  │   Nginx     │  ← Reverse Proxy + SSL
+  └──────┬──────┘
+         │
+    ┌────┴──────────────────────┐
+    │                           │
+    ▼                           ▼
+  ┌──────────────┐       ┌──────────────┐
+  │  Frontend    │       │  Backend     │
+  │  Vite/React  │       │  AdonisJS    │
+  │  Port: 3000  │       │  Port: 3333  │
+  └──────────────┘       └──────┬───────┘
+                                │
+                         ┌──────▼───────┐
+                         │   MySQL      │
+                         │  Port: 3306  │
+                         └──────────────┘
+
+  Flux de données :
+    1. Le frontend envoie des requêtes REST à /api/v1/...
+    2. AdonisJS reçoit, authentifie (Bearer access token), valide, traite
+    3. Lucid ORM interagit avec MySQL
+    4. La réponse JSON retourne au frontend
+    5. React Query met à jour le cache et re-rend les composants
+
+================================================================================
+  4. STRUCTURE DES DOSSIERS — BACKEND (AdonisJS)
+================================================================================
+
+  gestio_backend/
+  ├── app/
+  │   ├── controllers/           ← Contrôleurs HTTP (1 par module)
+  │   │   ├── auth_controller.ts
+  │   │   ├── users_controller.ts
+  │   │   ├── points_de_vente_controller.ts
+  │   │   ├── reglements_controller.ts
+  │   │   ├── clients_controller.ts
+  │   │   ├── fournisseurs_controller.ts
+  │   │   ├── categories_controller.ts
+  │   │   ├── tva_groupes_controller.ts
+  │   │   ├── produits_controller.ts
+  │   │   ├── ventes_controller.ts       ← lignes, paiements, lock, retour inclus
+  │   │   ├── achats_controller.ts       ← lignes et paiements inclus
+  │   │   ├── caisse_controller.ts         ← solde + mouvements inclus
+  │   │   ├── depenses_controller.ts
+  │   │   ├── stock_controller.ts
+  │   │   └── rapports_controller.ts
+  │   │
+  │   ├── models/                ← Modèles Lucid ORM (étendent database/schema.ts)
+  │   │   ├── user.ts
+  │   │   ├── point_de_vente.ts
+  │   │   ├── reglement.ts
+  │   │   ├── client.ts
+  │   │   ├── fournisseur.ts
+  │   │   ├── category.ts
+  │   │   ├── tva_groupe.ts
+  │   │   ├── produit.ts
+  │   │   ├── vente.ts
+  │   │   ├── vente_ligne.ts
+  │   │   ├── achat.ts
+  │   │   ├── achat_ligne.ts
+  │   │   ├── stock_mouvement.ts
+  │   │   ├── paiement.ts
+  │   │   ├── caisse.ts
+  │   │   ├── caisse_mouvement.ts
+  │   │   └── depense.ts
+  │   │
+  │   ├── middleware/
+  │   │   ├── auth_middleware.ts
+  │   │   ├── role_middleware.ts         ← RBAC par permission (users, ventes_write…)
+  │   │   ├── point_de_vente_middleware.ts ← Header X-Point-De-Vente-Id + scoping
+  │   │   ├── force_json_response_middleware.ts
+  │   │   └── silent_auth_middleware.ts
+  │   │
+  │   ├── validators/            ← Schémas VineJS (1 fichier par module)
+  │   │   ├── user_validator.ts
+  │   │   ├── client_validator.ts
+  │   │   ├── fournisseur_validator.ts
+  │   │   ├── produit_validator.ts
+  │   │   ├── vente_validator.ts
+  │   │   ├── achat_validator.ts
+  │   │   ├── depense_validator.ts
+  │   │   ├── caisse_validator.ts
+  │   │   ├── stock_validator.ts
+  │   │   ├── rapport_validator.ts
+  │   │   ├── point_de_vente_validator.ts
+  │   │   ├── reglement_validator.ts
+  │   │   └── common_validator.ts
+  │   │
+  │   ├── services/              ← Logique métier complexe
+  │   │   ├── stock_service.ts
+  │   │   ├── pricing_service.ts         ← Calcul HT/TTC, plancher, validation TVA
+  │   │   ├── vente_service.ts
+  │   │   ├── vente_lock_service.ts      ← Verrouillage exclusif d'une vente en édition
+  │   │   ├── achat_service.ts
+  │   │   ├── caisse_service.ts          ← Solde caisse, mouvements entree/sortie
+  │   │   ├── rapport_service.ts
+  │   │   ├── reglement_service.ts
+  │   │   ├── point_de_vente_service.ts
+  │   │   └── code_generator_service.ts
+  │   │
+  │   ├── helpers/
+  │   │   ├── api_response.ts            ← Réponses JSON standardisées
+  │   │   ├── pagination.ts
+  │   │   ├── point_de_vente_context.ts  ← requirePointDeVente, scopeByPointDeVente
+  │   │   ├── produit_serializer.ts
+  │   │   ├── vente_ligne_serializer.ts  ← masque marge hors admin
+  │   │   └── produit_query.ts
+  │   │
+  │   └── transformers/
+  │       └── user_transformer.ts
+  │
+  ├── config/
+  │   ├── app.ts
+  │   ├── auth.ts                ← Guard api (access tokens) + guard web (session)
+  │   ├── cors.ts
+  │   ├── database.ts            ← mysql (prod) + sqlite optionnel
+  │   ├── limiter.ts             ← memory + database stores
+  │   ├── shield.ts                ← CSRF off (API Bearer token)
+  │   └── logger.ts
+  │
+  ├── database/
+  │   ├── schema.ts              ← Généré automatiquement après migration:run
+  │   ├── schema_rules.ts
+  │   ├── migrations/            ← Ordre par timestamp (users DOIT être en premier)
+  │   │   ├── 1740000000000_create_users_table.ts
+  │   │   ├── 1740000000002_create_clients_table.ts
+  │   │   ├── 1740000000003_create_fournisseurs_table.ts
+  │   │   ├── 1740000000004_create_categories_table.ts
+  │   │   ├── 1740000000005_create_tva_groupes_table.ts
+  │   │   ├── 1740000000006_create_produits_table.ts
+  │   │   ├── 1740000000007_create_ventes_table.ts
+  │   │   ├── 1740000000008_create_vente_lignes_table.ts
+  │   │   ├── 1740000000009_create_achats_table.ts
+  │   │   ├── 1740000000010_create_achat_lignes_table.ts
+  │   │   ├── 1740000000011_create_stock_mouvements_table.ts
+  │   │   ├── 1740000000012_create_paiements_table.ts
+  │   │   ├── 1740000000013_create_caisses_table.ts
+  │   │   ├── 1740000000014_create_caisse_mouvements_table.ts
+  │   │   ├── 1740000000015_create_depenses_table.ts
+  │   │   ├── 1740000000016_add_vente_retour_fields.ts
+  │   │   ├── 1740000000017_add_vente_lock_fields.ts
+  │   │   ├── 1740000000018_drop_produit_fournisseur_id.ts
+  │   │   ├── 1740000000019_add_marge_to_vente_lignes.ts
+  │   │   ├── 1740000000020_create_points_de_vente_table.ts
+  │   │   ├── 1740000000021_add_point_de_vente_scoping.ts
+  │   │   ├── 1740000000022_add_type_to_clients.ts
+  │   │   ├── 1740000000023_create_reglements_table.ts
+  │   │   ├── 1740000000024_extend_caisse_motif_length.ts
+  │   │   ├── 1740000000025_create_rate_limits_table.ts
+  │   │   └── 1768620764696_create_access_tokens_table.ts
+  │   │
+  │   └── seeders/               ← Données initiales (orchestrées par main_seeder.ts)
+  │       ├── main_seeder.ts
+  │       ├── 01_user_seeder.ts
+  │       ├── 02_categories_seeder.ts
+  │       ├── 03_tva_groupes_seeder.ts   ← TVA 18%, 9%, 0%
+  │       ├── 04_fournisseur_client_seeder.ts
+  │       ├── 05_produits_seeder.ts
+  │       └── 06_caisse_seeder.ts        ← Caisse principale (solde 0)
+  │
+  ├── start/
+  │   ├── routes.ts              ← Définition de toutes les routes API
+  │   ├── kernel.ts              ← Enregistrement des middlewares
+  │   └── env.ts                 ← Validation des variables d'env
+  │
+  ├── tests/
+  │   ├── functional/            ← Tests API (api_core, users_and_lock…)
+  │   ├── unit/                  ← Tests unitaires (pricing_service…)
+  │   └── helpers/               ← auth.ts, setup.ts (isolation DB + limiter)
+  │
+  ├── .env                       ← Variables d'environnement (dev/prod)
+  ├── .env.test                  ← Tests : gestio_test + LIMITER_STORE=memory
+  ├── .env.example
+  ├── API.md                     ← Référence API complète
+  ├── adonisrc.ts
+  ├── tsconfig.json
+  └── package.json
+
+================================================================================
+  5. STRUCTURE DES DOSSIERS — FRONTEND (React Vite)
+================================================================================
+
+  frontend/
+  ├── src/
+  │   ├── assets/                ← Images, logos, fonts
+  │   │
+  │   ├── components/
+  │   │   ├── ui/                ← Composants réutilisables (shadcn/ui)
+  │   │   │   ├── Button.tsx
+  │   │   │   ├── Input.tsx
+  │   │   │   ├── Modal.tsx
+  │   │   │   ├── Table.tsx
+  │   │   │   ├── Badge.tsx
+  │   │   │   ├── Card.tsx
+  │   │   │   ├── Select.tsx
+  │   │   │   ├── DatePicker.tsx
+  │   │   │   ├── Pagination.tsx
+  │   │   │   └── Toast.tsx
+  │   │   │
+  │   │   └── layout/            ← Composants de mise en page
+  │   │       ├── AppLayout.tsx
+  │   │       ├── Sidebar.tsx
+  │   │       ├── Header.tsx
+  │   │       ├── Breadcrumb.tsx
+  │   │       └── PageHeader.tsx
+  │   │
+  │   ├── pages/
+  │   │   ├── auth/
+  │   │   │   ├── LoginPage.tsx
+  │   │   │   └── ForgotPasswordPage.tsx
+  │   │   │
+  │   │   ├── dashboard/
+  │   │   │   └── DashboardPage.tsx  ← KPIs, graphiques, alertes stock
+  │   │   │
+  │   │   ├── clients/
+  │   │   │   ├── ClientsListPage.tsx
+  │   │   │   ├── ClientCreatePage.tsx
+  │   │   │   ├── ClientEditPage.tsx
+  │   │   │   └── ClientDetailPage.tsx
+  │   │   │
+  │   │   ├── fournisseurs/
+  │   │   │   ├── FournisseursListPage.tsx
+  │   │   │   ├── FournisseurCreatePage.tsx
+  │   │   │   ├── FournisseurEditPage.tsx
+  │   │   │   └── FournisseurDetailPage.tsx
+  │   │   │
+  │   │   ├── produits/
+  │   │   │   ├── ProduitsListPage.tsx
+  │   │   │   ├── ProduitCreatePage.tsx
+  │   │   │   ├── ProduitEditPage.tsx
+  │   │   │   └── CategoriesPage.tsx
+  │   │   │
+  │   │   ├── ventes/
+  │   │   │   ├── VentesListPage.tsx      ← Liste devis + factures (filtres statut)
+  │   │   │   ├── DevisCreatePage.tsx     ← Création devis (sans impact stock)
+  │   │   │   ├── FactureCreatePage.tsx   ← Création facture (sortie stock)
+  │   │   │   ├── VenteDetailPage.tsx
+  │   │   │   └── VenteInvoicePage.tsx    ← Impression devis / facture PDF
+  │   │   │
+  │   │   ├── achats/
+  │   │   │   ├── AchatsListPage.tsx
+  │   │   │   ├── AchatCreatePage.tsx
+  │   │   │   ├── AchatDetailPage.tsx
+  │   │   │   └── AchatReceiptPage.tsx
+  │   │   │
+  │   │   ├── stock/
+  │   │   │   ├── StockPage.tsx         ← Vue globale du stock
+  │   │   │   ├── MouvementsPage.tsx    ← Historique des mouvements
+  │   │   │   └── AlertesStockPage.tsx  ← Produits sous seuil
+  │   │   │
+  │   │   ├── caisse/
+  │   │   │   ├── CaissePage.tsx          ← Solde actuel + historique mouvements
+  │   │   │   ├── DepensesListPage.tsx    ← Liste des dépenses
+  │   │   │   └── DepenseCreatePage.tsx   ← Nouvelle dépense (sortie caisse)
+  │   │   │
+  │   │   └── rapports/
+  │   │       ├── RapportsPage.tsx
+  │   │       ├── RapportVentesPage.tsx
+  │   │       ├── RapportAchatsPage.tsx
+  │   │       ├── RapportStockPage.tsx
+  │   │       └── RapportCAPage.tsx     ← Chiffre d'affaires
+  │   │
+  │   ├── hooks/                 ← Hooks personnalisés
+  │   │   ├── useAuth.ts
+  │   │   ├── useClients.ts
+  │   │   ├── useFournisseurs.ts
+  │   │   ├── useProduits.ts
+  │   │   ├── useVentes.ts
+  │   │   ├── useAchats.ts
+  │   │   ├── useStock.ts
+  │   │   ├── useCaisse.ts
+  │   │   └── useRapports.ts
+  │   │
+  │   ├── services/              ← Couche API (Axios)
+  │   │   ├── api.ts             ← Instance Axios configurée
+  │   │   ├── authService.ts
+  │   │   ├── clientService.ts
+  │   │   ├── fournisseurService.ts
+  │   │   ├── produitService.ts
+  │   │   ├── venteService.ts
+  │   │   ├── achatService.ts
+  │   │   ├── stockService.ts
+  │   │   ├── caisseService.ts
+  │   │   └── rapportService.ts
+  │   │
+  │   ├── store/                 ← Zustand stores
+  │   │   ├── authStore.ts       ← User session, token
+  │   │   ├── cartStore.ts       ← Panier de vente (POS)
+  │   │   └── uiStore.ts         ← Sidebar, notifications
+  │   │
+  │   ├── types/                 ← TypeScript interfaces
+  │   │   ├── auth.types.ts
+  │   │   ├── client.types.ts
+  │   │   ├── fournisseur.types.ts
+  │   │   ├── produit.types.ts
+  │   │   ├── tva.types.ts
+  │   │   ├── vente.types.ts
+  │   │   ├── achat.types.ts
+  │   │   ├── stock.types.ts
+  │   │   ├── caisse.types.ts
+  │   │   └── rapport.types.ts
+  │   │
+  │   ├── utils/                 ← Fonctions utilitaires
+  │   │   ├── formatters.ts      ← Formatage monnaie, dates
+  │   │   ├── pricing.ts         ← Calcul HT/TTC, plancher, validation prix min
+  │   │   ├── validators.ts
+  │   │   ├── exportPDF.ts
+  │   │   └── exportExcel.ts
+  │   │
+  │   ├── App.tsx
+  │   ├── main.tsx
+  │   ├── router.tsx             ← React Router configuration
+  │   └── index.css
+  │
+  ├── public/
+  ├── index.html
+  ├── vite.config.ts
+  ├── tailwind.config.ts
+  ├── tsconfig.json
+  └── package.json
+
+================================================================================
+  6. MODÈLE DE BASE DE DONNÉES
+================================================================================
+
+  ┌──────────────────────────────────────────────────────────────────┐
+  │                        SCHÉMA ENTITÉS-RELATIONS                  │
+  └──────────────────────────────────────────────────────────────────┘
+
+  TABLE: users
+  ─────────────────────────────────────────────────
+  id              INT           PK AUTO_INCREMENT
+  full_name       VARCHAR(255)  NULLABLE         ← nom complet (compat. AdonisJS auth)
+  nom             VARCHAR(100)  NULLABLE
+  prenom          VARCHAR(100)  NULLABLE
+  email           VARCHAR(254)  UNIQUE NOT NULL
+  password        VARCHAR(255)  NOT NULL
+  role            VARCHAR(20)   DEFAULT 'admin'    ← admin | gestionnaire | caissier | lecteur
+  point_de_vente_id INT         FK → points_de_vente.id NULLABLE
+                                 ← obligatoire pour non-admin ; null pour admin
+  is_active       BOOLEAN       DEFAULT true
+  created_at      TIMESTAMP
+  updated_at      TIMESTAMP
+
+  TABLE: points_de_vente
+  ─────────────────────────────────────────────────
+  id              INT           PK AUTO_INCREMENT
+  code            VARCHAR(10)   UNIQUE NOT NULL    ← ex: 01, 02 (préfixe numéros documents)
+  nom             VARCHAR(150)  NOT NULL
+  adresse         TEXT
+  ville           VARCHAR(100)
+  telephone       VARCHAR(20)
+  is_active       BOOLEAN       DEFAULT true
+  created_at      TIMESTAMP
+  updated_at      TIMESTAMP
+
+  À la création d'un PDV → caisse par défaut auto-créée (point_de_vente_service).
+
+  TABLE: auth_access_tokens
+  ─────────────────────────────────────────────────
+  id              INT           PK AUTO_INCREMENT
+  tokenable_id    INT           FK → users.id ON DELETE CASCADE
+  type            VARCHAR       NOT NULL
+  name            VARCHAR       NULLABLE
+  hash            VARCHAR       NOT NULL             ← token hashé (jamais stocké en clair)
+  abilities       TEXT          NOT NULL
+  created_at      TIMESTAMP
+  updated_at      TIMESTAMP
+  last_used_at    TIMESTAMP     NULLABLE
+  expires_at      TIMESTAMP     NULLABLE
+
+  SCOPING MULTI POINT DE VENTE (migration 1740000000021) :
+  ─────────────────────────────────────────────────
+  Colonne point_de_vente_id (FK, NOT NULL) sur :
+    ventes, clients, produits, categories, achats, caisses, depenses, reglements
+  Codes clients et produits : UNIQUE (point_de_vente_id, code) — pas global
+  Fournisseurs : partagés entre tous les points de vente
+
+  TABLE: clients
+  ─────────────────────────────────────────────────
+  id              INT           PK AUTO_INCREMENT
+  point_de_vente_id INT         FK → points_de_vente.id NOT NULL
+  code            VARCHAR(20)   NOT NULL           ← ex: CLI-0001 (unique par PDV)
+  type            VARCHAR(20)   DEFAULT 'particulier'  ← particulier | entreprise
+  nom             VARCHAR(150)  NOT NULL
+  email           VARCHAR(150)
+  telephone       VARCHAR(20)
+  adresse         TEXT
+  ville           VARCHAR(100)
+  pays            VARCHAR(100)  DEFAULT 'Côte d\'Ivoire'
+  credit_limit    DECIMAL(15,2) DEFAULT 0
+  solde           DECIMAL(15,2) DEFAULT 0        ← solde dû
+  is_active       BOOLEAN       DEFAULT true
+  notes           TEXT
+  created_at      TIMESTAMP
+  updated_at      TIMESTAMP
+
+  TABLE: fournisseurs
+  ─────────────────────────────────────────────────
+  id              INT           PK AUTO_INCREMENT
+  code            VARCHAR(20)   UNIQUE NOT NULL  ← ex: FRN-0001
+  nom             VARCHAR(150)  NOT NULL
+  email           VARCHAR(150)
+  telephone       VARCHAR(20)
+  adresse         TEXT
+  ville           VARCHAR(100)
+  pays            VARCHAR(100)
+  contact_nom     VARCHAR(150)
+  solde           DECIMAL(15,2) DEFAULT 0        ← montant dû au fournisseur
+  is_active       BOOLEAN       DEFAULT true
+  notes           TEXT
+  created_at      TIMESTAMP
+  updated_at      TIMESTAMP
+
+  TABLE: categories
+  ─────────────────────────────────────────────────
+  id              INT           PK AUTO_INCREMENT
+  point_de_vente_id INT         FK → points_de_vente.id NOT NULL
+  nom             VARCHAR(100)  NOT NULL
+  description     TEXT
+  created_at      TIMESTAMP
+  updated_at      TIMESTAMP
+
+  TABLE: tva_groupes
+  ─────────────────────────────────────────────────
+  id              INT           PK AUTO_INCREMENT
+  code            VARCHAR(10)   UNIQUE NOT NULL  ← ex: TVA18, TVA9, TVA0
+  libelle         VARCHAR(50)   NOT NULL         ← ex: TVA 18%, TVA 9%, Exonéré
+  taux            DECIMAL(5,2)  NOT NULL         ← 18.00, 9.00 ou 0.00 (valeurs fixes)
+  is_active       BOOLEAN       DEFAULT true
+  created_at      TIMESTAMP
+  updated_at      TIMESTAMP
+
+  Données de référence (seeder) — 3 groupes TVA obligatoires :
+    • TVA18 → taux 18.00 %  (TVA normale)
+    • TVA9  → taux 9.00  %  (TVA réduite)
+    • TVA0  → taux 0.00  %  (Exonéré / hors taxe)
+
+  TABLE: produits
+  ─────────────────────────────────────────────────
+  id              INT           PK AUTO_INCREMENT
+  point_de_vente_id INT         FK → points_de_vente.id NOT NULL
+  code            VARCHAR(50)   NOT NULL           ← ex: PRD-0001 (unique par PDV)
+  nom             VARCHAR(200)  NOT NULL
+  description     TEXT
+  categorie_id    INT           FK → categories.id
+  tva_groupe_id   INT           FK → tva_groupes.id NOT NULL  ← groupe TVA (18, 9 ou 0)
+  prix_achat_ht   DECIMAL(15,2) NOT NULL DEFAULT 0
+  prix_achat_ttc  DECIMAL(15,2) NOT NULL DEFAULT 0  ← calculé : prix_achat_ht × (1 + taux/100)
+  prix_vente_ht   DECIMAL(15,2) NOT NULL DEFAULT 0
+  prix_vente_ttc  DECIMAL(15,2) NOT NULL DEFAULT 0  ← calculé : prix_vente_ht × (1 + taux/100)
+  frais           DECIMAL(15,2) NOT NULL DEFAULT 0  ← transport, chargement/déchargement
+  plancher        DECIMAL(15,2) NOT NULL DEFAULT 0  ← calculé : prix_vente_ttc + frais
+  unite           VARCHAR(50)   DEFAULT 'pièce'  ← pièce, kg, litre...
+  stock_actuel    DECIMAL(15,3) DEFAULT 0
+  stock_minimum   DECIMAL(15,3) DEFAULT 0        ← seuil alerte
+  stock_maximum   DECIMAL(15,3) DEFAULT 0
+  is_active       BOOLEAN       DEFAULT true
+  created_at      TIMESTAMP
+  updated_at      TIMESTAMP
+
+  Règles de calcul produit (automatiques côté backend) :
+    prix_vente_ttc = prix_vente_ht + (prix_vente_ht × taux_tva / 100)
+    prix_achat_ttc = prix_achat_ht + (prix_achat_ht × taux_tva / 100)
+    plancher       = prix_vente_ttc + frais
+
+  Mise à jour prix achat depuis un achat (réception marchandise) :
+    À chaque réception (POST /achats/recevoir), pour chaque ligne reçue :
+      produit.prix_achat_ht  ← prix_unitaire_ht de la ligne achat
+      produit.prix_achat_ttc ← recalculé automatiquement (HT + TVA du groupe)
+    Le prix vente HT, TTC, frais et plancher ne sont pas modifiés par l'achat.
+
+  Exemple :
+    prix_vente_ht = 10 000, tva_groupe = 18%, frais = 500
+    → prix_vente_ttc = 11 800
+    → plancher       = 12 300
+    → Lors d'une facture, le prix unitaire TTC ne peut pas être < 12 300
+
+  TABLE: ventes
+  ─────────────────────────────────────────────────
+  id              INT           PK AUTO_INCREMENT
+  point_de_vente_id INT         FK → points_de_vente.id NOT NULL
+  numero          VARCHAR(30)   UNIQUE            ← ex: 01-FAC-2026-0001
+  client_id       INT           FK → clients.id
+  user_id         INT           FK → users.id     ← vendeur
+  devis_origine_id INT          FK → ventes.id NULL  ← si facture issue d'un devis
+  facture_origine_id INT        FK → ventes.id NULL  ← si avoir/retour lié à une facture
+  locked_by_user_id INT         FK → users.id NULL   ← verrou édition concurrente
+  locked_at       TIMESTAMP     NULLABLE
+  lock_expires_at TIMESTAMP     NULLABLE
+  date_vente      DATE          NOT NULL
+  date_echeance   DATE                             ← date limite paiement
+  statut          ENUM(devis, facture, facture_valide, annulee)
+  statut_paiement ENUM(non_paye, partiel, paye)
+  sous_total      DECIMAL(15,2) DEFAULT 0
+  remise_pct      DECIMAL(5,2)  DEFAULT 0
+  remise_montant  DECIMAL(15,2) DEFAULT 0
+  tva_montant     DECIMAL(15,2) DEFAULT 0
+  total_ttc       DECIMAL(15,2) DEFAULT 0
+  montant_paye    DECIMAL(15,2) DEFAULT 0
+  reste_a_payer   DECIMAL(15,2) DEFAULT 0
+  notes           TEXT
+  created_at      TIMESTAMP
+  updated_at      TIMESTAMP
+
+  Workflow statuts ventes :
+    devis            → Proposition commerciale, AUCUN impact stock
+    facture          → Facture émise, SORTIE stock automatique à la création
+    facture_valide   → Facture validée (comptabilité / clôture), stock déjà déduit
+    annulee          → Annulée (si facture/facture_valide → retour stock)
+
+  Règle stock :
+    • Création devis (statut=devis)           → PAS de mouvement stock
+    • Création facture (statut=facture)       → SORTIE stock immédiate
+    • Conversion devis → facture              → SORTIE stock au moment de la conversion
+    • Validation facture → facture_valide     → PAS de mouvement stock supplémentaire
+    • Annulation facture / facture_valide      → ENTRÉE stock (retour)
+
+  TABLE: vente_lignes
+  ─────────────────────────────────────────────────
+  id              INT           PK AUTO_INCREMENT
+  vente_id        INT           FK → ventes.id
+  produit_id      INT           FK → produits.id
+  designation     VARCHAR(200)  NOT NULL           ← copie nom produit
+  quantite        DECIMAL(15,3) NOT NULL
+  quantite_retournee DECIMAL(15,3) DEFAULT 0       ← quantité déjà retournée (avoir)
+  ligne_origine_id INT          FK → vente_lignes.id NULL  ← ligne source si avoir
+  prix_unitaire   DECIMAL(15,2) NOT NULL           ← prix unitaire TTC facturé
+  plancher_ligne  DECIMAL(15,2) NOT NULL           ← snapshot plancher au moment de la vente
+  marge           DECIMAL(15,2) NOT NULL DEFAULT 0   ← prix_unitaire - plancher (API admin seul)
+  remise_pct      DECIMAL(5,2)  DEFAULT 0
+  tva_pct         DECIMAL(5,2)  DEFAULT 0          ← copie taux TVA du groupe (18, 9 ou 0)
+  montant_ht      DECIMAL(15,2) NOT NULL
+  montant_tva     DECIMAL(15,2) DEFAULT 0
+  montant_ttc     DECIMAL(15,2) NOT NULL
+  created_at      TIMESTAMP
+  updated_at      TIMESTAMP
+
+  Contrainte métier : prix_unitaire >= plancher_ligne (rejet API si inférieur)
+
+  TABLE: achats
+  ─────────────────────────────────────────────────
+  id              INT           PK AUTO_INCREMENT
+  point_de_vente_id INT         FK → points_de_vente.id NOT NULL
+  numero          VARCHAR(30)   UNIQUE            ← ex: 01-ACH-2026-0001
+  fournisseur_id  INT           FK → fournisseurs.id
+  user_id         INT           FK → users.id     ← gestionnaire
+  date_achat      DATE          NOT NULL
+  date_reception  DATE
+  statut          ENUM(commande, recu, partiel, annule)
+  statut_paiement ENUM(non_paye, partiel, paye)
+  sous_total      DECIMAL(15,2) DEFAULT 0
+  remise_montant  DECIMAL(15,2) DEFAULT 0
+  tva_montant     DECIMAL(15,2) DEFAULT 0
+  total_ttc       DECIMAL(15,2) DEFAULT 0
+  montant_paye    DECIMAL(15,2) DEFAULT 0
+  reste_a_payer   DECIMAL(15,2) DEFAULT 0
+  reference_fournisseur VARCHAR(100)              ← N° facture fournisseur
+  notes           TEXT
+  created_at      TIMESTAMP
+  updated_at      TIMESTAMP
+
+  TABLE: achat_lignes
+  ─────────────────────────────────────────────────
+  id              INT           PK AUTO_INCREMENT
+  achat_id        INT           FK → achats.id
+  produit_id      INT           FK → produits.id
+  designation     VARCHAR(200)  NOT NULL
+  quantite        DECIMAL(15,3) NOT NULL
+  quantite_recue  DECIMAL(15,3) DEFAULT 0
+  prix_unitaire_ht DECIMAL(15,2) NOT NULL
+  tva_pct         DECIMAL(5,2)  DEFAULT 0          ← copie taux TVA du groupe produit
+  montant_ht      DECIMAL(15,2) NOT NULL
+  montant_tva     DECIMAL(15,2) DEFAULT 0
+  montant_ttc     DECIMAL(15,2) NOT NULL
+  created_at      TIMESTAMP
+  updated_at      TIMESTAMP
+
+  TABLE: stock_mouvements
+  ─────────────────────────────────────────────────
+  id              INT           PK AUTO_INCREMENT
+  produit_id      INT           FK → produits.id
+  type            ENUM(entree, sortie, ajustement, transfert)
+  motif           ENUM(achat, vente, retour_client, retour_fournisseur,
+                        inventaire, perte, ajustement_manuel)
+  quantite        DECIMAL(15,3) NOT NULL
+  stock_avant     DECIMAL(15,3) NOT NULL
+  stock_apres     DECIMAL(15,3) NOT NULL
+  reference_id    INT                              ← ID vente ou achat lié
+  reference_type  VARCHAR(50)                      ← 'vente' ou 'achat'
+  user_id         INT           FK → users.id
+  notes           TEXT
+  created_at      TIMESTAMP
+
+  TABLE: paiements
+  ─────────────────────────────────────────────────
+  id              INT           PK AUTO_INCREMENT
+  type            ENUM(vente, achat)
+  reference_id    INT                              ← ID vente ou achat
+  montant         DECIMAL(15,2) NOT NULL
+  mode_paiement   ENUM(especes, cheque, virement, mobile_money, carte)
+  date_paiement   DATE          NOT NULL
+  reference_paiement VARCHAR(100)                 ← N° chèque, référence virement
+  user_id         INT           FK → users.id
+  notes           TEXT
+  created_at      TIMESTAMP
+  updated_at      TIMESTAMP
+
+  Lien caisse : si mode_paiement = especes et type = vente
+    → création automatique d'un mouvement caisse ENTRÉE (voir caisse_mouvements)
+
+  TABLE: caisses
+  ─────────────────────────────────────────────────
+  id              INT           PK AUTO_INCREMENT
+  point_de_vente_id INT         FK → points_de_vente.id NOT NULL
+  nom             VARCHAR(100)  NOT NULL DEFAULT 'Caisse principale'
+  solde_actuel    DECIMAL(15,2) NOT NULL DEFAULT 0
+  is_active       BOOLEAN       DEFAULT true
+  created_at      TIMESTAMP
+  updated_at      TIMESTAMP
+
+  Note : une caisse principale suffit au départ (seeder). Extensible à plusieurs
+  caisses plus tard (ex: caisse magasin, caisse dépôt).
+
+  TABLE: caisse_mouvements
+  ─────────────────────────────────────────────────
+  id              INT           PK AUTO_INCREMENT
+  caisse_id       INT           FK → caisses.id
+  type            ENUM(entree, sortie)
+  motif           ENUM(vente_especes, depense, ajustement, ouverture, annulation)
+  montant         DECIMAL(15,2) NOT NULL
+  solde_avant     DECIMAL(15,2) NOT NULL
+  solde_apres     DECIMAL(15,2) NOT NULL
+  reference_id    INT                              ← ID paiement ou depense
+  reference_type  VARCHAR(50)                      ← 'paiement' ou 'depense'
+  libelle         VARCHAR(255)  NOT NULL           ← ex: "Vente FAC-2024-0042"
+  user_id         INT           FK → users.id
+  date_mouvement  DATETIME      NOT NULL
+  notes           TEXT
+  created_at      TIMESTAMP
+
+  TABLE: depenses
+  ─────────────────────────────────────────────────
+  id              INT           PK AUTO_INCREMENT
+  point_de_vente_id INT         FK → points_de_vente.id NOT NULL
+  caisse_id       INT           FK → caisses.id
+  libelle         VARCHAR(255)  NOT NULL           ← ex: "Transport marchandise"
+  categorie       ENUM(transport, fournitures, salaire, loyer, autre)
+  montant         DECIMAL(15,2) NOT NULL
+  date_depense    DATE          NOT NULL
+  user_id         INT           FK → users.id
+  notes           TEXT
+  created_at      TIMESTAMP
+  updated_at      TIMESTAMP
+
+  Lien caisse : à chaque création de dépense
+    → création automatique d'un mouvement caisse SORTIE
+    → mise à jour caisses.solde_actuel
+
+  TABLE: reglements
+  ─────────────────────────────────────────────────
+  id              INT           PK AUTO_INCREMENT
+  type            VARCHAR(15)   NOT NULL           ← client | fournisseur
+  point_de_vente_id INT         FK → points_de_vente.id NOT NULL
+  client_id       INT           FK → clients.id NULL
+  fournisseur_id  INT           FK → fournisseurs.id NULL
+  montant         DECIMAL(15,2) NOT NULL           ← positif ou négatif
+  solde_avant     DECIMAL(15,2) NOT NULL
+  solde_apres     DECIMAL(15,2) NOT NULL
+  mode_paiement   VARCHAR(20)   NOT NULL
+  date_reglement  DATE          NOT NULL
+  reference_externe VARCHAR(100) NULL
+  user_id         INT           FK → users.id
+  notes           TEXT
+  created_at      TIMESTAMP
+  updated_at      TIMESTAMP
+
+  TABLE: rate_limits (@adonisjs/limiter — production LIMITER_STORE=database)
+  ─────────────────────────────────────────────────
+  key             VARCHAR(255)  PK
+  points          INT           NOT NULL DEFAULT 0
+  expire          BIGINT        UNSIGNED NULL
+
+================================================================================
+  7. API ENDPOINTS — ROUTES BACKEND
+================================================================================
+
+  BASE URL : http://localhost:3333/api/v1
+  HEALTH   : GET /health
+  DOC      : API.md (référence détaillée payloads / réponses)
+
+  CONVENTION ROUTES (implémentée dans start/routes.ts) :
+  ─────────────────────────────────────────────────────
+  • Pas de PUT / PATCH / DELETE — uniquement GET et POST
+  • Liste / recherche  : POST /resource/search   (critères dans le body JSON)
+  • Détail             : POST /resource/show     ({ id } dans le body)
+  • Création           : POST /resource/create
+  • Modification       : POST /resource/update
+  • Désactivation      : POST /resource/deactivate
+  • Auth header        : Authorization: Bearer <access_token>
+  • Point de vente     : X-Point-De-Vente-Id: <id> (routes métier ; admin obligatoire)
+  • Réponses           : format standardisé via helpers/api_response.ts
+
+  ── AUTHENTIFICATION ──────────────────────────────────────────────────────────
+  POST   /auth/login               Connexion → retourne { user, token }
+  POST   /auth/logout              Déconnexion (révoque le token courant) [auth]
+  GET    /auth/me                  Profil de l'utilisateur connecté [auth]
+  POST   /auth/change-password     Changement de mot de passe [auth]
+
+  Rate limiting login : 10 échecs/min/IP + 5 échecs/min/IP+email (bloc 20 min)
+  Réponse 429 si dépassement. Store : LIMITER_STORE=database en production.
+
+  ── POINTS DE VENTE (permission: points_de_vente — admin seul) ───────────────
+  Pas de header X-Point-De-Vente-Id sur ce groupe.
+  POST   /points-de-vente/search       Liste paginée + filtres
+  POST   /points-de-vente/show         Détail ({ id })
+  POST   /points-de-vente/create       Créer (+ caisse auto)
+  POST   /points-de-vente/update       Modifier
+  POST   /points-de-vente/deactivate    Désactiver (is_active = false)
+
+  ── UTILISATEURS (permission: users — admin seul) ───────────────────────────
+  POST   /users/search             Liste paginée + filtres
+  POST   /users/show               Détail ({ id })
+  POST   /users/create             Créer un utilisateur
+  POST   /users/update             Modifier utilisateur
+  POST   /users/deactivate         Désactiver utilisateur (is_active = false)
+  Champ point_de_vente_id obligatoire pour les rôles non-admin à la création.
+
+  ── CLIENTS (header X-Point-De-Vente-Id requis) ─────────────────────────────
+  POST   /clients/search             Liste [clients]
+  POST   /clients/show               Détail [clients]
+  POST   /clients/create             Créer [clients_write]
+  POST   /clients/update             Modifier [clients_write]
+  POST   /clients/deactivate         Désactiver [clients_write]
+  POST   /clients/ventes             Ventes d'un client [clients]
+  POST   /clients/solde              Solde et historique paiements [clients]
+
+  ── FOURNISSEURS ──────────────────────────────────────────────────────────────
+  POST   /fournisseurs/search        Liste [fournisseurs]
+  POST   /fournisseurs/show          Détail [fournisseurs]
+  POST   /fournisseurs/create        Créer [fournisseurs_write]
+  POST   /fournisseurs/update        Modifier [fournisseurs_write]
+  POST   /fournisseurs/deactivate    Désactiver [fournisseurs_write]
+  POST   /fournisseurs/achats        Achats d'un fournisseur [fournisseurs]
+
+  ── CATEGORIES ────────────────────────────────────────────────────────────────
+  POST   /categories/search          Liste [categories]
+  POST   /categories/show            Détail [categories]
+  POST   /categories/create          Créer [categories_write]
+  POST   /categories/update          Modifier [categories_write]
+  POST   /categories/delete          Supprimer [categories_write]
+
+  ── TVA GROUPES (lecture seule) ───────────────────────────────────────────────
+  GET    /tva-groupes                Liste des 3 groupes TVA [produits]
+  POST   /tva-groupes/show           Détail ({ id }) [produits]
+
+  ── PRODUITS ──────────────────────────────────────────────────────────────────
+  POST   /produits/search            Liste + filtres [produits]
+  POST   /produits/show              Détail [produits]
+  POST   /produits/create            Créer (calcule TTC + plancher auto) [produits_write]
+  POST   /produits/update            Modifier [produits_write]
+  POST   /produits/deactivate        Désactiver [produits_write]
+  POST   /produits/alertes           Produits sous stock minimum [produits]
+  POST   /produits/ajustement        Ajustement manuel du stock [produits_write]
+  POST   /produits/calcul-prix       Prévisualiser HT/TTC/plancher [produits]
+
+  ── VENTES (DEVIS + FACTURES) ─────────────────────────────────────────────────
+  POST   /ventes/search              Liste (filtres statut, client, dates…) [ventes]
+  POST   /ventes/show                Détail avec lignes [ventes]
+  POST   /ventes/create              Créer devis ou facture [ventes_write]
+                                     statut=devis   → sans sortie stock
+                                     statut=facture → avec sortie stock
+  POST   /ventes/update              Modifier (devis uniquement) [ventes_write]
+  POST   /ventes/annuler             Annuler (retour stock si facture) [ventes_write]
+  POST   /ventes/convertir-facture   Devis → facture + sortie stock [ventes_write]
+  POST   /ventes/valider             Facture → facture_valide [ventes_write]
+  POST   /ventes/retour              Créer un avoir / retour client [ventes_retour]
+  POST   /ventes/paiement            Enregistrer un paiement [ventes_write]
+  POST   /ventes/paiements-search    Historique paiements d'une vente [ventes]
+  POST   /ventes/document            JSON devis/facture pour PDF [ventes]
+  POST   /ventes/lock                Verrouiller une vente en édition [ventes_write]
+  POST   /ventes/lock-renew          Renouveler le verrou [ventes_write]
+  POST   /ventes/unlock              Libérer le verrou [ventes_write]
+
+  Numéros : {code_pdv}-DEV|FAC|RET-{année}-{seq}  (ex: 01-FAC-2026-0001)
+  Champ marge sur vente_lignes visible admin seulement.
+
+  ── RÈGLEMENTS (soldes client / fournisseur, hors facture) ───────────────────
+  POST   /reglements/client/create       Encaissement ou débit client [reglements_write]
+  POST   /reglements/client/search        Historique [reglements]
+  POST   /reglements/client/show          Détail [reglements]
+  POST   /reglements/fournisseur/create   Paiement fournisseur [reglements_write]
+  POST   /reglements/fournisseur/search   Historique [reglements]
+  POST   /reglements/fournisseur/show     Détail [reglements]
+  Montant positif client → diminue solde client, augmente caisse.
+  Montant négatif client → augmente solde client, diminue caisse.
+
+  ── ACHATS ────────────────────────────────────────────────────────────────────
+  POST   /achats/search              Liste [achats]
+  POST   /achats/show                Détail [achats]
+  POST   /achats/create              Créer une commande [achats_write]
+  POST   /achats/update              Modifier [achats_write]
+  POST   /achats/annuler             Annuler [achats_write]
+  POST   /achats/recevoir            Réception → entrée stock + MAJ prix_achat_ht [achats_write]
+  POST   /achats/paiement            Enregistrer un paiement fournisseur [achats_write]
+
+  ── CAISSE ────────────────────────────────────────────────────────────────────
+  GET    /caisse/solde               Solde actuel [caisse]
+  POST   /caisse/mouvements/search   Historique entrées / sorties [caisse]
+  POST   /caisse/mouvements/show     Détail d'un mouvement [caisse]
+  POST   /caisse/ouverture           Solde d'ouverture (admin) [caisse_admin]
+
+  ── DÉPENSES ──────────────────────────────────────────────────────────────────
+  POST   /depenses/search            Liste [depenses]
+  POST   /depenses/show              Détail [depenses]
+  POST   /depenses/create            Créer → sortie caisse automatique [depenses_write]
+  POST   /depenses/update            Modifier [depenses_admin]
+  POST   /depenses/delete            Supprimer [depenses_admin]
+
+  ── STOCK ─────────────────────────────────────────────────────────────────────
+  POST   /stock/search               État actuel du stock [stock]
+  POST   /stock/mouvements/search    Historique des mouvements [stock]
+  POST   /stock/alertes              Produits en rupture ou sous seuil [stock]
+  GET    /stock/valorisation         Valeur totale du stock [stock]
+
+  ── RAPPORTS (critères dans le body) ──────────────────────────────────────────
+  POST   /rapports/caisse            Rapport caisse (entrées, sorties, solde) [rapports_full]
+  POST   /rapports/stock-actuel      État du stock [rapports_full]
+  POST   /rapports/valeur-stock      Valorisation du stock [rapports_full]
+  POST   /rapports/balance-clients   Balance créances clients [rapports_full]
+  POST   /rapports/releve-client     Relevé détaillé d'un client [rapports_full]
+
+  Note : les endpoints dashboard, ventes, achats, CA, top produits/clients
+  listés dans la spec initiale sont à implémenter côté frontend ou en extension
+  du module rapports (non encore exposés en routes dédiées).
+
+================================================================================
+  8. MODULES FONCTIONNELS DÉTAILLÉS
+================================================================================
+
+  ── MODULE POINTS DE VENTE ────────────────────────────────────────────────────
+  • CRUD admin (permission points_de_vente)
+  • Code court unique (01, 02…) utilisé comme préfixe des numéros de documents
+  • Création → caisse par défaut pour le PDV
+  • Désactivation (is_active) sans suppression physique
+  • Admin choisit le PDV actif via X-Point-De-Vente-Id sur chaque requête métier
+  • Utilisateurs non-admin rattachés à un seul PDV (users.point_de_vente_id)
+
+  ── MODULE CLIENTS ────────────────────────────────────────────────────────────
+  • Création avec génération automatique du code (CLI-XXXX)
+  • Fiche client complète : coordonnées, historique achats, solde dû
+  • Gestion du crédit client (limite de crédit)
+  • Alertes de dépassement de crédit lors d'une vente
+  • Export liste clients en Excel/PDF
+  • Recherche multi-critères (nom, téléphone, code, ville)
+
+  ── MODULE FOURNISSEURS ───────────────────────────────────────────────────────
+  • Code automatique (FRN-XXXX)
+  • Fiche fournisseur : coordonnées, contact, solde à payer
+  • Historique de toutes les commandes passées
+  • Calcul automatique du solde restant dû
+  • Export et impression de la fiche fournisseur
+
+  ── MODULE PRODUITS ───────────────────────────────────────────────────────────
+  • Code produit ou code-barres
+  • Gestion par catégories
+  • Affectation obligatoire à un groupe TVA (18%, 9% ou 0%)
+  • Prix achat HT et TTC (TTC calculé automatiquement selon le groupe TVA)
+  • Prix vente HT et TTC (TTC = HT + taxe selon groupe : 18%, 9% ou 0%)
+  • Frais par article (transport, chargement/déchargement)
+  • Plancher calculé automatiquement : plancher = prix_vente_ttc + frais
+  • Affichage du plancher sur la fiche produit et dans les listes
+  • Recalcul automatique prix_vente_ttc et plancher à chaque modification
+    de prix_vente_ht, TVA ou frais (fiche produit)
+  • Recalcul automatique prix_achat_ttc à chaque modification de prix_achat_ht
+    ou TVA (fiche produit)
+  • Lors d'un achat (réception) : mise à jour automatique du prix_achat_ht
+    du produit avec le prix unitaire HT de la ligne achat, puis recalcul
+    du prix_achat_ttc
+  • Unité de mesure (pièce, kg, litre, boîte...)
+  • Seuils stock minimum et maximum
+  • Calcul automatique de la marge bénéficiaire (HT et TTC)
+  • Historique complet des mouvements de stock
+
+  ── MODULE VENTES (Devis + Facturation) ──────────────────────────────────────
+  • Deux modes de création :
+      - Devis  : proposition commerciale, modifiable, SANS impact stock
+      - Facture : document de vente définitif, AVEC sortie stock immédiate
+  • Conversion devis → facture en un clic (déclenche la sortie stock)
+  • Interface de saisie rapide (recherche produit par nom ou code)
+  • Ajout de lignes avec quantité et prix modifiables
+  • Affichage du plancher sur chaque ligne lors de la saisie
+  • Validation stricte : le prix unitaire TTC facturé ne peut pas être
+    inférieur au plancher du produit (blocage + message d'erreur)
+  • Seul un administrateur ou gestionnaire peut forcer un prix sous plancher
+    (optionnel — à confirmer en Phase 5)
+  • Remise globale ou par ligne (% ou montant fixe)
+  • Calcul automatique HT / TVA / TTC par ligne selon le groupe TVA du produit
+  • Modes de paiement : espèces, chèque, virement, mobile money
+  • Paiement en espèces → entrée automatique en caisse (mouvement entree)
+  • Paiement partiel avec suivi du reste à payer
+  • Statuts : Devis → Facture → Facture validée | Annulée
+  • Impact stock :
+      - Devis créé ou modifié        → aucun mouvement stock
+      - Facture créée ou convertie   → sortie stock automatique
+      - Facture validée              → aucun mouvement stock (déjà déduit)
+      - Annulation facture           → retour stock automatique
+  • Génération PDF devis et facture avec détail HT/TVA/TTC
+  • Numérotation automatique : DEV-YYYY-XXXX (devis), FAC-YYYY-XXXX (factures)
+  • Vérification du crédit client avant création facture / conversion
+  • Verrouillage exclusif en édition (lock / lock-renew / unlock) pour éviter
+    les conflits si deux utilisateurs modifient la même vente
+  • Retours clients / avoirs (POST /ventes/retour) avec traçabilité
+    facture_origine_id et quantite_retournee sur les lignes
+
+  ── MODULE ACHATS (Commandes fournisseurs) ───────────────────────────────────
+  • Création de bon de commande fournisseur
+  • Saisie des lignes avec prix unitaire HT par article
+  • Réception partielle ou totale des marchandises
+  • À la réception : entrée automatique dans le stock
+  • À la réception : recalcul du prix_achat_ht du produit (dernier prix reçu)
+    et recalcul automatique du prix_achat_ttc selon le groupe TVA
+  • Gestion des factures fournisseur (n° de référence)
+  • Paiement partiel avec suivi solde fournisseur
+  • Statuts : Commandé → Reçu (partiel ou total) | Annulé
+  • Numérotation automatique (ACH-YYYY-XXXX)
+
+  ── MODULE STOCK ──────────────────────────────────────────────────────────────
+  • Vision temps réel du stock de tous les produits
+  • Chaque facture créée ou convertie → sortie stock automatique
+  • Les devis n'impactent jamais le stock
+  • Chaque réception achat → entrée stock automatique
+  • Ajustement manuel (inventaire, perte, ajustement)
+  • Historique de tous les mouvements avec traçabilité
+  • Tableau d'alertes : produits sous le seuil minimum
+  • Valorisation du stock au prix d'achat moyen
+  • Filtres : catégorie, statut stock, seuil d'alerte
+
+  ── MODULE CAISSE ─────────────────────────────────────────────────────────────
+  • Caisse principale avec solde en temps réel
+  • Entrées automatiques (mouvement entree) :
+      - Paiement vente en espèces (total ou partiel)
+      - Chaque montant espèces enregistré via POST /ventes/paiement
+  • Sorties automatiques (mouvement sortie) :
+      - Création d'une dépense (transport, fournitures, salaire, loyer, autre)
+      - Chaque dépense diminue le solde caisse
+  • Historique complet des mouvements (entrées / sorties) avec traçabilité
+  • Affichage solde avant / solde après sur chaque mouvement
+  • Page caisse : solde actuel, liste mouvements, filtres par date et type
+  • Page dépenses : saisie rapide d'une sortie caisse avec libellé et catégorie
+  • Solde caisse = Σ(entrees) - Σ(sorties)
+  • Seuls chèque, virement, mobile money et carte n'impactent PAS la caisse
+  • Annulation paiement espèces → mouvement sortie caisse (annulation)
+  • Rapport caisse : total entrées / sorties par jour, semaine, mois
+
+  ── MODULE RAPPORTS & STATISTIQUES ───────────────────────────────────────────
+  • Tableau de bord : KPIs en temps réel
+    - CA du jour / semaine / mois
+    - Nombre de ventes
+    - Produits en rupture
+    - Top 5 clients
+    - Top 5 produits
+    - Solde caisse actuel
+    - Entrées / sorties caisse du jour
+    - Graphique CA sur 12 mois (Recharts)
+    - Graphique répartition par catégorie (camembert)
+  
+  • Rapport Ventes
+    - Filtrage par période, client, vendeur, statut
+    - Total HT, TVA, TTC, remises
+    - Export Excel et PDF
+
+  • Rapport Achats
+    - Filtrage par période, fournisseur
+    - Analyse des dépenses par fournisseur
+
+  • Rapport Stock
+    - Valorisation globale du stock
+    - Produits les plus vendus (rotation)
+    - Produits à rotation lente
+
+  • Rapport Chiffre d'Affaires
+    - CA par période (jour/semaine/mois/année)
+    - CA par client
+    - Évolution et comparaison inter-périodes
+
+  • Rapport Créances / Dettes
+    - Liste des factures impayées clients
+    - Liste des dettes fournisseurs en cours
+    - Vieillissement des créances (0-30j, 30-60j, 60-90j, +90j)
+
+  • Rapport Caisse
+    - Solde actuel et évolution par période
+    - Total entrées (ventes espèces) vs total sorties (dépenses)
+    - Détail mouvements par jour / semaine / mois
+    - Export Excel et PDF
+
+================================================================================
+  9. AUTHENTIFICATION & SÉCURITÉ
+================================================================================
+
+  STRATÉGIE D'AUTH : Access Tokens (@adonisjs/auth — guard api)
+  ─────────────────────────────────────────────────────────────
+  1. L'utilisateur envoie email + mot de passe à POST /auth/login
+  2. AdonisJS vérifie les credentials et crée un access token (table auth_access_tokens)
+  3. La réponse contient { user, token } — le token en clair n'est retourné qu'une fois
+  4. Le frontend stocke le token (localStorage ou mémoire)
+  5. Chaque requête protégée inclut : Authorization: Bearer <token>
+  6. Le middleware auth() vérifie le token ; logout révoque le token courant
+  7. Guard web (session) disponible pour usage navigateur si besoin (config/auth.ts)
+  8. Pas d'inscription publique — comptes créés par admin (POST /users/create)
+  9. GET /auth/me retourne point_de_vente_id + liste points_de_vente accessibles
+
+  CONTEXTE POINT DE VENTE (point_de_vente_middleware.ts) :
+  ─────────────────────────────────────────────────────────────
+  • Routes métier : auth + middleware pointDeVente()
+  • Admin : doit envoyer X-Point-De-Vente-Id (ou point_de_vente_id dans le body)
+  • Autres rôles : scoping automatique sur user.point_de_vente_id
+  • Refus 403 si un non-admin tente d'accéder à un autre PDV
+
+  SYSTÈME DE RÔLES (RBAC — role_middleware.ts) :
+  ─────────────────────────────────────────────────────────────
+  Les permissions sont vérifiées par clé (ex: ventes_write, rapports_full).
+  Matrice implémentée dans app/middleware/role_middleware.ts :
+
+  Rôle          | Dashboard | Ventes | Achats | Produits | Caisse | Rapports | Users
+  ───────────────────────────────────────────────────────────────────────────────────
+  admin         |    ✓     |   ✓   |   ✓   |    ✓    |   ✓   |    ✓    |   ✓
+  gestionnaire  |    ✓     |   ✓   |   ✓   |    ✓    |   ✓   |    ✓    |   ✗
+  caissier      |    ✓     |   ✓   |   ✗   |    ✗    |   ✓   |  limité |   ✗
+  lecteur       |    ✓     |  lecture|  lecture|  lecture| lecture|    ✓    |   ✗
+
+  Permissions notables :
+    points_de_vente  → admin seul
+    users            → admin seul
+    ventes_retour    → admin seul (création avoirs)
+    caisse_admin     → admin seul (ouverture caisse)
+    depenses_admin   → admin seul (modifier/supprimer dépenses)
+    reglements       → admin, gestionnaire, caissier, lecteur
+    reglements_write → admin, gestionnaire, caissier
+    rapports_full    → admin, gestionnaire, lecteur (pas caissier)
+
+  SÉCURITÉ :
+  ─────────────────────────────────────────
+  • Mots de passe hashés (AdonisJS hash / scrypt)
+  • Rate limiting login (@adonisjs/limiter) :
+      - 10 échecs/min par IP
+      - 5 échecs/min par IP+email, blocage 20 min
+      - LIMITER_STORE=database en prod (table rate_limits)
+      - LIMITER_STORE=memory en tests (.env.test)
+  • CSRF désactivé volontairement (API Bearer token, config/shield.ts)
+  • CORS : origines explicites en production (config/cors.ts)
+  • Validation stricte de toutes les entrées (VineJS)
+  • Soft delete (is_active = false) au lieu de suppression physique
+  • Logs : connexions échouées, règles métier, verrous vente
+
+================================================================================
+  10. GESTION DU STOCK (LOGIQUE MÉTIER)
+================================================================================
+
+  MOUVEMENT AUTOMATIQUE :
+  ─────────────────────────────────────────
+  Événement déclencheur              → Type mouvement + effet prix
+  ──────────────────────────────────────────────────────
+  Devis créé / modifié               → AUCUN mouvement stock
+  Facture créée (statut=facture)     → SORTIE (motif: vente)
+  Devis converti en facture          → SORTIE (motif: vente)
+  Facture validée (facture_valide)   → AUCUN mouvement stock
+  Facture annulée (si stock sorti)   → ENTRÉE (motif: retour_client)
+  Achat reçu (réception)             → ENTRÉE (motif: achat)
+                                       + MAJ prix_achat_ht / prix_achat_ttc
+  Achat annulé (si stock entré)      → SORTIE (motif: retour_fournisseur)
+  Ajustement manuel admin            → ENTRÉE ou SORTIE (motif: ajustement)
+
+  CALCUL DU STOCK :
+  ─────────────────────────────────────────
+  stock_actuel = stock_initial
+                 + Σ(entrées)
+                 - Σ(sorties)
+                 ± Σ(ajustements)
+
+  SEUILS D'ALERTE :
+  ─────────────────────────────────────────
+  • stock_actuel = 0                 → RUPTURE (badge rouge)
+  • stock_actuel ≤ stock_minimum     → ALERTE (badge orange)
+  • stock_actuel > stock_minimum     → NORMAL (badge vert)
+  • stock_actuel ≥ stock_maximum     → SURSTOCK (badge bleu)
+
+  VALORISATION DU STOCK :
+  ─────────────────────────────────────────
+  Valeur stock = Σ(stock_actuel × prix_achat_ht) pour chaque produit
+  Le prix d'achat retenu est le prix_achat_ht actuel dans la fiche produit.
+  (Pour plus de précision, implémentez la méthode CMUP)
+
+================================================================================
+  10b. TVA, PRIX & PLANCHER (LOGIQUE MÉTIER)
+================================================================================
+
+  GROUPES TVA (3 taux fixes) :
+  ─────────────────────────────────────────
+  Groupe    | Taux  | Usage typique
+  ──────────────────────────────────────────────────────
+  TVA18     | 18 %  | Produits soumis à TVA normale
+  TVA9      |  9 %  | Produits à TVA réduite
+  TVA0      |  0 %  | Produits exonérés / hors taxe
+
+  Chaque produit (article) est rattaché à UN groupe TVA via tva_groupe_id.
+  Le taux n'est jamais saisi librement : seuls 18, 9 et 0 sont autorisés.
+
+  CALCUL DES PRIX PRODUIT :
+  ─────────────────────────────────────────
+  Lors de la création ou modification d'un produit :
+
+    1. L'utilisateur saisit : prix_vente_ht, prix_achat_ht, frais, tva_groupe_id
+    2. Le backend récupère le taux du groupe TVA (18, 9 ou 0)
+    3. Calcul automatique :
+         montant_tva_vente = prix_vente_ht × (taux / 100)
+         prix_vente_ttc      = prix_vente_ht + montant_tva_vente
+         prix_achat_ttc      = prix_achat_ht + (prix_achat_ht × taux / 100)
+         plancher            = prix_vente_ttc + frais
+
+  Formules :
+    prix_ttc = prix_ht × (1 + taux_tva / 100)
+    plancher = prix_vente_ttc + frais
+
+  Exemple concret :
+    prix_vente_ht = 10 000 FCFA | TVA = 18% | frais = 500 FCFA
+    → prix_vente_ttc = 10 000 + 1 800 = 11 800 FCFA
+    → plancher       = 11 800 + 500   = 12 300 FCFA
+
+  MISE À JOUR PRIX ACHAT LORS DE LA RÉCEPTION :
+  ─────────────────────────────────────────
+  Lors de la réception d'un achat (POST /achats/recevoir) :
+
+    1. Pour chaque ligne reçue (produit_id + quantite_recue + prix_unitaire_ht)
+    2. Mettre à jour la fiche produit :
+         produit.prix_achat_ht  = achat_ligne.prix_unitaire_ht
+         produit.prix_achat_ttc = calcTtc(prix_achat_ht, taux_tva_groupe)
+    3. Entrée stock (quantité reçue)
+    4. Tout se fait dans une transaction SQL (atomique)
+
+  Exemple :
+    Produit A — prix_achat_ht actuel = 8 000 | TVA = 18%
+    Réception achat : prix_unitaire_ht = 9 500
+    → nouveau prix_achat_ht  = 9 500
+    → nouveau prix_achat_ttc = 9 500 + 1 710 = 11 210
+
+  Note : le dernier prix d'achat reçu remplace le prix_achat_ht en fiche produit.
+  Les prix de vente (HT, TTC) et le plancher restent inchangés.
+
+  VALIDATION PLANCHER LORS DE LA FACTURATION :
+  ─────────────────────────────────────────
+  Lors de l'ajout d'une ligne de vente (POST /ventes/create ou POST /ventes/update) :
+
+    1. Récupérer le plancher actuel du produit
+    2. Stocker plancher_ligne = plancher (snapshot pour traçabilité)
+    3. Vérifier : prix_unitaire (TTC) >= plancher_ligne
+    4. Si prix_unitaire < plancher_ligne → HTTP 422 avec message :
+       "Le prix facturé (X) est inférieur au plancher (Y) pour [nom produit]"
+
+  Le frontend affiche le plancher en temps réel lors de la saisie du prix
+  et bloque la validation si le prix saisi est inférieur.
+
+  SERVICE BACKEND : pricing_service.ts (implémenté)
+  ─────────────────────────────────────────
+  Fonctions :
+    • calcTtc(prixHt, tauxTva)           → prix TTC
+    • calcPlancher(prixVenteTtc, frais)  → plancher
+    • calcProduitPricing(produit)        → recalcule tous les champs prix vente/achat
+    • updatePrixAchatFromAchat(produit, prixUnitaireHt) → MAJ prix achat HT + TTC
+    • validatePrixPlancher(prix, plancher) → lève une exception si invalide
+
+  UTILITAIRE FRONTEND : utils/pricing.ts
+  ─────────────────────────────────────────
+  Mêmes formules côté client pour prévisualisation instantanée dans les
+  formulaires produit et POS (sans attendre l'API).
+
+  FACTURE — AFFICHAGE :
+  ─────────────────────────────────────────
+  Chaque ligne de facture affiche :
+    • Désignation, quantité
+    • Prix unitaire HT, taux TVA (18/9/0%), montant TVA
+    • Prix unitaire TTC, montant ligne TTC
+  Le plancher n'apparaît pas sur la facture client (usage interne uniquement).
+
+  WORKFLOW DEVIS / FACTURE :
+  ─────────────────────────────────────────
+  ┌─────────┐    convertir     ┌──────────┐    valider     ┌─────────────────┐
+  │  DEVIS  │ ───────────────► │ FACTURE  │ ─────────────► │ FACTURE VALIDÉE │
+  └─────────┘                  └──────────┘                └─────────────────┘
+       │                             │                              │
+       │ stock : NON                 │ stock : OUI (sortie)         │ stock : déjà OK
+       │ modifiable : OUI            │ modifiable : NON             │ modifiable : NON
+       └─────────────────────────────┴──────────────────────────────┘
+                                     │
+                              annuler (facture/facture_valide)
+                                     │
+                                     ▼
+                              retour stock automatique
+
+  Création directe facture (sans passer par devis) :
+    POST /ventes/create { statut: "facture", ... } → sortie stock immédiate
+
+  Création devis :
+    POST /ventes/create { statut: "devis", ... } → aucun impact stock
+
+  Conversion :
+    POST /ventes/convertir-facture { id, ... }
+      1. Vérifier statut actuel = devis
+      2. Vérifier stock disponible pour chaque ligne
+      3. Passer statut → facture, générer numéro FAC-YYYY-XXXX
+      4. Sortie stock pour chaque ligne (transaction atomique)
+
+  Validation :
+    POST /ventes/valider { id, ... }
+      1. Vérifier statut actuel = facture
+      2. Passer statut → facture_valide
+      3. Aucun mouvement stock (déjà effectué à l'étape facture)
+
+================================================================================
+  10c. CAISSE & MOUVEMENTS (LOGIQUE MÉTIER)
+================================================================================
+
+  PRINCIPE :
+  ─────────────────────────────────────────
+  La caisse suit les flux d'argent liquide (espèces) en temps réel.
+  Seuls les paiements en espèces alimentent la caisse en entrée.
+  Les dépenses sortent de la caisse.
+
+  CALCUL DU SOLDE :
+  ─────────────────────────────────────────
+  solde_actuel = solde_ouverture
+                 + Σ(mouvements entree)
+                 - Σ(mouvements sortie)
+
+  MOUVEMENTS AUTOMATIQUES :
+  ─────────────────────────────────────────
+  Événement déclencheur                    → Type caisse
+  ──────────────────────────────────────────────────────
+  Paiement vente en espèces                → ENTRÉE (motif: vente_especes)
+  Création dépense                         → SORTIE (motif: depense)
+  Annulation paiement espèces              → SORTIE (motif: annulation)
+  Suppression dépense (admin)              → ENTRÉE (motif: annulation)
+  Ouverture caisse / ajustement (admin)    → ENTRÉE ou SORTIE (motif: ajustement)
+
+  ENTRÉE CAISSE — PAIEMENT VENTE ESPÈCES :
+  ─────────────────────────────────────────
+  Lors de POST /ventes/paiement avec mode_paiement = especes :
+
+    1. Enregistrer le paiement (table paiements)
+    2. Créer mouvement caisse ENTRÉE :
+         montant      = montant du paiement espèces
+         motif        = vente_especes
+         libelle      = "Encaissement [numero facture]"
+         reference_id = paiement.id
+    3. Mettre à jour caisses.solde_actuel += montant
+    4. Transaction atomique (paiement + mouvement + solde)
+
+  Exemple :
+    Facture FAC-2024-0012 — total 50 000 FCFA
+    Paiement espèces 50 000 → entrée caisse +50 000
+    Solde caisse : 120 000 → 170 000
+
+  Paiement mixte (ex: 30 000 espèces + 20 000 virement) :
+    → Seuls les 30 000 espèces créent une entrée caisse
+    → Le virement n'impacte pas la caisse
+
+  SORTIE CAISSE — DÉPENSE :
+  ─────────────────────────────────────────
+  Lors de POST /depenses :
+
+    1. Vérifier solde caisse suffisant (optionnel — configurable)
+    2. Enregistrer la dépense (table depenses)
+    3. Créer mouvement caisse SORTIE :
+         montant      = montant dépense
+         motif        = depense
+         libelle      = depense.libelle
+         reference_id = depense.id
+    4. Mettre à jour caisses.solde_actuel -= montant
+    5. Transaction atomique
+
+  Exemple :
+    Dépense "Transport marchandise" — 15 000 FCFA
+    → sortie caisse -15 000
+    Solde caisse : 170 000 → 155 000
+
+  Catégories de dépenses :
+    transport, fournitures, salaire, loyer, autre
+
+  SERVICE BACKEND : caisse_service.ts
+  ─────────────────────────────────────────
+  Fonctions à implémenter :
+    • getSolde(caisseId)                        → solde actuel
+    • enregistrerEntree(caisseId, montant, ...) → mouvement entree + MAJ solde
+    • enregistrerSortie(caisseId, montant, ...) → mouvement sortie + MAJ solde
+    • creerDepense(data)                        → depense + sortie caisse
+    • annulerMouvement(mouvementId)             → mouvement inverse (admin)
+    • getHistorique(caisseId, filtres)          → liste mouvements
+
+  WORKFLOW CAISSE :
+  ─────────────────────────────────────────
+  ┌──────────────────┐         ┌──────────────────┐
+  │ Vente espèces    │ ──────► │  ENTRÉE CAISSE   │ ──► solde +
+  └──────────────────┘         └──────────────────┘
+
+  ┌──────────────────┐         ┌──────────────────┐
+  │ Dépense saisie   │ ──────► │  SORTIE CAISSE   │ ──► solde -
+  └──────────────────┘         └──────────────────┘
+
+  Modes de paiement NON impactés par la caisse :
+    chèque · virement · mobile_money · carte
+
+================================================================================
+  11. RAPPORTS & STATISTIQUES (KPIs)
+================================================================================
+
+  TABLEAU DE BORD — Métriques clés :
+  ─────────────────────────────────────────
+  • CA Aujourd'hui          : Σ total_ttc des ventes du jour (payées)
+  • CA Ce mois              : Σ total_ttc du mois en cours
+  • Nombre de ventes        : Count factures (facture + facture_valide) du jour
+  • Achats ce mois          : Σ total_ttc des achats du mois
+  • Valeur stock            : Σ(stock_actuel × prix_achat_ht)
+  • Produits en alerte      : Count produits sous stock_minimum
+  • Créances clients        : Σ reste_a_payer des ventes non soldées
+  • Dettes fournisseurs     : Σ reste_a_payer des achats non soldés
+  • Solde caisse            : caisses.solde_actuel
+  • Entrées caisse du jour  : Σ mouvements entree du jour
+  • Sorties caisse du jour  : Σ mouvements sortie du jour
+
+  GRAPHIQUES :
+  ─────────────────────────────────────────
+  • Évolution CA (12 mois)  : LineChart (Recharts)
+  • Ventes vs Achats/mois   : BarChart comparatif
+  • Répartition par catégorie : PieChart (% du CA par catégorie)
+  • Top 10 produits vendus  : BarChart horizontal
+
+================================================================================
+  12. PLAN DE DÉVELOPPEMENT (PHASES)
+================================================================================
+
+  PHASE 1 — FONDATIONS (Semaine 1-2)
+  ─────────────────────────────────────────
+  ☑ Setup backend AdonisJS v7 + MySQL + TypeScript
+  ☑ Configuration auth Access Tokens (guard api)
+  ☑ Multi point de vente (PDV, scoping, X-Point-De-Vente-Id)
+  ☑ Règlements client / fournisseur
+  ☑ Rate limiting login (@adonisjs/limiter)
+  ☑ Tests Japa (25 specs, base gestio_test)
+  ☑ Migrations base de données (26 migrations, ordre timestamp corrigé)
+  ☑ Seeders (admin, catégories, TVA, clients/fournisseurs démo, produits, caisse)
+  ☑ Service pricing_service.ts (calcul HT/TTC/plancher)
+  ☑ Service caisse_service.ts (mouvements entree/sortie, solde)
+  □ Setup frontend Vite + React + TypeScript
+  □ Configuration Tailwind CSS + shadcn/ui
+  □ Layout principal (sidebar, header)
+  □ Page Login + gestion du access token
+  □ Utilitaire utils/pricing.ts (formules côté frontend)
+
+  PHASE 2 — RÉFÉRENTIELS (Semaine 3)
+  ─────────────────────────────────────────
+  ☑ CRUD Clients (backend)
+  ☑ CRUD Fournisseurs (backend)
+  ☑ CRUD Catégories (backend)
+  ☑ Liste groupes TVA (lecture seule, 3 taux fixes) (backend)
+  ☑ CRUD Produits avec (backend) :
+  □ CRUD Clients (frontend)
+  □ CRUD Fournisseurs (frontend)
+  □ CRUD Catégories (frontend)
+  □ CRUD Produits avec (frontend) :
+      - Sélection groupe TVA (18%, 9%, 0%)
+      - Saisie prix HT + frais
+      - Calcul auto prix TTC et plancher (backend + preview frontend)
+      - Affichage plancher sur fiche et liste produits
+
+  PHASE 3 — TRANSACTIONS (Semaine 4-5)
+  ─────────────────────────────────────────
+  ☑ Module Ventes — API complète (devis, factures, lock, retours, paiements)
+  ☑ Conversion devis → facture + sortie stock automatique (backend)
+  ☑ Validation facture → facture_valide (backend)
+  ☑ Validation prix >= plancher + snapshot plancher_ligne (backend)
+  ☑ Annulation facture avec retour stock automatique (backend)
+  ☑ Paiements ventes + entrée caisse espèces (backend)
+  ☑ Module Caisse — Solde + historique mouvements (backend)
+  ☑ Module Dépenses — Sortie caisse automatique (backend)
+  ☑ Module Achats — CRUD, réception, paiements (backend)
+  □ Module Ventes — Liste devis + factures (frontend)
+  □ Formulaires création devis / facture (frontend)
+  □ Affichage plancher par ligne + validation prix (frontend)
+  □ Module Caisse et Dépenses (frontend)
+  □ Module Achats (frontend)
+
+  PHASE 4 — STOCK & RAPPORTS (Semaine 6)
+  ─────────────────────────────────────────
+  ☑ API Stock — recherche, mouvements, alertes, valorisation (backend)
+  ☑ API Rapports — caisse, stock, balance clients, relevé client (backend)
+  □ Page Stock — Vue globale et alertes (frontend)
+  □ Historique mouvements (frontend)
+  □ Ajustements manuels (frontend)
+  □ Tableau de bord avec KPIs et graphiques (frontend)
+  □ Rapports avancés (dashboard, CA, top produits — extension rapports)
+  □ Export Excel et PDF
+
+  PHASE 5 — FINALISATION (Semaine 7)
+  ─────────────────────────────────────────
+  ☑ Gestion utilisateurs API (backend — users_controller)
+  ☑ Endpoint document vente JSON (backend — POST /ventes/document)
+  □ Génération PDF devis et factures (frontend + intégration document API)
+  □ Impression bon de commande
+  □ Tests fonctionnels complets (début : tests/functional/)
+  □ Gestion des erreurs globale (toasts, pages 404/403)
+  □ Optimisation performances (pagination, index DB)
+  □ Documentation API
+
+  PHASE 6 — DÉPLOIEMENT (Semaine 8)
+  ─────────────────────────────────────────
+  □ Configuration Nginx
+  □ Certificat SSL (Let's Encrypt)
+  □ Configuration PM2 pour AdonisJS
+  □ Variables d'environnement production
+  □ Sauvegarde automatique MySQL (cron)
+  □ Monitoring basique
+
+================================================================================
+  13. VARIABLES D'ENVIRONNEMENT
+================================================================================
+
+  BACKEND (.env — gestio_backend/)
+  ─────────────────────────────────────────
+  TZ=UTC
+  PORT=3333
+  HOST=localhost
+  LOG_LEVEL=info
+  APP_KEY=<générer avec: node ace generate:key>
+  APP_URL=http://localhost:3333
+  NODE_ENV=development
+
+  # Session (guard web)
+  SESSION_DRIVER=cookie
+
+  # Base de données MySQL
+  DB_CONNECTION=mysql
+  DB_HOST=127.0.0.1
+  DB_PORT=3306
+  DB_USER=root
+  DB_PASSWORD=votre_mot_de_passe
+  DB_DATABASE=gestio
+
+  # Rate limiter (login)
+  LIMITER_STORE=database          ← production ; memory en dev local possible
+
+  # CORS (origines frontend autorisées, séparées par virgule)
+  CORS_ORIGIN=http://localhost:5173,http://localhost:3000
+
+  TESTS (.env.test) :
+  ─────────────────────────────────────────
+  SESSION_DRIVER=memory
+  DB_CONNECTION=mysql
+  DB_DATABASE=gestio_test         ← base isolée (CREATE DATABASE gestio_test)
+  LIMITER_STORE=memory
+
+  Note : l'authentification API utilise @adonisjs/auth access tokens
+  (table auth_access_tokens). Pas de JWT_SECRET — géré par APP_KEY + hash token.
+  Driver MySQL : mysql2 (dépendance npm directe).
+
+  FRONTEND (.env)
+  ─────────────────────────────────────────
+  VITE_API_URL=http://localhost:3333/api/v1
+  VITE_APP_NAME=Gestion Commerciale
+  VITE_APP_VERSION=1.0.0
+
+================================================================================
+  14. SCRIPTS DE DÉMARRAGE
+================================================================================
+
+  INSTALLATION INITIALE :
+  ─────────────────────────────────────────
+
+  # 1. Créer les bases MySQL
+  mysql -u root -p
+  > CREATE DATABASE gestio CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  > CREATE DATABASE gestio_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  > FLUSH PRIVILEGES;
+
+  # 2. Backend
+  cd gestio_backend
+  npm install                   ← inclut mysql2, @adonisjs/limiter
+  cp .env.example .env          ← Remplir APP_KEY, DB_*, LIMITER_STORE, CORS_ORIGIN
+  node ace generate:key         ← Si APP_KEY vide
+  node ace migration:run        ← 26 migrations + table rate_limits
+  node ace db:seed              ← Lance main_seeder.ts (PDV 01 par défaut)
+  npm test                      ← Tests sur gestio_test (.env.test)
+  npm run dev                   ← Démarre sur http://localhost:3333
+
+  # 3. Frontend
+  cd frontend
+  npm install
+  cp .env.example .env          ← Remplir VITE_API_URL
+  npm run dev                   ← Démarre sur http://localhost:3000
+
+  COMPTE ADMIN PAR DÉFAUT (seeder) :
+  ─────────────────────────────────────────
+  Email    : admin@gestion.com
+  Password : Admin@123456
+
+  SCRIPTS UTILES :
+  ─────────────────────────────────────────
+  node ace migration:fresh --seed   ← Recrée toutes les tables + données
+  node ace migration:rollback       ← Annule la dernière migration
+  node ace make:migration nom       ← Crée une nouvelle migration
+  node ace make:controller nom      ← Crée un controller
+  node ace make:model nom           ← Crée un modèle Lucid
+  npm run build                     ← Build production AdonisJS
+  npm run build (frontend)          ← Build production React (dist/)
+
+================================================================================
+  15. BONNES PRATIQUES & RECOMMANDATIONS
+================================================================================
+
+  CODE :
+  ─────────────────────────────────────────
+  • TypeScript strict mode activé partout
+  • Interfaces TypeScript définies dans /types pour chaque entité
+  • Validation VineJS côté backend sur tous les endpoints
+  • Validation Zod côté frontend sur tous les formulaires
+  • React Query pour toutes les requêtes API (cache, refetch, loading states)
+  • Zustand uniquement pour l'état global UI (auth, sidebar, panier)
+  • Centraliser tous les appels API dans /services (ne pas appeler Axios
+    directement dans les composants)
+  • Créer des hooks personnalisés useClients(), useVentes(), etc.
+
+  BASE DE DONNÉES :
+  ─────────────────────────────────────────
+  • Migrations ordonnées par timestamp : users (1740000000000) avant toute table
+    référençant user_id ; points_de_vente (0020) avant scoping (0021) ;
+    rate_limits (0025) et auth_access_tokens en fin de chaîne
+  • Tests : npm test utilise gestio_test (jamais la base dev gestio)
+  • Après migration:run, database/schema.ts est régénéré automatiquement
+  • Index sur toutes les colonnes FK et les colonnes de recherche fréquente
+  • INDEX recommandés :
+    - clients(nom), clients(telephone), clients(code)
+    - produits(code), produits(nom), produits(categorie_id), produits(tva_groupe_id)
+    - ventes(date_vente), ventes(client_id), ventes(statut)
+    - stock_mouvements(produit_id), stock_mouvements(created_at)
+    - caisse_mouvements(caisse_id), caisse_mouvements(date_mouvement)
+    - depenses(caisse_id), depenses(date_depense)
+  • Utiliser les transactions SQL pour les opérations atomiques
+    (ex: création facture + sortie stock en une seule transaction)
+  • Ne jamais supprimer physiquement (utiliser is_active = false)
+
+  SÉCURITÉ :
+  ─────────────────────────────────────────
+  • Ne jamais exposer le mot de passe dans les réponses API
+  • Valider et sanitiser toutes les entrées utilisateur
+  • Utiliser des requêtes paramétrées (Lucid ORM le fait automatiquement)
+  • Limiter les réponses API aux champs nécessaires
+  • Logger toutes les erreurs (AdonisJS Logger)
+
+  PERFORMANCE :
+  ─────────────────────────────────────────
+  • Pagination sur toutes les listes (20 éléments par page)
+  • Lazy loading des pages React (React.lazy + Suspense)
+  • Utiliser les eager loads Lucid (preload) pour éviter les N+1 queries
+  • Mettre en cache les données de référence (catégories, unités)
+    dans React Query avec staleTime élevé
+
+  INTERFACE UTILISATEUR :
+  ─────────────────────────────────────────
+  • Toujours afficher l'état de chargement (skeleton ou spinner)
+  • Messages d'erreur clairs et en français
+  • Confirmations avant suppression ou annulation
+  • Toasts de succès/erreur après chaque action
+  • Breadcrumbs pour la navigation
+  • Filtres et recherche sur toutes les listes
+  • Responsive design (fonctionne sur tablette)
+
+================================================================================
+  RÉSUMÉ DES COMMANDES CLÉS
+================================================================================
+
+  Backend               Frontend
+  ─────────────────     ─────────────────────────────
+  npm run dev           npm run dev
+  npm run build         npm run build
+  node ace migration:run  (pas d'équivalent)
+  node ace db:seed      (pas d'équivalent)
+
+  URLs de développement :
+  • Frontend : http://localhost:3000
+  • Backend  : http://localhost:3333
+  • API      : http://localhost:3333/api/v1
+
+
+================================================================================
