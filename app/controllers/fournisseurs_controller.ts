@@ -12,7 +12,10 @@ import {
 } from '#validators/fournisseur_validator'
 import type { HttpContext } from '@adonisjs/core/http'
 import { maskSolde } from '#helpers/solde_visibility'
+import { requirePointDeVente, scopeByPointDeVente } from '#helpers/point_de_vente_context'
 import { hasUserPermission } from '#services/permission_service'
+
+const RECENT_ACHATS_LIMIT = 5
 
 export default class FournisseursController {
   async search(ctx: HttpContext) {
@@ -52,10 +55,15 @@ export default class FournisseursController {
     const fournisseur = await Fournisseur.find(id)
     if (!fournisseur) return sendError(ctx, 'Fournisseur introuvable', 404)
 
-    const recentAchats = await Achat.query()
-      .where('fournisseur_id', id)
-      .orderBy('date_achat', 'desc')
-      .limit(5)
+    const pos = requirePointDeVente(ctx)
+    const recentAchats = await scopeByPointDeVente(
+      Achat.query()
+        .where('fournisseur_id', id)
+        .orderBy('date_achat', 'desc')
+        .orderBy('id', 'desc')
+        .limit(RECENT_ACHATS_LIMIT),
+      pos.pointDeVenteId
+    )
 
     const canSeeSolde = hasUserPermission(ctx.auth.getUserOrFail(), 'fournisseurs_solde')
     return sendSuccess(ctx, {
