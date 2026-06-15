@@ -1,9 +1,16 @@
+import {
+  ACHAT_STATUT,
+  canPayerAchat,
+  canReceiveMarchandise,
+  isAchatRetour,
+} from '#constants/achat_statuts'
 import Achat from '#models/achat'
 import AchatLigne from '#models/achat_ligne'
 import Fournisseur from '#models/fournisseur'
 import Paiement from '#models/paiement'
 import Produit from '#models/produit'
 import TvaGroupe from '#models/tva_groupe'
+import { serializeAchatCataloguePrix } from '#helpers/produit_serializer'
 import {
   roundMoney,
   updateProduitFromAchatReception,
@@ -15,6 +22,23 @@ import {
   enregistrerSortie as caisseSortie,
 } from '#services/caisse_service'
 import { generateAchatNumero, generateAchatRetourNumero } from '#services/code_generator_service'
+import {
+  achatLigneMode,
+  fromProduitPrixStockage,
+  catalogueFraisGros,
+  cataloguePrixGros,
+  getContenance,
+  hasUniteDetailConfig,
+  resolveStockDisplay,
+  roundQty,
+  toAchatCmupUnits,
+  toPrixAchatGros,
+  toStockQuantite,
+  type ModeVente,
+} from '#services/vente_unite_service'
+
+/** Les achats sont toujours saisis en unité gros (pièce / sac / carton). */
+const ACHAT_MODE_GROS: ModeVente = 'piece'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { DateTime } from 'luxon'
 
@@ -38,7 +62,9 @@ export type LigneAchatRetourInput = {
 export type CalculatedAchatLigne = {
   produitId: number
   designation: string
+  modeAchat: ModeVente
   quantite: number
+  quantiteStock: number
   prixUnitaireHt: number
   frais: number
   tvaPct: number
@@ -54,6 +80,18 @@ export class AchatBusinessError extends Error {
   }
 }
 
+/** Frais ligne achat (unité gros) : saisie utilisateur, sinon frais catalogue produit, sinon dernier achat. */
+export function resolveFraisAchatLigneGros(
+  produitFraisGros: number,
+  dernierGrosFrais: number | null | undefined,
+  fraisSaisi?: number
+): number {
+  if (fraisSaisi !== undefined) return fraisSaisi
+  if (produitFraisGros > 0) return produitFraisGros
+  if (dernierGrosFrais != null && dernierGrosFrais > 0) return dernierGrosFrais
+  return 0
+}
+
 function calcLigneMontants(quantite: number, prixUnitaireHt: number, tvaPct: number) {
   const montantHt = roundMoney(quantite * prixUnitaireHt)
   const montantTva = roundMoney(montantHt * (tvaPct / 100))
@@ -66,26 +104,37 @@ export function calcReceptionTtc(quantiteRecue: number, prixUnitaireHt: number, 
   return montantTtc
 }
 
-export async function getDernierPrixAchatForProduit(
+/** Dernier prix d'achat connu, toujours exprimé en unité gros (pièce / sac…) */
+export async function getDernierPrixAchatGrosForProduit(
   produitId: number,
   trx?: TransactionClientContract
 ): Promise<{ prixUnitaireHt: number; frais: number } | null> {
+  const produitQuery = trx ? Produit.query({ client: trx }) : Produit.query()
+  const produit = await produitQuery.where('id', produitId).first()
+  if (!produit) return null
+
   const base = trx ? AchatLigne.query({ client: trx }) : AchatLigne.query()
   const ligne = await base
     .join('achats', 'achats.id', 'achat_lignes.achat_id')
     .where('achat_lignes.produit_id', produitId)
-    .whereNotIn('achats.statut', ['annule', 'achat_retour'])
+    .whereNotIn('achats.statut', [ACHAT_STATUT.ANNULE, ACHAT_STATUT.RETOUR])
     .orderBy('achats.date_achat', 'desc')
     .orderBy('achat_lignes.id', 'desc')
-    .select('achat_lignes.prix_unitaire_ht', 'achat_lignes.frais')
+    .select(
+      'achat_lignes.prix_unitaire_ht',
+      'achat_lignes.frais',
+      'achat_lignes.mode_achat'
+    )
     .first()
 
   if (!ligne) return null
 
-  return {
-    prixUnitaireHt: Number(ligne.prixUnitaireHt),
-    frais: Number(ligne.frais),
-  }
+  return toPrixAchatGros(
+    Number(ligne.prixUnitaireHt),
+    Number(ligne.frais),
+    achatLigneMode(ligne),
+    produit
+  )
 }
 
 export function calculerTotauxAchat(lignes: CalculatedAchatLigne[], remiseMontant = 0) {
@@ -114,19 +163,28 @@ export async function buildLignesFromPayload(
     const tvaGroupe = await tvaQuery.where('id', produit.tvaGroupeId).first()
     const tvaPct = Number(tvaGroupe?.taux ?? 0)
 
-    const dernierPrix = await getDernierPrixAchatForProduit(ligne.produit_id, trx)
-    const prixUnitaireHt =
-      ligne.prix_unitaire_ht ??
-      dernierPrix?.prixUnitaireHt ??
-      Number(produit.prixAchatHt)
+    const cataloguePrix = fromProduitPrixStockage(produit)
+    const produitFraisGros = catalogueFraisGros(cataloguePrix)
+    const dernierGros = await getDernierPrixAchatGrosForProduit(ligne.produit_id, trx)
+
+    let prixUnitaireHt: number
+
+    if (ligne.prix_unitaire_ht !== undefined) {
+      prixUnitaireHt = ligne.prix_unitaire_ht
+    } else {
+      prixUnitaireHt =
+        dernierGros?.prixUnitaireHt ??
+        (Number(produit.dernierPrixAchatHt) || cataloguePrixGros(cataloguePrix))
+    }
+
+    const frais = resolveFraisAchatLigneGros(produitFraisGros, dernierGros?.frais, ligne.frais)
 
     if (prixUnitaireHt <= 0) {
       throw new AchatBusinessError(
         `Prix d'achat HT requis pour ${produit.nom} (aucun achat précédent)`
       )
     }
-
-    const frais = ligne.frais ?? dernierPrix?.frais ?? Number(produit.frais)
+    const quantiteStock = toStockQuantite(ACHAT_MODE_GROS, ligne.quantite, produit)
     const { montantHt, montantTva, montantTtc } = calcLigneMontants(
       ligne.quantite,
       prixUnitaireHt,
@@ -136,7 +194,9 @@ export async function buildLignesFromPayload(
     result.push({
       produitId: produit.id,
       designation: produit.nom,
+      modeAchat: ACHAT_MODE_GROS,
       quantite: ligne.quantite,
+      quantiteStock,
       prixUnitaireHt,
       frais,
       tvaPct,
@@ -160,41 +220,89 @@ export async function getLigneAchatInfo(
 
   const tvaGroupe = await TvaGroupe.query().where('id', produit.tvaGroupeId).first()
   const tvaPct = Number(tvaGroupe?.taux ?? 0)
-  const dernierPrix = await getDernierPrixAchatForProduit(produitId)
-  const prixHt =
-    prixUnitaireHt ?? dernierPrix?.prixUnitaireHt ?? Number(produit.prixAchatHt)
-  const fraisLigne = frais ?? dernierPrix?.frais ?? Number(produit.frais)
+
+  const dernierGros = await getDernierPrixAchatGrosForProduit(produitId)
+  const cataloguePrix = fromProduitPrixStockage(produit)
+  const produitFraisGros = catalogueFraisGros(cataloguePrix)
+  const prixGrosRef =
+    dernierGros?.prixUnitaireHt ??
+    (Number(produit.dernierPrixAchatHt) || cataloguePrixGros(cataloguePrix))
+  const fraisGrosRef =
+    produitFraisGros > 0 ? produitFraisGros : (dernierGros?.frais ?? produitFraisGros)
+
+  let prixHt: number
+  let fraisLigne: number
+
+  if (prixUnitaireHt !== undefined) {
+    prixHt = prixUnitaireHt
+  } else {
+    prixHt = prixGrosRef
+  }
+  fraisLigne = resolveFraisAchatLigneGros(produitFraisGros, dernierGros?.frais, frais)
+  const quantiteStock = toStockQuantite(ACHAT_MODE_GROS, quantite, produit)
+  const cmup = toAchatCmupUnits(ACHAT_MODE_GROS, quantite, prixHt, fraisLigne, produit)
   const stockAvant = Number(produit.stockActuel)
+  const stockDisplay = resolveStockDisplay(produit, stockAvant)
+  const stockApresDetail = roundQty(stockAvant + quantiteStock)
+  const stockApresDisplay = resolveStockDisplay(produit, stockApresDetail)
+  const prixInterne = {
+    prixAchatHt: Number(produit.prixAchatHt),
+    frais: Number(produit.frais),
+  }
   const apresReception = updateProduitFromAchatReception({
     stockAvant,
-    quantiteRecue: quantite,
-    prixUnitaireHt: prixHt,
-    fraisUnitaire: fraisLigne,
-    ancienPrixAchatHt: Number(produit.prixAchatHt),
-    ancienFrais: Number(produit.frais),
+    quantiteRecue: cmup.quantiteStock,
+    prixUnitaireHt: cmup.prixUnitaireHt,
+    fraisUnitaire: cmup.fraisUnitaire,
+    ancienPrixAchatHt: prixInterne.prixAchatHt,
+    ancienFrais: prixInterne.frais,
     tauxTva: tvaPct,
   })
   const { montantHt, montantTva, montantTtc } = calcLigneMontants(quantite, prixHt, tvaPct)
+  const contenance = getContenance(produit)
+  const detailConfig = hasUniteDetailConfig(produit)
+  const uniteQuantite = produit.uniteGros?.trim() || (detailConfig ? 'pièce' : '')
+  const catalogueActuel = fromProduitPrixStockage(produit, tvaPct)
+  const catalogueApres = fromProduitPrixStockage({
+    ...produit,
+    prixAchatHt: String(apresReception.prixAchatHt),
+    prixAchatTtc: String(apresReception.prixAchatTtc),
+    frais: String(apresReception.frais),
+    plancher: String(apresReception.plancher),
+  }, tvaPct)
 
   return {
     produit_id: produit.id,
     code: produit.code,
     designation: produit.nom,
     quantite,
+    /** Saisie en gros : 1 unité = +1 stock (simple) ou × contenance (détail configuré). */
+    mode_achat: ACHAT_MODE_GROS,
+    unite_quantite: uniteQuantite,
+    vente_detail_disponible: detailConfig,
+    quantite_stock: quantiteStock,
     prix_unitaire_ht: prixHt,
+    prix_gros_ht: prixGrosRef,
+    ...serializeAchatCataloguePrix(catalogueActuel),
+    ...serializeAchatCataloguePrix(catalogueApres, 'apres'),
+    frais_gros: fraisGrosRef,
     frais: fraisLigne,
     tva_pct: tvaPct,
     montant_ht: montantHt,
     montant_tva: montantTva,
     montant_ttc: montantTtc,
     stock_actuel: stockAvant,
-    prix_achat_ht: Number(produit.prixAchatHt),
-    prix_achat_ttc: Number(produit.prixAchatTtc),
-    plancher: Number(produit.plancher),
-    prix_achat_ht_apres: apresReception.prixAchatHt,
-    prix_achat_ttc_apres: apresReception.prixAchatTtc,
-    frais_apres: apresReception.frais,
-    plancher_apres: apresReception.plancher,
+    stock_pieces: stockDisplay.stockPieces,
+    stock_reste_detail: stockDisplay.stockResteDetail,
+    stock_label: stockDisplay.stockLabel,
+    stock_actuel_apres: stockApresDetail,
+    stock_pieces_apres: stockApresDisplay.stockPieces,
+    stock_reste_detail_apres: stockApresDisplay.stockResteDetail,
+    stock_label_apres: stockApresDisplay.stockLabel,
+    unite: produit.unite,
+    unite_gros: produit.uniteGros,
+    contenance,
+    dernier_prix_achat_ht: prixGrosRef,
   }
 }
 
@@ -209,7 +317,9 @@ async function persistLignes(
         achatId,
         produitId: l.produitId,
         designation: l.designation,
+        modeAchat: l.modeAchat,
         quantite: l.quantite,
+        quantiteStock: l.quantiteStock,
         quantiteRecue: 0,
         prixUnitaireHt: l.prixUnitaireHt,
         frais: l.frais,
@@ -258,7 +368,7 @@ export async function creerAchat(
         userId,
         dateAchat: data.date_achat,
         dateReception: null,
-        statut: 'commande',
+        statut: ACHAT_STATUT.COMMANDE,
         statutPaiement: 'non_paye',
         sousTotal: totaux.sousTotal,
         remiseMontant: totaux.remiseMontant,
@@ -286,8 +396,16 @@ export async function recevoirMarchandise(
   return Achat.transaction(async (trx) => {
     const achat = await Achat.query({ client: trx }).where('id', achatId).forUpdate().firstOrFail()
 
-    if (!['commande', 'partiel'].includes(achat.statut)) {
+    if (!canReceiveMarchandise(achat.statut)) {
       throw new AchatBusinessError('Réception impossible sur cet achat')
+    }
+
+    const lignesAvant = await AchatLigne.query({ client: trx }).where('achat_id', achatId)
+    const hasRemaining = lignesAvant.some(
+      (l) => Number(l.quantiteRecue) < Number(l.quantite)
+    )
+    if (!hasRemaining) {
+      throw new AchatBusinessError('Réception déjà complète sur cet achat')
     }
 
     let receptionTtcTotal = 0
@@ -309,27 +427,47 @@ export async function recevoirMarchandise(
 
       const produit = await Produit.query({ client: trx }).where('id', ligne.produitId).firstOrFail()
       const stockAvant = Number(produit.stockActuel)
+      const mode = achatLigneMode(ligne)
+      const quantiteRecueStock = toStockQuantite(mode, item.quantite_recue, produit)
+      const cmup = toAchatCmupUnits(
+        mode,
+        item.quantite_recue,
+        Number(ligne.prixUnitaireHt),
+        Number(ligne.frais),
+        produit
+      )
 
       await stockEntree(
         ligne.produitId,
-        item.quantite_recue,
+        quantiteRecueStock,
         'achat',
         { referenceId: achatId, referenceType: 'achat' },
         userId,
         trx
       )
 
+      const prixInterne = {
+        prixAchatHt: Number(produit.prixAchatHt),
+        frais: Number(produit.frais),
+      }
       const produitUpdate = updateProduitFromAchatReception({
         stockAvant,
-        quantiteRecue: item.quantite_recue,
-        prixUnitaireHt: Number(ligne.prixUnitaireHt),
-        fraisUnitaire: Number(ligne.frais),
-        ancienPrixAchatHt: Number(produit.prixAchatHt),
-        ancienFrais: Number(produit.frais),
+        quantiteRecue: cmup.quantiteStock,
+        prixUnitaireHt: cmup.prixUnitaireHt,
+        fraisUnitaire: cmup.fraisUnitaire,
+        ancienPrixAchatHt: prixInterne.prixAchatHt,
+        ancienFrais: prixInterne.frais,
         tauxTva: Number(ligne.tvaPct),
       })
+      const dernierGros = toPrixAchatGros(
+        Number(ligne.prixUnitaireHt),
+        Number(ligne.frais),
+        mode,
+        produit
+      )
       produit.prixAchatHt = produitUpdate.prixAchatHt
       produit.prixAchatTtc = produitUpdate.prixAchatTtc
+      produit.dernierPrixAchatHt = dernierGros.prixUnitaireHt
       produit.frais = produitUpdate.frais
       produit.plancher = produitUpdate.plancher
       produit.useTransaction(trx)
@@ -360,10 +498,9 @@ export async function recevoirMarchandise(
     }
 
     const allLignes = await AchatLigne.query({ client: trx }).where('achat_id', achatId)
-    const fullyReceived = allLignes.every((l) => Number(l.quantiteRecue) >= Number(l.quantite))
     const anyReceived = allLignes.some((l) => Number(l.quantiteRecue) > 0)
 
-    achat.statut = fullyReceived ? 'recu' : anyReceived ? 'partiel' : 'commande'
+    achat.statut = anyReceived ? ACHAT_STATUT.ACHAT : ACHAT_STATUT.COMMANDE
     achat.dateReception = dateReception ?? DateTime.now()
     achat.useTransaction(trx)
     await achat.save()
@@ -372,7 +509,7 @@ export async function recevoirMarchandise(
   })
 }
 
-async function applyStockEntreeAchatRetour(
+async function applyStockSortieAchatRetour(
   retourId: number,
   numero: string,
   lignes: CalculatedAchatLigne[],
@@ -380,10 +517,10 @@ async function applyStockEntreeAchatRetour(
   trx: TransactionClientContract
 ) {
   for (const l of lignes) {
-    await stockEntree(
+    await stockSortie(
       l.produitId,
-      l.quantite,
-      'achat',
+      l.quantiteStock,
+      'retour_fournisseur',
       { referenceId: retourId, referenceType: 'achat_retour' },
       userId,
       trx,
@@ -394,7 +531,7 @@ async function applyStockEntreeAchatRetour(
 
 /**
  * Retour fournisseur — creates an avoir linked to a received purchase.
- * Goods are put back into stock; supplier balance is reduced.
+ * Goods leave stock; supplier balance is reduced.
  */
 export async function creerAchatRetour(
   achatId: number,
@@ -409,15 +546,13 @@ export async function creerAchatRetour(
   return Achat.transaction(async (trx) => {
     const achat = await Achat.query({ client: trx }).where('id', achatId).forUpdate().firstOrFail()
 
-    await assertCaisseOuverte(pointDeVenteId, trx)
-
-    if (!['recu', 'partiel'].includes(achat.statut)) {
+    if (!canPayerAchat(achat.statut)) {
       throw new AchatBusinessError(
         'Le retour est possible uniquement sur un achat avec marchandises reçues'
       )
     }
 
-    if (achat.statut === 'achat_retour') {
+    if (isAchatRetour(achat.statut)) {
       throw new AchatBusinessError('Un avoir ne peut pas faire l\'objet d\'un retour')
     }
 
@@ -438,6 +573,12 @@ export async function creerAchatRetour(
         )
       }
 
+      const mode = achatLigneMode(ligneOrigine)
+      const produit = await Produit.query({ client: trx })
+        .where('id', ligneOrigine.produitId)
+        .firstOrFail()
+      const quantiteStock = toStockQuantite(mode, item.quantite, produit)
+
       const { montantHt, montantTva, montantTtc } = calcLigneMontants(
         item.quantite,
         Number(ligneOrigine.prixUnitaireHt),
@@ -447,7 +588,9 @@ export async function creerAchatRetour(
       lignesCalculees.push({
         produitId: ligneOrigine.produitId,
         designation: ligneOrigine.designation,
+        modeAchat: mode,
         quantite: item.quantite,
+        quantiteStock,
         prixUnitaireHt: Number(ligneOrigine.prixUnitaireHt),
         frais: Number(ligneOrigine.frais),
         tvaPct: Number(ligneOrigine.tvaPct),
@@ -472,7 +615,7 @@ export async function creerAchatRetour(
         achatOrigineId: achat.id,
         dateAchat: DateTime.now(),
         dateReception: DateTime.now(),
-        statut: 'achat_retour',
+        statut: ACHAT_STATUT.RETOUR,
         statutPaiement: 'non_paye',
         sousTotal: totaux.sousTotal,
         remiseMontant: 0,
@@ -494,7 +637,9 @@ export async function creerAchatRetour(
           achatId: retour.id,
           produitId: l.produitId,
           designation: l.designation,
+          modeAchat: l.modeAchat,
           quantite: l.quantite,
+          quantiteStock: l.quantiteStock,
           quantiteRecue: l.quantite,
           prixUnitaireHt: l.prixUnitaireHt,
           frais: l.frais,
@@ -509,7 +654,7 @@ export async function creerAchatRetour(
       )
     }
 
-    await applyStockEntreeAchatRetour(retour.id, retour.numero, lignesCalculees, userId, trx)
+    await applyStockSortieAchatRetour(retour.id, retour.numero, lignesCalculees, userId, trx)
 
     const fournisseur = await Fournisseur.query({ client: trx })
       .where('id', achat.fournisseurId)
@@ -529,7 +674,7 @@ export async function annulerAchat(achatId: number, userId: number, notes?: stri
   return Achat.transaction(async (trx) => {
     const achat = await Achat.query({ client: trx }).where('id', achatId).forUpdate().firstOrFail()
 
-    if (achat.statut === 'annule') {
+    if (achat.statut === ACHAT_STATUT.ANNULE) {
       throw new AchatBusinessError('Cet achat est déjà annulé')
     }
 
@@ -545,9 +690,14 @@ export async function annulerAchat(achatId: number, userId: number, notes?: stri
     for (const ligne of lignes) {
       const qtyRecue = Number(ligne.quantiteRecue)
       if (qtyRecue > 0) {
+        const produit = await Produit.query({ client: trx })
+          .where('id', ligne.produitId)
+          .firstOrFail()
+        const qtyStock = toStockQuantite(achatLigneMode(ligne), qtyRecue, produit)
+
         await stockSortie(
           ligne.produitId,
-          qtyRecue,
+          qtyStock,
           'retour_fournisseur',
           { referenceId: achatId, referenceType: 'achat' },
           userId,
@@ -576,7 +726,7 @@ export async function annulerAchat(achatId: number, userId: number, notes?: stri
       await fournisseur.save()
     }
 
-    achat.statut = 'annule'
+    achat.statut = ACHAT_STATUT.ANNULE
     achat.resteAPayer = 0
     if (notes) achat.notes = notes
     achat.useTransaction(trx)
@@ -603,13 +753,13 @@ export async function enregistrerPaiementAchat(data: PaiementAchatInput, userId:
       await assertCaisseOuverte(achat.pointDeVenteId, trx)
     }
 
-    if (achat.statut === 'annule') {
+    if (achat.statut === ACHAT_STATUT.ANNULE) {
       throw new AchatBusinessError('Paiement impossible sur un achat annulé')
     }
 
-    const isRetour = achat.statut === 'achat_retour'
+    const isRetour = isAchatRetour(achat.statut)
 
-    if (!isRetour && !['partiel', 'recu'].includes(achat.statut)) {
+    if (!isRetour && !canPayerAchat(achat.statut)) {
       throw new AchatBusinessError('Paiement impossible avant réception des marchandises')
     }
 

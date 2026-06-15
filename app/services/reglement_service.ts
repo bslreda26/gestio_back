@@ -80,6 +80,8 @@ export async function enregistrerReglementClient(
   }
 
   return Reglement.transaction(async (trx) => {
+    await assertCaisseOuverte(pointDeVenteId, trx)
+
     const client = await Client.query({ client: trx })
       .where('id', data.client_id)
       .where('point_de_vente_id', pointDeVenteId)
@@ -141,6 +143,8 @@ export async function enregistrerReglementFournisseur(
   }
 
   return Reglement.transaction(async (trx) => {
+    await assertCaisseOuverte(pointDeVenteId, trx)
+
     const fournisseur = await Fournisseur.query({ client: trx })
       .where('id', data.fournisseur_id)
       .where('is_active', true)

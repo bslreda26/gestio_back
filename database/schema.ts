@@ -8,7 +8,7 @@ import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
 export class AchatLigneSchema extends BaseModel {
-  static $columns = ['achatId', 'createdAt', 'designation', 'frais', 'id', 'ligneOrigineId', 'montantHt', 'montantTtc', 'montantTva', 'prixUnitaireHt', 'produitId', 'quantite', 'quantiteRecue', 'quantiteRetournee', 'tvaPct', 'updatedAt'] as const
+  static $columns = ['achatId', 'createdAt', 'designation', 'frais', 'id', 'ligneOrigineId', 'modeAchat', 'montantHt', 'montantTtc', 'montantTva', 'prixUnitaireHt', 'produitId', 'quantite', 'quantiteRecue', 'quantiteRetournee', 'quantiteStock', 'tvaPct', 'updatedAt'] as const
   $columns = AchatLigneSchema.$columns
   @column()
   declare achatId: number
@@ -22,6 +22,8 @@ export class AchatLigneSchema extends BaseModel {
   declare id: number
   @column()
   declare ligneOrigineId: number | null
+  @column()
+  declare modeAchat: string
   @column()
   declare montantHt: string
   @column()
@@ -38,6 +40,8 @@ export class AchatLigneSchema extends BaseModel {
   declare quantiteRecue: string
   @column()
   declare quantiteRetournee: string
+  @column()
+  declare quantiteStock: string | null
   @column()
   declare tvaPct: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
@@ -387,7 +391,7 @@ export class PointsDeVenteSchema extends BaseModel {
 }
 
 export class ProduitSchema extends BaseModel {
-  static $columns = ['categorieId', 'code', 'contenance', 'createdAt', 'description', 'frais', 'id', 'isActive', 'nom', 'plancher', 'pointDeVenteId', 'prixAchatHt', 'prixAchatTtc', 'prixVenteHt', 'prixVenteTtc', 'stockActuel', 'stockMaximum', 'stockMinimum', 'tvaGroupeId', 'unite', 'uniteGros', 'updatedAt', 'venteAuDetail'] as const
+  static $columns = ['categorieId', 'code', 'contenance', 'createdAt', 'dernierPrixAchatHt', 'description', 'frais', 'id', 'isActive', 'nom', 'plancher', 'pointDeVenteId', 'prixAchatHt', 'prixAchatTtc', 'prixVenteHt', 'prixVenteTtc', 'stockActuel', 'stockMaximum', 'stockMinimum', 'tvaGroupeId', 'unite', 'uniteGros', 'updatedAt', 'venteAuDetail'] as const
   $columns = ProduitSchema.$columns
   @column()
   declare categorieId: number | null
@@ -397,6 +401,8 @@ export class ProduitSchema extends BaseModel {
   declare contenance: string
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
+  @column()
+  declare dernierPrixAchatHt: string
   @column()
   declare description: string | null
   @column()

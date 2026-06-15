@@ -8,12 +8,12 @@ import {
 
 export { ROLE_PERMISSIONS }
 import type User from '#models/user'
-import type { UserRole } from '#validators/common_validator'
+import { USER_ROLES, type UserRole } from '#validators/common_validator'
 
 function getUserRole(user: { role?: string | null }): UserRole | null {
   const role = user.role
-  if (role === 'admin' || role === 'gestionnaire' || role === 'caissier' || role === 'lecteur') {
-    return role
+  if (role && (USER_ROLES as readonly string[]).includes(role)) {
+    return role as UserRole
   }
   return null
 }

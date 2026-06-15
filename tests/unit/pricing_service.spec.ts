@@ -1,5 +1,7 @@
 import { test } from '@japa/runner'
 import {
+  calcCmupHt,
+  calcFraisHt,
   calcHt,
   calcMargeLigne,
   calcPlancher,
@@ -24,8 +26,19 @@ test.group('pricing_service', () => {
     assert.equal(calcHt(10000, 0), 10000)
   })
 
-  test('calcPlancher adds frais to prix achat TTC', ({ assert }) => {
-    assert.equal(calcPlancher(9440, 500), 9940)
+  test('calcFraisHt extracts HT from frais TTC', ({ assert }) => {
+    assert.equal(calcFraisHt(50, 9), 45.5)
+    assert.equal(calcFraisHt(500, 18), 410)
+  })
+
+  test('calcCmupHt is moyenne achat HT plus frais HT', ({ assert }) => {
+    assert.equal(calcCmupHt(20000, 0, 9), 20000)
+    assert.equal(calcCmupHt(20000, 50, 9), 20045.5)
+  })
+
+  test('calcPlancher is CMUP HT plus TVA', ({ assert }) => {
+    assert.equal(calcPlancher(20000, 0, 9), 21800)
+    assert.equal(calcPlancher(8000, 500, 18), 9923.8)
   })
 
   test('calcMargeLigne is prix vente TTC minus plancher', ({ assert }) => {
@@ -43,7 +56,7 @@ test.group('pricing_service', () => {
 
     assert.equal(result.prixVenteTtc, 11800)
     assert.equal(result.prixAchatTtc, 9440)
-    assert.equal(result.plancher, 9940)
+    assert.equal(result.plancher, 9923.8)
   })
 
   test('calcProduitPricingFromVenteTtc matches project example', ({ assert }) => {
@@ -57,7 +70,7 @@ test.group('pricing_service', () => {
     assert.equal(result.prixVenteHt, 10000)
     assert.equal(result.prixVenteTtc, 11800)
     assert.equal(result.prixAchatTtc, 9440)
-    assert.equal(result.plancher, 9940)
+    assert.equal(result.plancher, 9923.8)
   })
 
   test('validatePrixPlancher rejects price below floor', ({ assert }) => {
@@ -91,7 +104,7 @@ test.group('pricing_service', () => {
     assert.equal(result.prixAchatHt, 12166.67)
     assert.equal(result.frais, 533.33)
     assert.equal(result.prixAchatTtc, 14356.67)
-    assert.equal(result.plancher, 14890)
+    assert.equal(result.plancher, 14872.72)
   })
 
   test('updateProduitFromAchatReception uses incoming price when stock is empty', ({ assert }) => {
@@ -108,6 +121,6 @@ test.group('pricing_service', () => {
     assert.equal(result.prixAchatHt, 9500)
     assert.equal(result.prixAchatTtc, 11210)
     assert.equal(result.frais, 600)
-    assert.equal(result.plancher, 11810)
+    assert.equal(result.plancher, 11790.56)
   })
 })

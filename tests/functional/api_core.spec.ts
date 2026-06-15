@@ -5,6 +5,8 @@ import Produit from '#models/produit'
 import User from '#models/user'
 import Caisse from '#models/caisse'
 import { authedPos, DEFAULT_POINT_DE_VENTE_ID, loginAsAdmin, openCaisse } from '../helpers/auth.js'
+import { calcCmupHt, calcPlancher, calcTtc } from '#services/pricing_service'
+import TvaGroupe from '#models/tva_groupe'
 import { withIsolatedTest } from '../helpers/setup.js'
 
 test.group('API — auth & health', (group) => {
@@ -411,7 +413,7 @@ test.group('API — ventes & stock', (group) => {
     assert.equal(ligne.marge, prixVenteTtc - plancher)
   })
 
-  test('gestionnaire with permission sees marge and plancher on vente lignes', async ({ client, assert }) => {
+  test('gerant with permission sees marge and plancher on vente lignes', async ({ client, assert }) => {
     const adminToken = await loginAsAdmin(client)
     const produit = await Produit.findByOrFail('code', 'PRD-0001')
     const prixUnitaire = 15000
@@ -427,19 +429,19 @@ test.group('API — ventes & stock', (group) => {
     create.assertStatus(200)
     const venteId = create.body().data.vente.id
 
-    const gestionnaire = await User.create({
-      email: 'gestionnaire.marge@test.local',
+    const gerant = await User.create({
+      email: 'gerant.marge@test.local',
       password: 'Test@12345',
       nom: 'Gest',
       prenom: 'Marge',
       fullName: 'Gest Marge',
-      role: 'gestionnaire',
+      role: 'gerant',
       pointDeVenteId: DEFAULT_POINT_DE_VENTE_ID,
       isActive: true,
     })
 
     const login = await client.post('/api/v1/auth/login').json({
-      email: gestionnaire.email,
+      email: gerant.email,
       password: 'Test@12345',
     })
     login.assertStatus(200)
@@ -465,20 +467,20 @@ test.group('API — ventes & stock', (group) => {
     create.assertStatus(200)
     const venteId = create.body().data.vente.id
 
-    const lecteur = await User.create({
-      email: 'lecteur.sans.marge@test.local',
+    const facturation = await User.create({
+      email: 'facturation.sans.marge@test.local',
       password: 'Test@12345',
-      nom: 'Lect',
+      nom: 'Fact',
       prenom: 'SansMarge',
-      fullName: 'Lect SansMarge',
-      role: 'lecteur',
+      fullName: 'Fact SansMarge',
+      role: 'facturation',
       pointDeVenteId: DEFAULT_POINT_DE_VENTE_ID,
       permissions: ['ventes'],
       isActive: true,
     })
 
     const login = await client.post('/api/v1/auth/login').json({
-      email: lecteur.email,
+      email: facturation.email,
       password: 'Test@12345',
     })
     login.assertStatus(200)
@@ -605,6 +607,7 @@ test.group('API — caisse & depenses', (group) => {
 
   test('depense creates caisse sortie', async ({ client, assert }) => {
     const token = await loginAsAdmin(client)
+    await openCaisse(client, token)
     const caisseBefore = await Caisse.query().where('nom', 'Caisse principale').firstOrFail()
     const soldeBefore = Number(caisseBefore.soldeActuel)
 
@@ -618,6 +621,22 @@ test.group('API — caisse & depenses', (group) => {
     create.assertStatus(200)
     await caisseBefore.refresh()
     assert.equal(Number(caisseBefore.soldeActuel), soldeBefore - 1000)
+  })
+
+  test('depense is rejected when caisse session is closed', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    await openCaisse(client, token)
+    await authedPos(client, token).post('/api/v1/caisse/fermeture').json({ montant: 0 })
+
+    const response = await authedPos(client, token).post('/api/v1/depenses/create').json({
+      libelle: 'Depense caisse fermee',
+      categorie: 'fournitures',
+      montant: 500,
+      date_depense: '2026-06-10',
+    })
+
+    response.assertStatus(422)
+    assert.match(response.body().message.toLowerCase(), /caisse n'est pas ouverte/)
   })
 })
 
@@ -697,6 +716,42 @@ test.group('API — reglements', (group) => {
     await caisseBefore.refresh()
     assert.equal(Number(fournisseur.solde), 5000)
     assert.equal(Number(caisseBefore.soldeActuel), caisseSoldeBefore - 3000)
+  })
+
+  test('reglement client is rejected when caisse session is closed', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    await openCaisse(client, token)
+    await authedPos(client, token).post('/api/v1/caisse/fermeture').json({ montant: 0 })
+    const dbClient = await Client.findByOrFail('code', 'CLI-0001')
+
+    const response = await authedPos(client, token).post('/api/v1/reglements/client/create').json({
+      client_id: dbClient.id,
+      montant: 1000,
+      mode_paiement: 'virement',
+      date_reglement: '2026-06-10',
+    })
+
+    response.assertStatus(422)
+    assert.match(response.body().message.toLowerCase(), /caisse n'est pas ouverte/)
+  })
+
+  test('reglement fournisseur is rejected when caisse session is closed', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    await openCaisse(client, token)
+    await authedPos(client, token).post('/api/v1/caisse/fermeture').json({ montant: 0 })
+    const fournisseur = await Fournisseur.findByOrFail('code', 'FRN-0001')
+
+    const response = await authedPos(client, token)
+      .post('/api/v1/reglements/fournisseur/create')
+      .json({
+        fournisseur_id: fournisseur.id,
+        montant: 1000,
+        mode_paiement: 'cheque',
+        date_reglement: '2026-06-10',
+      })
+
+    response.assertStatus(422)
+    assert.match(response.body().message.toLowerCase(), /caisse n'est pas ouverte/)
   })
 })
 
@@ -799,7 +854,7 @@ test.group('API — retours & caisse', (group) => {
     assert.equal(Number(caisse.soldeActuel), soldeAfterOpen - montantRetour)
   })
 
-  test('achat retour adds stock and paiement especes increases caisse', async ({ client, assert }) => {
+  test('achat retour decreases stock and paiement especes increases caisse', async ({ client, assert }) => {
     const token = await loginAsAdmin(client)
     await openCaisse(client, token, 200000)
     const caisse = await Caisse.query().where('point_de_vente_id', DEFAULT_POINT_DE_VENTE_ID).firstOrFail()
@@ -834,7 +889,7 @@ test.group('API — retours & caisse', (group) => {
     const montantRetour = Number(retour.body().data.retour.totalTtc)
 
     await produit.refresh()
-    assert.equal(Number(produit.stockActuel), stockBefore + 7)
+    assert.equal(Number(produit.stockActuel), stockBefore + 3)
 
     const paiement = await authedPos(client, token).post('/api/v1/achats/paiement').json({
       achat_id: retourId,
@@ -846,6 +901,164 @@ test.group('API — retours & caisse', (group) => {
 
     await caisse.refresh()
     assert.equal(Number(caisse.soldeActuel), soldeAfterOpen + montantRetour)
+  })
+
+  test('achat en gros increments stock in detail units', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    const fournisseur = await Fournisseur.findByOrFail('code', 'FRN-0001')
+
+    const produitRes = await authedPos(client, token).post('/api/v1/produits/create').json({
+      code: 'PRD-ACHAT-GROS',
+      nom: 'Riz achat gros test',
+      categorie_id: 1,
+      tva_groupe_id: 1,
+      unite: 'kg',
+      unite_gros: 'sac',
+      contenance: 50,
+      vente_au_detail: true,
+      stock_actuel: 100,
+      prix_achat_ht: 10000,
+      prix_vente_ht: 15000,
+      frais: 500,
+    })
+    produitRes.assertStatus(200)
+    const produitId = produitRes.body().data.id
+    const produitAvant = await Produit.findOrFail(produitId)
+    const stockBefore = Number(produitAvant.stockActuel)
+
+    const create = await authedPos(client, token).post('/api/v1/achats/create').json({
+      fournisseur_id: fournisseur.id,
+      date_achat: '2026-06-10',
+      lignes: [{ produit_id: produitId, quantite: 2, prix_unitaire_ht: 10000 }],
+    })
+    create.assertStatus(200)
+    const achatId = create.body().data.achat.id
+    const ligne = create.body().data.lignes[0]
+    assert.equal(Number(ligne.frais), 500)
+    assert.equal(ligne.modeAchat, 'piece')
+    assert.equal(Number(ligne.quantiteStock), 100)
+
+    const recevoir = await authedPos(client, token).post('/api/v1/achats/recevoir').json({
+      id: achatId,
+      lignes: [{ ligne_id: ligne.id, quantite_recue: 2 }],
+    })
+    recevoir.assertStatus(200)
+
+    const produit = await Produit.findOrFail(produitId)
+    assert.equal(Number(produit.stockActuel), stockBefore + 100)
+  })
+
+  test('achat ligne-info uses last achat price in gros', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    const fournisseur = await Fournisseur.findByOrFail('code', 'FRN-0001')
+
+    const produitRes = await authedPos(client, token).post('/api/v1/produits/create').json({
+      code: 'PRD-ACHAT-PRIX',
+      nom: 'Riz prix gros test',
+      categorie_id: 1,
+      tva_groupe_id: 1,
+      unite: 'kg',
+      unite_gros: 'sac',
+      contenance: 50,
+      vente_au_detail: true,
+      prix_achat_ht: 10000,
+      prix_vente_ht: 15000,
+      frais: 500,
+    })
+    produitRes.assertStatus(200)
+    const produitId = produitRes.body().data.id
+
+    const create = await authedPos(client, token).post('/api/v1/achats/create').json({
+      fournisseur_id: fournisseur.id,
+      date_achat: '2026-06-10',
+      lignes: [{ produit_id: produitId, quantite: 1, prix_unitaire_ht: 10000, frais: 500 }],
+    })
+    create.assertStatus(200)
+
+    const recevoir = await authedPos(client, token).post('/api/v1/achats/recevoir').json({
+      id: create.body().data.achat.id,
+      lignes: [{ ligne_id: create.body().data.lignes[0].id, quantite_recue: 1 }],
+    })
+    recevoir.assertStatus(200)
+
+    const ligneInfo = await authedPos(client, token).post('/api/v1/achats/ligne-info').json({
+      produit_id: produitId,
+      quantite: 1,
+    })
+    ligneInfo.assertStatus(200)
+    const data = ligneInfo.body().data
+    assert.equal(data.prix_gros_ht, 10000)
+    assert.equal(data.prix_unitaire_ht, 10000)
+    assert.equal(data.frais_gros, 500)
+    assert.equal(data.frais, 500)
+    assert.equal(data.quantite_stock, 50)
+    assert.equal(data.mode_achat, 'piece')
+    assert.equal(data.unite_quantite, 'sac')
+    assert.equal(data.stock_label, '1 sac')
+    assert.equal(data.stock_label_apres, '2 sac')
+    assert.equal(data.stock_pieces_apres, 2)
+  })
+
+  test('achat reception recalculates sac product cmup in gros for catalogue display', async ({
+    client,
+    assert,
+  }) => {
+    const token = await loginAsAdmin(client)
+    const fournisseur = await Fournisseur.findByOrFail('code', 'FRN-0001')
+    const ref = await Produit.findByOrFail('code', 'PRD-0001')
+
+    const produitRes = await authedPos(client, token).post('/api/v1/produits/create').json({
+      code: 'PRD-CMUP-SAC',
+      nom: 'Riz CMUP sac test',
+      tva_groupe_id: ref.tvaGroupeId,
+      unite: 'kg',
+      unite_gros: 'sac',
+      contenance: 50,
+      vente_au_detail: true,
+      prix_achat_ht: 44050,
+      prix_vente_ttc: 50000,
+      frais: 0,
+    })
+    produitRes.assertStatus(200)
+    const produitId = produitRes.body().data.id
+
+    await authedPos(client, token).post('/api/v1/produits/ajustement').json({
+      id: produitId,
+      type: 'entree',
+      quantite: 25,
+    })
+
+    const create = await authedPos(client, token).post('/api/v1/achats/create').json({
+      fournisseur_id: fournisseur.id,
+      date_achat: '2026-06-10',
+      lignes: [{ produit_id: produitId, quantite: 1, prix_unitaire_ht: 88000 }],
+    })
+    create.assertStatus(200)
+
+    const recevoir = await authedPos(client, token).post('/api/v1/achats/recevoir').json({
+      id: create.body().data.achat.id,
+      lignes: [{ ligne_id: create.body().data.lignes[0].id, quantite_recue: 1 }],
+    })
+    recevoir.assertStatus(200)
+
+    const produit = await Produit.findOrFail(produitId)
+    const tvaGroupe = await TvaGroupe.findOrFail(ref.tvaGroupeId)
+    const tauxTva = Number(tvaGroupe.taux)
+    const moyenneKg = 1467
+    const plancherKg = calcTtc(moyenneKg, tauxTva)
+    const moyenneSac = 73350
+    const plancherSac = calcTtc(moyenneSac, tauxTva)
+
+    assert.equal(Number(produit.prixAchatHt), moyenneKg)
+    assert.equal(Number(produit.plancher), plancherKg)
+
+    const show = await authedPos(client, token).post('/api/v1/produits/show').json({ id: produitId })
+    show.assertStatus(200)
+    assert.equal(Number(show.body().data.produit.moyenneAchatHt), moyenneSac)
+    assert.equal(Number(show.body().data.produit.plancher), plancherSac)
+    assert.equal(Number(show.body().data.produit.moyenneAchatHtDetail), moyenneKg)
+    assert.equal(Number(show.body().data.produit.plancherDetail), plancherKg)
+    assert.equal(Number(show.body().data.produit.plancherGros), plancherSac)
   })
 
   test('achat paiement especes creates caisse sortie', async ({ client, assert }) => {
@@ -921,6 +1134,7 @@ test.group('API — achats & plancher', (group) => {
 
     const produit = await Produit.findOrFail(produitId)
     assert.equal(Number(produit.prixAchatHt), 8500)
+    assert.equal(Number(produit.dernierPrixAchatHt), 8500)
     assert.equal(Number(produit.prixAchatTtc), 10030)
   })
 
@@ -954,36 +1168,49 @@ test.group('API — achats & plancher', (group) => {
 
     await produit.refresh()
     assert.equal(Number(produit.prixAchatHt), 12166.67)
+    assert.equal(Number(produit.dernierPrixAchatHt), 13000)
     assert.equal(Number(produit.frais), 533.33)
     assert.equal(Number(produit.prixAchatTtc), 14356.67)
-    assert.equal(Number(produit.plancher), 14890)
+    assert.equal(Number(produit.plancher), 14872.72)
   })
 
-  test('achat ligne-info pre-fills last achat price and previews plancher after reception', async ({
-    client,
-    assert,
-  }) => {
+  test('achat ligne-info pre-fills product frais over last achat frais', async ({ client, assert }) => {
     const token = await loginAsAdmin(client)
-    const produit = await Produit.findByOrFail('code', 'PRD-0002')
     const fournisseur = await Fournisseur.findByOrFail('code', 'FRN-0001')
+
+    const produitRes = await authedPos(client, token).post('/api/v1/produits/create').json({
+      code: 'PRD-ACHAT-FRAIS',
+      nom: 'Produit frais achat test',
+      categorie_id: 1,
+      tva_groupe_id: 1,
+      prix_achat_ht: 10000,
+      prix_vente_ht: 15000,
+      frais: 600,
+    })
+    produitRes.assertStatus(200)
+    const produitId = produitRes.body().data.id
 
     const create = await authedPos(client, token).post('/api/v1/achats/create').json({
       fournisseur_id: fournisseur.id,
       date_achat: '2026-06-10',
-      lignes: [{ produit_id: produit.id, quantite: 5, prix_unitaire_ht: 9100, frais: 350 }],
+      lignes: [{ produit_id: produitId, quantite: 5, prix_unitaire_ht: 9100, frais: 350 }],
     })
     create.assertStatus(200)
 
     const ligneInfo = await authedPos(client, token).post('/api/v1/achats/ligne-info').json({
-      produit_id: produit.id,
+      produit_id: produitId,
       quantite: 5,
     })
     ligneInfo.assertStatus(200)
 
     const data = ligneInfo.body().data
     assert.equal(data.prix_unitaire_ht, 9100)
-    assert.equal(data.frais, 350)
-    assert.equal(data.plancher_apres, data.prix_achat_ttc_apres + data.frais_apres)
+    assert.equal(data.frais, 600)
+    assert.equal(data.frais_gros, 600)
+    assert.equal(
+      data.plancher_apres,
+      calcPlancher(data.prix_achat_ht_apres, data.frais_apres, data.tva_pct)
+    )
   })
 
   test('update produit accepts prix_vente_ttc and recalculates ht', async ({
@@ -992,7 +1219,11 @@ test.group('API — achats & plancher', (group) => {
   }) => {
     const token = await loginAsAdmin(client)
     const produit = await Produit.findByOrFail('code', 'PRD-0003')
-    const expectedPlancher = Number(produit.prixAchatTtc) + Number(produit.frais)
+    const tvaGroupe = await TvaGroupe.findOrFail(produit.tvaGroupeId)
+    const expectedPlancher = calcTtc(
+      calcCmupHt(Number(produit.prixAchatHt), Number(produit.frais), Number(tvaGroupe.taux)),
+      Number(tvaGroupe.taux)
+    )
 
     const response = await authedPos(client, token).post('/api/v1/produits/update').json({
       id: produit.id,
@@ -1004,6 +1235,62 @@ test.group('API — achats & plancher', (group) => {
     assert.equal(Number(data.prixVenteTtc), 17700)
     assert.equal(Number(data.prixVenteHt), 15000)
     assert.equal(Number(data.plancher), expectedPlancher)
+  })
+
+  test('admin can manually set moyenne achat ht on produit', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0003')
+    const tvaGroupe = await TvaGroupe.findOrFail(produit.tvaGroupeId)
+    const tauxTva = Number(tvaGroupe.taux)
+    const moyenneSaisie = 9000
+
+    const response = await authedPos(client, token).post('/api/v1/produits/update').json({
+      id: produit.id,
+      moyenne_achat_ht: moyenneSaisie,
+    })
+    response.assertStatus(200)
+
+    const data = response.body().data
+    const frais = Number(data.frais)
+    const cmup = calcCmupHt(moyenneSaisie, frais, tauxTva)
+
+    assert.equal(Number(data.moyenneAchatHt), cmup)
+    assert.equal(Number(data.prixAchatHt), moyenneSaisie)
+    assert.equal(Number(data.plancher), calcTtc(cmup, tauxTva))
+  })
+
+  test('non-admin cannot manually set moyenne achat ht on produit', async ({ client, assert }) => {
+    const adminToken = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0003')
+    const avant = Number(produit.prixAchatHt)
+
+    const gerant = await User.create({
+      email: 'gerant.moyenne@test.local',
+      password: 'Test@12345',
+      nom: 'Gest',
+      prenom: 'Moyenne',
+      fullName: 'Gest Moyenne',
+      role: 'gerant',
+      pointDeVenteId: DEFAULT_POINT_DE_VENTE_ID,
+      isActive: true,
+    })
+
+    const login = await client.post('/api/v1/auth/login').json({
+      email: gerant.email,
+      password: 'Test@12345',
+    })
+    login.assertStatus(200)
+    const token = login.body().data.token
+
+    const response = await authedPos(client, token).post('/api/v1/produits/update').json({
+      id: produit.id,
+      moyenne_achat_ht: 9000,
+    })
+    response.assertStatus(403)
+
+    const show = await authedPos(client, adminToken).post('/api/v1/produits/show').json({ id: produit.id })
+    show.assertStatus(200)
+    assert.equal(Number(show.body().data.produit.prixAchatHt), avant)
   })
 
   test('admin can manually set plancher on produit', async ({ client, assert }) => {
@@ -1022,19 +1309,19 @@ test.group('API — achats & plancher', (group) => {
     const adminToken = await loginAsAdmin(client)
     const produit = await Produit.findByOrFail('code', 'PRD-0003')
 
-    const gestionnaire = await User.create({
-      email: 'gestionnaire.plancher@test.local',
+    const gerant = await User.create({
+      email: 'gerant.plancher@test.local',
       password: 'Test@12345',
       nom: 'Gest',
       prenom: 'Plancher',
       fullName: 'Gest Plancher',
-      role: 'gestionnaire',
+      role: 'gerant',
       pointDeVenteId: DEFAULT_POINT_DE_VENTE_ID,
       isActive: true,
     })
 
     const login = await client.post('/api/v1/auth/login').json({
-      email: gestionnaire.email,
+      email: gerant.email,
       password: 'Test@12345',
     })
     login.assertStatus(200)

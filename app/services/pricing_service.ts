@@ -42,14 +42,25 @@ export function calcHt(prixTtc: number, tauxTva: number): number {
   return roundMoney(prixTtc / (1 + tauxTva / 100))
 }
 
-export function calcPlancher(prixAchatTtc: number, frais: number): number {
-  return roundMoney(prixAchatTtc + frais)
+/** Frais saisis TTC → composante HT incluse dans le CMUP (retrait du % TVA sur le montant). */
+export function calcFraisHt(fraisTtc: number, tauxTva: number): number {
+  return roundMoney(fraisTtc * (1 - tauxTva / 100))
+}
+
+/** CMUP HT = moyenne achat HT + frais HT */
+export function calcCmupHt(prixAchatHt: number, fraisTtc: number, tauxTva: number): number {
+  return roundMoney(prixAchatHt + calcFraisHt(fraisTtc, tauxTva))
+}
+
+/** Plancher TTC = CMUP HT + TVA */
+export function calcPlancher(prixAchatHt: number, fraisTtc: number, tauxTva: number): number {
+  return calcTtc(calcCmupHt(prixAchatHt, fraisTtc, tauxTva), tauxTva)
 }
 
 export function calcProduitPricing(input: ProduitPricingInput): ProduitPricingResult {
   const prixAchatTtc = calcTtc(input.prixAchatHt, input.tauxTva)
   const prixVenteTtc = calcTtc(input.prixVenteHt, input.tauxTva)
-  const plancher = calcPlancher(prixAchatTtc, input.frais)
+  const plancher = calcPlancher(input.prixAchatHt, input.frais, input.tauxTva)
 
   return { prixAchatTtc, prixVenteTtc, plancher }
 }
@@ -67,7 +78,7 @@ export function calcProduitPricingFromVenteTtc(
   const prixAchatTtc = calcTtc(input.prixAchatHt, input.tauxTva)
   const prixVenteTtc = roundMoney(input.prixVenteTtc)
   const prixVenteHt = calcHt(prixVenteTtc, input.tauxTva)
-  const plancher = calcPlancher(prixAchatTtc, input.frais)
+  const plancher = calcPlancher(input.prixAchatHt, input.frais, input.tauxTva)
 
   return { prixAchatTtc, prixVenteTtc, plancher, prixVenteHt }
 }
@@ -104,7 +115,7 @@ export function calcCmup(
   )
 }
 
-/** Met à jour prix achat (CMUP), frais et plancher du produit après réception d'un achat */
+/** Met à jour moyenne achat HT (CMUP), frais et plancher du produit après réception d'un achat */
 export function updateProduitFromAchatReception(input: AchatReceptionPricingInput) {
   const prixAchatHt = calcCmup(
     input.stockAvant,
@@ -119,7 +130,7 @@ export function updateProduitFromAchatReception(input: AchatReceptionPricingInpu
     input.fraisUnitaire
   )
   const prixAchatTtc = calcTtc(prixAchatHt, input.tauxTva)
-  const plancher = calcPlancher(prixAchatTtc, frais)
+  const plancher = calcPlancher(prixAchatHt, frais, input.tauxTva)
 
   return { prixAchatHt, prixAchatTtc, frais, plancher }
 }

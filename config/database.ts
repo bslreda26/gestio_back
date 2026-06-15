@@ -18,6 +18,10 @@ const dbConfig = defineConfig({
         naturalSort: true,
         paths: ['database/migrations'],
       },
+      seeders: {
+        naturalSort: true,
+        paths: ['database/seeders'],
+      },
     },
     sqlite: {
       client: 'better-sqlite3',
@@ -28,6 +32,10 @@ const dbConfig = defineConfig({
       migrations: {
         naturalSort: true,
         paths: ['database/migrations'],
+      },
+      seeders: {
+        naturalSort: true,
+        paths: ['database/seeders'],
       },
     },
   },

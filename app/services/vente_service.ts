@@ -731,8 +731,6 @@ export async function creerFactureRetour(
   return Vente.transaction(async (trx) => {
     const facture = await Vente.query({ client: trx }).where('id', factureId).forUpdate().firstOrFail()
 
-    await assertCaisseOuverte(pos.pointDeVenteId, trx)
-
     if (!affectsClientSolde(facture.statut)) {
       throw new VenteBusinessError(
         'Le retour est possible uniquement sur une facture validée ou non validée'

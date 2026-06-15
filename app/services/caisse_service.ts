@@ -2,6 +2,7 @@ import Caisse from '#models/caisse'
 import CaisseMouvement from '#models/caisse_mouvement'
 import CaisseSession from '#models/caisse_session'
 import Depense from '#models/depense'
+import PointDeVente from '#models/point_de_vente'
 import { buildMeta, parsePagination } from '#helpers/pagination'
 import { roundMoney } from '#services/pricing_service'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
@@ -79,6 +80,25 @@ function applySessionDateFilters(
   }
 }
 
+async function ensureCaisseForPointDeVente(
+  pointDeVenteId: number,
+  trx?: TransactionClientContract
+) {
+  const pdvQuery = trx ? PointDeVente.query({ client: trx }) : PointDeVente.query()
+  const pdv = await pdvQuery.where('id', pointDeVenteId).first()
+  if (!pdv) throw new CaisseBusinessError('Point de vente introuvable')
+
+  return Caisse.create(
+    {
+      nom: `Caisse ${pdv.nom}`,
+      soldeActuel: 0,
+      isActive: true,
+      pointDeVenteId,
+    },
+    trx ? { client: trx } : undefined
+  )
+}
+
 export async function getCaisseForPointDeVente(
   pointDeVenteId: number,
   trx?: TransactionClientContract
@@ -88,7 +108,9 @@ export async function getCaisseForPointDeVente(
     .where('is_active', true)
     .where('point_de_vente_id', pointDeVenteId)
     .first()
-  if (!caisse) throw new CaisseBusinessError('Caisse introuvable pour ce point de vente')
+  if (!caisse) {
+    return ensureCaisseForPointDeVente(pointDeVenteId, trx)
+  }
   return caisse
 }
 
@@ -167,7 +189,12 @@ async function enregistrerMouvement(
   let sessionId = caisseSessionId
   if (sessionId === undefined) {
     const session = await getSessionCourante(caisse.pointDeVenteId, caisse.id, trx)
-    sessionId = session?.id ?? null
+    if (!session) {
+      throw new CaisseBusinessError(
+        'La caisse n\'est pas ouverte. Ouvrez la caisse avant d\'enregistrer une opération espèces.'
+      )
+    }
+    sessionId = session.id
   }
 
   await CaisseMouvement.create(

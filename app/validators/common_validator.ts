@@ -1,7 +1,14 @@
 import vine from '@vinejs/vine'
 
-export const USER_ROLES = ['admin', 'gestionnaire', 'caissier', 'lecteur'] as const
+export const USER_ROLES = ['admin', 'gerant', 'caissier', 'facturation'] as const
 export type UserRole = (typeof USER_ROLES)[number]
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  admin: 'Administrateur',
+  gerant: 'Gérant',
+  caissier: 'Caissier',
+  facturation: 'Facturation',
+}
 
 export const idSchema = vine.object({
   id: vine.number().positive(),

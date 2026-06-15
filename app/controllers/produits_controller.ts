@@ -13,9 +13,18 @@ import { applyStockAlertFilter } from '#helpers/produit_query'
 import { serializeProduit } from '#helpers/produit_serializer'
 import { hasUserPermission } from '#services/permission_service'
 import { generateProduitCode } from '#services/code_generator_service'
-import { calcProduitPricing, calcProduitPricingFromVenteTtc } from '#services/pricing_service'
+import { calcProduitPricing, calcProduitPricingFromVenteTtc, calcCmupHt } from '#services/pricing_service'
 import { ajustementManuel } from '#services/stock_service'
-import { AjustementQuantiteError, resolveAjustementQuantite } from '#services/vente_unite_service'
+import {
+  AjustementQuantiteError,
+  convertPricingWhenEnablingDetailConfig,
+  convertStockWhenEnablingDetailConfig,
+  fromProduitPrixStockage,
+  normalizeProduitUniteFields,
+  resolveAjustementQuantite,
+  toPlancherStockage,
+  toProduitPrixStockage,
+} from '#services/vente_unite_service'
 import {
   produitAjustementValidator,
   produitAlertesValidator,
@@ -36,6 +45,21 @@ async function getTvaGroupeOrFail(tvaGroupeId: number) {
 function produitSerializeOptions(ctx: HttpContext) {
   const user = ctx.auth.getUserOrFail()
   return { hidePlancher: !hasUserPermission(user, 'produits_plancher') }
+}
+
+function resolveMoyenneAchatHt(payload: {
+  prix_achat_ht?: number
+  moyenne_achat_ht?: number
+}): number | undefined {
+  return payload.moyenne_achat_ht ?? payload.prix_achat_ht
+}
+
+function produitUniteShape(unites: ReturnType<typeof normalizeProduitUniteFields>) {
+  return {
+    unite: unites.unite,
+    uniteGros: unites.uniteGros,
+    contenance: unites.contenance,
+  }
 }
 
 export default class ProduitsController {
@@ -117,10 +141,15 @@ export default class ProduitsController {
       return sendError(ctx, 'Groupe TVA introuvable', 422)
     }
 
+    const unites = normalizeProduitUniteFields(payload)
+    const uniteProduit = produitUniteShape(unites)
+    const moyenneAchatGros = resolveMoyenneAchatHt(payload) ?? 0
+    const fraisGros = payload.frais ?? 0
+    const prixStockage = toProduitPrixStockage(moyenneAchatGros, fraisGros, uniteProduit)
     const pricing = calcProduitPricingFromVenteTtc({
-      prixAchatHt: payload.prix_achat_ht ?? 0,
+      prixAchatHt: prixStockage.prixAchatHt,
       prixVenteTtc: payload.prix_vente_ttc ?? 0,
-      frais: payload.frais ?? 0,
+      frais: prixStockage.frais,
       tauxTva: Number(tvaGroupe.taux),
     })
 
@@ -134,23 +163,27 @@ export default class ProduitsController {
       description: payload.description ?? null,
       categorieId: payload.categorie_id ?? null,
       tvaGroupeId: payload.tva_groupe_id,
-      prixAchatHt: payload.prix_achat_ht ?? 0,
+      prixAchatHt: prixStockage.prixAchatHt,
       prixAchatTtc: pricing.prixAchatTtc,
+      dernierPrixAchatHt: payload.dernier_prix_achat_ht ?? moyenneAchatGros,
       prixVenteHt: pricing.prixVenteHt,
       prixVenteTtc: pricing.prixVenteTtc,
-      frais: payload.frais ?? 0,
+      frais: prixStockage.frais,
       plancher: pricing.plancher,
-      unite: payload.unite ?? 'pièce',
-      uniteGros: payload.unite_gros ?? null,
-      contenance: payload.contenance ?? 1,
-      venteAuDetail: payload.vente_au_detail ?? false,
+      unite: unites.unite,
+      uniteGros: unites.uniteGros,
+      contenance: unites.contenance,
+      venteAuDetail: unites.venteAuDetail,
       stockActuel: 0,
       stockMinimum: payload.stock_minimum ?? 0,
       stockMaximum: payload.stock_maximum ?? 0,
       isActive: true,
     })
 
-    return sendSuccess(ctx, serializeProduit(produit, {}, produitSerializeOptions(ctx)))
+    return sendSuccess(ctx, serializeProduit(produit, {}, {
+      ...produitSerializeOptions(ctx),
+      tauxTva: Number(tvaGroupe.taux),
+    }))
   }
 
   async update(ctx: HttpContext) {
@@ -159,9 +192,25 @@ export default class ProduitsController {
     if (!(await assertRecordBelongsToPointDeVente(ctx, produit, 'Produit'))) return
 
     const user = ctx.auth.getUserOrFail()
-    const canEditPlancher = hasUserPermission(user, 'produits_plancher')
-    if (payload.plancher !== undefined && !canEditPlancher) {
+    const canEditPricing = hasUserPermission(user, 'produits_plancher')
+    if (payload.plancher !== undefined && !canEditPricing) {
       return sendError(ctx, 'Accès refusé — modification du plancher non autorisée', 403)
+    }
+
+    const moyenneAchatPayload = resolveMoyenneAchatHt(payload)
+    if (moyenneAchatPayload !== undefined && !canEditPricing) {
+      return sendError(
+        ctx,
+        'Accès refusé — modification de la moyenne achat HT non autorisée',
+        403
+      )
+    }
+    if (payload.dernier_prix_achat_ht !== undefined && !canEditPricing) {
+      return sendError(
+        ctx,
+        'Accès refusé — modification du dernier prix achat non autorisée',
+        403
+      )
     }
 
     const tvaGroupeId = payload.tva_groupe_id ?? produit!.tvaGroupeId
@@ -172,6 +221,61 @@ export default class ProduitsController {
       return sendError(ctx, 'Groupe TVA introuvable', 422)
     }
 
+    const unitesBefore = {
+      unite: produit.unite,
+      uniteGros: produit.uniteGros,
+      contenance: produit.contenance,
+    }
+    const unites = normalizeProduitUniteFields({
+      unite: payload.unite !== undefined ? payload.unite : produit.unite,
+      unite_gros: payload.unite_gros !== undefined ? payload.unite_gros : produit.uniteGros,
+      contenance:
+        payload.contenance !== undefined ? payload.contenance : Number(produit.contenance),
+      vente_au_detail:
+        payload.vente_au_detail !== undefined ? payload.vente_au_detail : produit.venteAuDetail,
+    })
+    const uniteProduit = produitUniteShape(unites)
+
+    let prixAchatHt = Number(produit.prixAchatHt)
+    let frais = Number(produit.frais)
+    let plancher = Number(produit.plancher)
+
+    const pricingConverted = convertPricingWhenEnablingDetailConfig(
+      prixAchatHt,
+      frais,
+      plancher,
+      unitesBefore,
+      uniteProduit
+    )
+    prixAchatHt = pricingConverted.prixAchatHt
+    frais = pricingConverted.frais
+    plancher = pricingConverted.plancher
+
+    if (moyenneAchatPayload !== undefined) {
+      const catalogue = fromProduitPrixStockage({
+        ...produit,
+        prixAchatHt: String(prixAchatHt),
+        frais: String(frais),
+        plancher: String(plancher),
+        contenance: String(unites.contenance),
+        unite: unites.unite,
+        uniteGros: unites.uniteGros,
+      })
+      const fraisGros =
+        catalogue.mode === 'detail' ? catalogue.fraisGros : catalogue.frais
+      const stockage = toProduitPrixStockage(
+        moyenneAchatPayload,
+        payload.frais !== undefined ? payload.frais : fraisGros,
+        uniteProduit
+      )
+      prixAchatHt = stockage.prixAchatHt
+      if (payload.frais !== undefined) {
+        frais = stockage.frais
+      }
+    } else if (payload.frais !== undefined) {
+      frais = toProduitPrixStockage(0, payload.frais, uniteProduit).frais
+    }
+
     produit.merge({
       nom: payload.nom ?? produit.nom,
       code: payload.code ?? produit.code,
@@ -180,21 +284,28 @@ export default class ProduitsController {
       categorieId:
         payload.categorie_id !== undefined ? payload.categorie_id : produit.categorieId,
       tvaGroupeId,
-      prixAchatHt: payload.prix_achat_ht ?? produit.prixAchatHt,
+      prixAchatHt,
+      dernierPrixAchatHt:
+        payload.dernier_prix_achat_ht !== undefined
+          ? payload.dernier_prix_achat_ht
+          : produit.dernierPrixAchatHt,
       prixVenteHt:
         payload.prix_vente_ttc !== undefined
           ? produit.prixVenteHt
           : (payload.prix_vente_ht ?? produit.prixVenteHt),
-      frais: payload.frais ?? produit.frais,
-      unite: payload.unite ?? produit.unite,
-      uniteGros: payload.unite_gros !== undefined ? payload.unite_gros ?? null : produit.uniteGros,
-      contenance: payload.contenance ?? produit.contenance,
-      venteAuDetail:
-        payload.vente_au_detail !== undefined ? payload.vente_au_detail : produit.venteAuDetail,
+      frais,
       stockMinimum: payload.stock_minimum ?? produit.stockMinimum,
       stockMaximum: payload.stock_maximum ?? produit.stockMaximum,
       isActive: payload.is_active ?? produit.isActive,
     })
+
+    produit.unite = unites.unite
+    produit.uniteGros = unites.uniteGros
+    produit.contenance = String(unites.contenance)
+    produit.venteAuDetail = unites.venteAuDetail
+    produit.stockActuel = String(
+      convertStockWhenEnablingDetailConfig(Number(produit.stockActuel), unitesBefore, uniteProduit)
+    )
 
     const pricingBase = {
       prixAchatHt: Number(produit.prixAchatHt),
@@ -218,10 +329,15 @@ export default class ProduitsController {
     produit.prixAchatTtc = pricing.prixAchatTtc
     produit.prixVenteTtc = pricing.prixVenteTtc
     produit.plancher =
-      canEditPlancher && payload.plancher !== undefined ? payload.plancher : pricing.plancher
+      canEditPricing && payload.plancher !== undefined
+        ? toPlancherStockage(payload.plancher, uniteProduit)
+        : pricing.plancher
     await produit.save()
 
-    return sendSuccess(ctx, serializeProduit(produit, {}, produitSerializeOptions(ctx)))
+    return sendSuccess(ctx, serializeProduit(produit, {}, {
+      ...produitSerializeOptions(ctx),
+      tauxTva: Number(tvaGroupe.taux),
+    }))
   }
 
   async deactivate(ctx: HttpContext) {
@@ -253,10 +369,20 @@ export default class ProduitsController {
 
     const total = await query.clone().count('* as total')
     const produits = await query.offset(offset).limit(limit)
+    const tvaIds = [...new Set(produits.map((p) => p.tvaGroupeId).filter(Boolean))]
+    const tvaMap = new Map(
+      (await TvaGroupe.query().whereIn('id', tvaIds)).map((t) => [t.id, Number(t.taux)])
+    )
 
     return sendPaginated(
       ctx,
-      produits.map((p) => serializeProduit(p)),
+      produits.map((p) =>
+        serializeProduit(
+          p,
+          {},
+          { tauxTva: tvaMap.get(p.tvaGroupeId) }
+        )
+      ),
       buildMeta(Number(total[0].$extras.total), page, limit)
     )
   }
@@ -290,7 +416,11 @@ export default class ProduitsController {
     }
 
     await produit.refresh()
-    return sendSuccess(ctx, serializeProduit(produit, {}, produitSerializeOptions(ctx)))
+    const tvaGroupe = await getTvaGroupeOrFail(produit.tvaGroupeId)
+    return sendSuccess(ctx, serializeProduit(produit, {}, {
+      ...produitSerializeOptions(ctx),
+      tauxTva: Number(tvaGroupe.taux),
+    }))
   }
 
   async calculPrix(ctx: HttpContext) {
@@ -303,20 +433,24 @@ export default class ProduitsController {
       return sendError(ctx, 'Groupe TVA introuvable', 422)
     }
 
+    const tauxTva = Number(tvaGroupe.taux)
+    const prixAchatHt = payload.prix_achat_ht ?? 0
+    const frais = payload.frais ?? 0
     const pricing = calcProduitPricingFromVenteTtc({
-      prixAchatHt: payload.prix_achat_ht ?? 0,
+      prixAchatHt,
       prixVenteTtc: payload.prix_vente_ttc ?? 0,
-      frais: payload.frais ?? 0,
-      tauxTva: Number(tvaGroupe.taux),
+      frais,
+      tauxTva,
     })
 
     const canSeePlancher = hasUserPermission(ctx.auth.getUserOrFail(), 'produits_plancher')
     return sendSuccess(ctx, {
       tva_groupe: tvaGroupe.serialize(),
-      prix_achat_ht: payload.prix_achat_ht ?? 0,
+      prix_achat_ht: prixAchatHt,
+      moyenne_achat_ht: calcCmupHt(prixAchatHt, frais, tauxTva),
       prix_vente_ttc: pricing.prixVenteTtc,
       prix_vente_ht: pricing.prixVenteHt,
-      frais: payload.frais ?? 0,
+      frais,
       prix_achat_ttc: pricing.prixAchatTtc,
       ...(canSeePlancher ? { plancher: pricing.plancher } : {}),
     })

@@ -1,7 +1,6 @@
 import vine from '@vinejs/vine'
 import { ALL_PERMISSION_KEYS } from '#config/permissions'
-
-const USER_ROLES = ['admin', 'gestionnaire', 'caissier', 'lecteur'] as const
+import { USER_ROLES } from '#validators/common_validator'
 
 export const userSearchValidator = vine.compile(
   vine.object({

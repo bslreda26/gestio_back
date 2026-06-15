@@ -1,3 +1,4 @@
+import { ACHAT_STATUT, isEditableAchat } from '#constants/achat_statuts'
 import Achat from '#models/achat'
 import AchatLigne from '#models/achat_ligne'
 import Fournisseur from '#models/fournisseur'
@@ -52,9 +53,9 @@ type AchatCriteriaPayload = {
 
 function applyAchatCriteria(query: ReturnType<typeof Achat.query>, payload: AchatCriteriaPayload) {
   if (payload.type === 'retour') {
-    query.where('statut', 'achat_retour')
+    query.where('statut', ACHAT_STATUT.RETOUR)
   } else if (payload.type === 'achat') {
-    query.whereNot('statut', 'achat_retour')
+    query.whereNot('statut', ACHAT_STATUT.RETOUR)
   }
 
   if (payload.statut) query.where('statut', payload.statut)
@@ -178,7 +179,7 @@ export default class AchatsController {
     const payload = await ctx.request.validateUsing(achatUpdateValidator)
     const achat = await Achat.find(payload.id)
     if (!achat) return sendError(ctx, 'Achat introuvable', 404)
-    if (achat.statut !== 'commande') {
+    if (!isEditableAchat(achat.statut)) {
       return sendError(ctx, 'Seule une commande peut être modifiée', 422)
     }
 
@@ -196,7 +197,9 @@ export default class AchatsController {
             achatId: achat.id,
             produitId: l.produitId,
             designation: l.designation,
+            modeAchat: l.modeAchat,
             quantite: l.quantite,
+            quantiteStock: l.quantiteStock,
             quantiteRecue: 0,
             prixUnitaireHt: l.prixUnitaireHt,
             frais: l.frais,
