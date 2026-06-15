@@ -1,6 +1,7 @@
 import { test } from '@japa/runner'
 import User from '#models/user'
-import { authedPos, DEFAULT_POINT_DE_VENTE_ID, loginAsAdmin } from '../helpers/auth.js'
+import Produit from '#models/produit'
+import { authedPos, DEFAULT_POINT_DE_VENTE_ID, loginAsAdmin, openCaisse } from '../helpers/auth.js'
 import { withIsolatedTest } from '../helpers/setup.js'
 
 test.group('API — users', (group) => {
@@ -162,6 +163,32 @@ test.group('API — vente lock', (group) => {
     assert.equal(
       (updateWithLock.body() as { data: { vente: { notes: string } } }).data.vente.notes,
       'Avec verrou'
+    )
+  })
+
+  test('retour acquires lock automatically without prior lock call', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    await openCaisse(client, token)
+    const produit = await Produit.findByOrFail('code', 'PRD-0002')
+
+    const create = await authedPos(client, token).post('/api/v1/ventes/create').json({
+      statut: 'non_valide',
+      client_id: 1,
+      date_vente: '2026-06-10',
+      lignes: [{ produit_id: produit.id, quantite: 2, prix_unitaire: 15000 }],
+    })
+    create.assertStatus(200)
+    const factureId = (create.body() as { data: { vente: { id: number } } }).data.vente.id
+    const ligneId = (create.body() as { data: { lignes: { id: number }[] } }).data.lignes[0].id
+
+    const retour = await authedPos(client, token).post('/api/v1/ventes/retour').json({
+      facture_id: factureId,
+      lignes: [{ ligne_id: ligneId, quantite: 1 }],
+    })
+    retour.assertStatus(200)
+    assert.equal(
+      (retour.body() as { data: { retour: { statut: string } } }).data.retour.statut,
+      'retour'
     )
   })
 })

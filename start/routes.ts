@@ -264,6 +264,7 @@ router
             router.post('paiement', [VentesController, 'paiement']).as('paiement').use(middleware.role({ permission: 'ventes_paiement' }))
             router.post('paiements-search', [VentesController, 'paiementsSearch']).as('paiements_search').use(middleware.role({ permission: 'ventes' }))
             router.post('document', [VentesController, 'document']).as('document').use(middleware.role({ permission: 'ventes' }))
+            router.post('imprimer', [VentesController, 'imprimer']).as('imprimer').use(middleware.role({ permission: 'ventes' }))
             router.post('lock', [VentesController, 'lock']).as('lock').use(middleware.role({ permission: 'ventes_write' }))
             router.post('lock-renew', [VentesController, 'lockRenew']).as('lock_renew').use(middleware.role({ permission: 'ventes_write' }))
             router.post('unlock', [VentesController, 'unlock']).as('unlock').use(middleware.role({ permission: 'ventes_write' }))

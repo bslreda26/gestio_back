@@ -450,6 +450,12 @@ const routes = {
     tokens: [{"old":"/api/v1/ventes/document","type":0,"val":"api","end":""},{"old":"/api/v1/ventes/document","type":0,"val":"v1","end":""},{"old":"/api/v1/ventes/document","type":0,"val":"ventes","end":""},{"old":"/api/v1/ventes/document","type":0,"val":"document","end":""}],
     types: placeholder as Registry['ventes.document']['types'],
   },
+  'ventes.imprimer': {
+    methods: ["POST"],
+    pattern: '/api/v1/ventes/imprimer',
+    tokens: [{"old":"/api/v1/ventes/imprimer","type":0,"val":"api","end":""},{"old":"/api/v1/ventes/imprimer","type":0,"val":"v1","end":""},{"old":"/api/v1/ventes/imprimer","type":0,"val":"ventes","end":""},{"old":"/api/v1/ventes/imprimer","type":0,"val":"imprimer","end":""}],
+    types: placeholder as Registry['ventes.imprimer']['types'],
+  },
   'ventes.lock': {
     methods: ["POST"],
     pattern: '/api/v1/ventes/lock',

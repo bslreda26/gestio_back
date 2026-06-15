@@ -78,6 +78,7 @@ export type ScannedRoutes = {
     'ventes.paiement': { paramsTuple?: []; params?: {} }
     'ventes.paiements_search': { paramsTuple?: []; params?: {} }
     'ventes.document': { paramsTuple?: []; params?: {} }
+    'ventes.imprimer': { paramsTuple?: []; params?: {} }
     'ventes.lock': { paramsTuple?: []; params?: {} }
     'ventes.lock_renew': { paramsTuple?: []; params?: {} }
     'ventes.unlock': { paramsTuple?: []; params?: {} }
@@ -210,6 +211,7 @@ export type ScannedRoutes = {
     'ventes.paiement': { paramsTuple?: []; params?: {} }
     'ventes.paiements_search': { paramsTuple?: []; params?: {} }
     'ventes.document': { paramsTuple?: []; params?: {} }
+    'ventes.imprimer': { paramsTuple?: []; params?: {} }
     'ventes.lock': { paramsTuple?: []; params?: {} }
     'ventes.lock_renew': { paramsTuple?: []; params?: {} }
     'ventes.unlock': { paramsTuple?: []; params?: {} }

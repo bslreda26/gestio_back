@@ -3,6 +3,7 @@ import Client from '#models/client'
 import Fournisseur from '#models/fournisseur'
 import Produit from '#models/produit'
 import User from '#models/user'
+import Vente from '#models/vente'
 import Caisse from '#models/caisse'
 import { authedPos, DEFAULT_POINT_DE_VENTE_ID, loginAsAdmin, openCaisse } from '../helpers/auth.js'
 import { calcCmupHt, calcPlancher, calcTtc } from '#services/pricing_service'
@@ -529,6 +530,51 @@ test.group('API — ventes & stock', (group) => {
     const numero = response.body().data.vente.numero as string
     assert.match(numero, /^01-DEV-\d{4}-\d{4}$/)
   })
+
+  test('imprimer facture returns pdf and tracks duplicata', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    await openCaisse(client, token)
+    const produit = await Produit.findByOrFail('code', 'PRD-0002')
+
+    const create = await authedPos(client, token).post('/api/v1/ventes/create').json({
+      statut: 'non_valide',
+      client_id: 1,
+      date_vente: '2026-06-10',
+      lignes: [{ produit_id: produit.id, quantite: 1, prix_unitaire: 15000 }],
+    })
+    create.assertStatus(200)
+    const factureId = create.body().data.vente.id
+
+    const first = await authedPos(client, token).post('/api/v1/ventes/imprimer').json({
+      id: factureId,
+      type: 'facture',
+    })
+    first.assertStatus(200)
+    assert.equal(first.headers()['content-type'], 'application/pdf')
+    assert.equal(first.headers()['x-impression-numero'], '1')
+    assert.equal(first.headers()['x-impression-label'], '1')
+    assert.isAbove(Number(first.headers()['content-length'] ?? 0), 100)
+
+    const second = await authedPos(client, token).post('/api/v1/ventes/imprimer').json({
+      id: factureId,
+      type: 'facture',
+    })
+    second.assertStatus(200)
+    assert.equal(second.headers()['x-impression-numero'], '2')
+    assert.equal(second.headers()['x-impression-label'], 'DUPLICATA')
+
+    const bon = await authedPos(client, token).post('/api/v1/ventes/imprimer').json({
+      id: factureId,
+      type: 'bon_sortie',
+    })
+    bon.assertStatus(200)
+    assert.equal(bon.headers()['x-impression-numero'], '1')
+    assert.isAbove(Number(bon.headers()['content-length'] ?? 0), 100)
+
+    const vente = await Vente.findOrFail(factureId)
+    assert.equal(vente.factureImpressionCount, 2)
+    assert.equal(vente.bonSortieImpressionCount, 1)
+  })
 })
 
 test.group('API — caisse & depenses', (group) => {
@@ -829,8 +875,6 @@ test.group('API — retours & caisse', (group) => {
     facture.assertStatus(200)
     const factureId = facture.body().data.vente.id
     const ligneId = facture.body().data.lignes[0].id
-
-    await authedPos(client, token).post('/api/v1/ventes/lock').json({ id: factureId })
 
     const retour = await authedPos(client, token).post('/api/v1/ventes/retour').json({
       facture_id: factureId,

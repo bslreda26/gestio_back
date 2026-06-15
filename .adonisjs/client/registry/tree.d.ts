@@ -109,6 +109,7 @@ export interface ApiDefinition {
     paiement: typeof routes['ventes.paiement']
     paiementsSearch: typeof routes['ventes.paiements_search']
     document: typeof routes['ventes.document']
+    imprimer: typeof routes['ventes.imprimer']
     lock: typeof routes['ventes.lock']
     lockRenew: typeof routes['ventes.lock_renew']
     unlock: typeof routes['ventes.unlock']

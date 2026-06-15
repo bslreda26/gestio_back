@@ -129,3 +129,10 @@ export const venteUnlockValidator = vine.compile(
     force: vine.boolean().optional(),
   })
 )
+
+export const venteImprimerValidator = vine.compile(
+  vine.object({
+    id: vine.number().positive(),
+    type: vine.enum(['facture', 'bon_sortie'] as const),
+  })
+)

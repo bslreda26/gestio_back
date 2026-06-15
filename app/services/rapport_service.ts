@@ -249,17 +249,21 @@ export async function rapportValeurStock(
 
   const lignes = produits.map((p) => {
     const plancher = Number(p.plancher)
-    const quantite = Number(p.stockActuel)
+    const quantiteStock = Number(p.stockActuel)
+    const stockDisplay = resolveStockDisplay(p, quantiteStock)
     return {
       designation: p.nom,
       plancher,
-      quantite,
-      valeurGlobale: roundMoney(plancher * quantite),
+      quantite: stockDisplay.stockLabel,
+      quantiteStock,
+      stockPieces: stockDisplay.stockPieces,
+      stockResteDetail: stockDisplay.stockResteDetail,
+      valeurGlobale: roundMoney(plancher * quantiteStock),
     }
   })
 
   return {
-    formule: 'valeur globale = plancher × quantité',
+    formule: 'valeur globale = plancher × quantité (stock interne)',
     totaux: {
       nombreArticles: totalArticles,
       valeurGlobale: roundMoney(Number(totalsRow?.valeur_globale ?? 0)),

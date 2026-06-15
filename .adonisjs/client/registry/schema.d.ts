@@ -895,6 +895,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ventes_controller').default['document']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'ventes.imprimer': {
+    methods: ["POST"]
+    pattern: '/api/v1/ventes/imprimer'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/vente_validator').venteImprimerValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/vente_validator').venteImprimerValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ventes_controller').default['imprimer']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ventes_controller').default['imprimer']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'ventes.lock': {
     methods: ["POST"]
     pattern: '/api/v1/ventes/lock'

@@ -36,6 +36,15 @@ import {
   VenteBusinessError,
 } from '#services/vente_service'
 import {
+  loadVenteImpressionContext,
+  recordVenteImpression,
+} from '#services/vente_impression_service'
+import {
+  generateVenteBonSortiePdf,
+  generateVenteFacturePdf,
+  pdfFilename,
+} from '#services/vente_pdf_service'
+import {
   venteAnnulerValidator,
   venteCreateValidator,
   venteIdValidator,
@@ -43,6 +52,7 @@ import {
   ventePaiementValidator,
   ventePaiementsSearchValidator,
   venteGetByCriteriaValidator,
+  venteImprimerValidator,
   venteRetourValidator,
   venteSearchValidator,
   venteUnlockValidator,
@@ -348,7 +358,7 @@ export default class VentesController {
   async retour(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(venteRetourValidator)
     try {
-      await assertVenteLockHeld(payload.facture_id, ctx.auth.getUserOrFail().id)
+      await acquireVenteLock(payload.facture_id, ctx.auth.getUserOrFail().id)
       const { retour, facture } = await creerFactureRetour(
         payload.facture_id,
         payload.lignes,
@@ -444,5 +454,36 @@ export default class VentesController {
       },
       generated_at: DateTime.now().toISO(),
     })
+  }
+
+  /** Genere un PDF facture/devis/retour ou bon de sortie (sans prix). */
+  async imprimer(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(venteImprimerValidator)
+    const pos = requirePointDeVente(ctx)
+
+    try {
+      const impression = await recordVenteImpression(payload.id, payload.type)
+      const printCtx = await loadVenteImpressionContext(
+        payload.id,
+        pos.pointDeVenteId,
+        payload.type,
+        impression
+      )
+
+      const pdf =
+        payload.type === 'facture'
+          ? await generateVenteFacturePdf(printCtx)
+          : await generateVenteBonSortiePdf(printCtx)
+
+      return ctx.response
+        .header('Content-Type', 'application/pdf')
+        .header('Content-Disposition', `inline; filename="${pdfFilename(printCtx)}"`)
+        .header('X-Impression-Numero', String(impression.impression_numero))
+        .header('X-Impression-Label', impression.label)
+        .header('X-Impression-Duplicata', impression.is_duplicata ? 'true' : 'false')
+        .send(pdf)
+    } catch (error) {
+      return handleVenteError(ctx, error)
+    }
   }
 }

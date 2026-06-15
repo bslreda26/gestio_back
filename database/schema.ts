@@ -610,8 +610,10 @@ export class VenteLigneSchema extends BaseModel {
 }
 
 export class VenteSchema extends BaseModel {
-  static $columns = ['clientId', 'createdAt', 'dateEcheance', 'dateVente', 'devisOrigineId', 'factureOrigineId', 'id', 'lockExpiresAt', 'lockedAt', 'lockedByUserId', 'montantPaye', 'notes', 'numero', 'pointDeVenteId', 'remiseMontant', 'remisePct', 'resteAPayer', 'sousTotal', 'statut', 'statutPaiement', 'totalTtc', 'tvaMontant', 'updatedAt', 'userId'] as const
+  static $columns = ['bonSortieImpressionCount', 'clientId', 'createdAt', 'dateEcheance', 'dateVente', 'devisOrigineId', 'factureImpressionCount', 'factureOrigineId', 'id', 'lockExpiresAt', 'lockedAt', 'lockedByUserId', 'montantPaye', 'notes', 'numero', 'pointDeVenteId', 'remiseMontant', 'remisePct', 'resteAPayer', 'sousTotal', 'statut', 'statutPaiement', 'totalTtc', 'tvaMontant', 'updatedAt', 'userId'] as const
   $columns = VenteSchema.$columns
+  @column()
+  declare bonSortieImpressionCount: number
   @column()
   declare clientId: number
   @column.dateTime({ autoCreate: true })
@@ -622,6 +624,8 @@ export class VenteSchema extends BaseModel {
   declare dateVente: DateTime
   @column()
   declare devisOrigineId: number | null
+  @column()
+  declare factureImpressionCount: number
   @column()
   declare factureOrigineId: number | null
   @column({ isPrimary: true })
