@@ -720,6 +720,30 @@ const routes = {
     tokens: [{"old":"/api/v1/rapports/releve-client","type":0,"val":"api","end":""},{"old":"/api/v1/rapports/releve-client","type":0,"val":"v1","end":""},{"old":"/api/v1/rapports/releve-client","type":0,"val":"rapports","end":""},{"old":"/api/v1/rapports/releve-client","type":0,"val":"releve-client","end":""}],
     types: placeholder as Registry['rapports.releve_client']['types'],
   },
+  'rapports.depenses': {
+    methods: ["POST"],
+    pattern: '/api/v1/rapports/depenses',
+    tokens: [{"old":"/api/v1/rapports/depenses","type":0,"val":"api","end":""},{"old":"/api/v1/rapports/depenses","type":0,"val":"v1","end":""},{"old":"/api/v1/rapports/depenses","type":0,"val":"rapports","end":""},{"old":"/api/v1/rapports/depenses","type":0,"val":"depenses","end":""}],
+    types: placeholder as Registry['rapports.depenses']['types'],
+  },
+  'rapports.chiffre_affaires': {
+    methods: ["POST"],
+    pattern: '/api/v1/rapports/chiffre-affaires',
+    tokens: [{"old":"/api/v1/rapports/chiffre-affaires","type":0,"val":"api","end":""},{"old":"/api/v1/rapports/chiffre-affaires","type":0,"val":"v1","end":""},{"old":"/api/v1/rapports/chiffre-affaires","type":0,"val":"rapports","end":""},{"old":"/api/v1/rapports/chiffre-affaires","type":0,"val":"chiffre-affaires","end":""}],
+    types: placeholder as Registry['rapports.chiffre_affaires']['types'],
+  },
+  'rapports.balance_fournisseurs': {
+    methods: ["POST"],
+    pattern: '/api/v1/rapports/balance-fournisseurs',
+    tokens: [{"old":"/api/v1/rapports/balance-fournisseurs","type":0,"val":"api","end":""},{"old":"/api/v1/rapports/balance-fournisseurs","type":0,"val":"v1","end":""},{"old":"/api/v1/rapports/balance-fournisseurs","type":0,"val":"rapports","end":""},{"old":"/api/v1/rapports/balance-fournisseurs","type":0,"val":"balance-fournisseurs","end":""}],
+    types: placeholder as Registry['rapports.balance_fournisseurs']['types'],
+  },
+  'rapports.releve_fournisseur': {
+    methods: ["POST"],
+    pattern: '/api/v1/rapports/releve-fournisseur',
+    tokens: [{"old":"/api/v1/rapports/releve-fournisseur","type":0,"val":"api","end":""},{"old":"/api/v1/rapports/releve-fournisseur","type":0,"val":"v1","end":""},{"old":"/api/v1/rapports/releve-fournisseur","type":0,"val":"rapports","end":""},{"old":"/api/v1/rapports/releve-fournisseur","type":0,"val":"releve-fournisseur","end":""}],
+    types: placeholder as Registry['rapports.releve_fournisseur']['types'],
+  },
 } as const satisfies Record<string, AdonisEndpoint>
 
 export { routes }

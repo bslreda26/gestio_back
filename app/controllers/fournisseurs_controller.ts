@@ -11,9 +11,10 @@ import {
   fournisseurUpdateValidator,
 } from '#validators/fournisseur_validator'
 import type { HttpContext } from '@adonisjs/core/http'
-import { maskSolde } from '#helpers/solde_visibility'
+import { maskSolde, withReleveSolde } from '#helpers/solde_visibility'
 import { requirePointDeVente, scopeByPointDeVente } from '#helpers/point_de_vente_context'
 import { hasUserPermission } from '#services/permission_service'
+import { computeFournisseurSoldePdv, computeFournisseurSoldesPdv } from '#services/rapport_service'
 
 const RECENT_ACHATS_LIMIT = 5
 
@@ -42,10 +43,18 @@ export default class FournisseursController {
     const total = await query.clone().count('* as total')
     const fournisseurs = await query.offset(offset).limit(limit)
 
+    const pos = requirePointDeVente(ctx)
+    const soldes = await computeFournisseurSoldesPdv(
+      pos.pointDeVenteId,
+      fournisseurs.map((f) => f.id)
+    )
+
     const canSeeSolde = hasUserPermission(ctx.auth.getUserOrFail(), 'fournisseurs_solde')
     return sendPaginated(
       ctx,
-      fournisseurs.map((f) => maskSolde(f.serialize(), canSeeSolde)),
+      fournisseurs.map((f) =>
+        maskSolde(withReleveSolde(f.serialize(), soldes.get(f.id) ?? 0), canSeeSolde)
+      ),
       buildMeta(Number(total[0].$extras.total), page, limit)
     )
   }
@@ -65,9 +74,10 @@ export default class FournisseursController {
       pos.pointDeVenteId
     )
 
+    const solde = await computeFournisseurSoldePdv(id, pos.pointDeVenteId)
     const canSeeSolde = hasUserPermission(ctx.auth.getUserOrFail(), 'fournisseurs_solde')
     return sendSuccess(ctx, {
-      fournisseur: maskSolde(fournisseur.serialize(), canSeeSolde),
+      fournisseur: maskSolde(withReleveSolde(fournisseur.serialize(), solde), canSeeSolde),
       recentAchats,
     })
   }

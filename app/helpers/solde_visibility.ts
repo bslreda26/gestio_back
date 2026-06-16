@@ -3,3 +3,7 @@ export function maskSolde<T extends Record<string, unknown>>(record: T, canSeeSo
   const { solde: _solde, ...rest } = record
   return rest as T
 }
+
+export function withReleveSolde<T extends Record<string, unknown>>(record: T, solde: number): T {
+  return { ...record, solde }
+}

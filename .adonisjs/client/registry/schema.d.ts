@@ -1435,4 +1435,52 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['releveClient']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'rapports.depenses': {
+    methods: ["POST"]
+    pattern: '/api/v1/rapports/depenses'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/rapport_validator').rapportDepensesValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/rapport_validator').rapportDepensesValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['depenses']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['depenses']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'rapports.chiffre_affaires': {
+    methods: ["POST"]
+    pattern: '/api/v1/rapports/chiffre-affaires'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/rapport_validator').rapportChiffreAffaireValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/rapport_validator').rapportChiffreAffaireValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['chiffreAffaire']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['chiffreAffaire']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'rapports.balance_fournisseurs': {
+    methods: ["POST"]
+    pattern: '/api/v1/rapports/balance-fournisseurs'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/rapport_validator').rapportBalanceFournisseursValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/rapport_validator').rapportBalanceFournisseursValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['balanceFournisseurs']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['balanceFournisseurs']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'rapports.releve_fournisseur': {
+    methods: ["POST"]
+    pattern: '/api/v1/rapports/releve-fournisseur'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/rapport_validator').rapportReleveFournisseurValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/rapport_validator').rapportReleveFournisseurValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['releveFournisseur']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['releveFournisseur']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
 }

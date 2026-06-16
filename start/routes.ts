@@ -420,6 +420,22 @@ router
               .post('releve-client', [RapportsController, 'releveClient'])
               .as('releve_client')
               .use(middleware.role({ permission: 'rapports' }))
+            router
+              .post('depenses', [RapportsController, 'depenses'])
+              .as('depenses')
+              .use(middleware.role({ permission: 'rapports' }))
+            router
+              .post('chiffre-affaires', [RapportsController, 'chiffreAffaire'])
+              .as('chiffre_affaires')
+              .use(middleware.role({ permission: 'rapports' }))
+            router
+              .post('balance-fournisseurs', [RapportsController, 'balanceFournisseurs'])
+              .as('balance_fournisseurs')
+              .use(middleware.role({ permission: 'rapports' }))
+            router
+              .post('releve-fournisseur', [RapportsController, 'releveFournisseur'])
+              .as('releve_fournisseur')
+              .use(middleware.role({ permission: 'rapports' }))
           })
           .prefix('rapports')
           .as('rapports')

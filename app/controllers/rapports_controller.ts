@@ -3,15 +3,23 @@ import { requirePointDeVente } from '#helpers/point_de_vente_context'
 import {
   RapportBusinessError,
   rapportBalanceClients,
+  rapportBalanceFournisseurs,
   rapportCaisse,
+  rapportChiffreAffaire,
+  rapportDepenses,
   rapportReleveClient,
+  rapportReleveFournisseur,
   rapportStockActuel,
   rapportValeurStock,
 } from '#services/rapport_service'
 import {
   rapportBalanceClientsValidator,
+  rapportBalanceFournisseursValidator,
   rapportCaisseValidator,
+  rapportChiffreAffaireValidator,
+  rapportDepensesValidator,
   rapportReleveClientValidator,
+  rapportReleveFournisseurValidator,
   rapportStockActuelValidator,
   rapportValeurStockValidator,
 } from '#validators/rapport_validator'
@@ -115,6 +123,86 @@ export default class RapportsController {
       const data = await rapportReleveClient(
         pos.pointDeVenteId,
         payload.client_id,
+        payload.date_from,
+        payload.date_to,
+        { page: payload.page, limit: payload.limit }
+      )
+      return sendSuccess(ctx, data, data.meta)
+    } catch (error) {
+      return handleRapportError(ctx, error)
+    }
+  }
+
+  /**
+   * Rapport dépenses — date_debut, date_fin ; total par catégorie et total général
+   */
+  async depenses(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(rapportDepensesValidator)
+    try {
+      const pos = requirePointDeVente(ctx)
+      const data = await rapportDepenses(
+        pos.pointDeVenteId,
+        payload.date_debut,
+        payload.date_fin
+      )
+      return sendSuccess(ctx, data)
+    } catch (error) {
+      return handleRapportError(ctx, error)
+    }
+  }
+
+  /**
+   * Rapport chiffre d'affaires — CA par client (factures − retours) et total global
+   */
+  async chiffreAffaire(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(rapportChiffreAffaireValidator)
+    try {
+      const pos = requirePointDeVente(ctx)
+      const data = await rapportChiffreAffaire({
+        pointDeVenteId: pos.pointDeVenteId,
+        dateDebut: payload.date_debut,
+        dateFin: payload.date_fin,
+        page: payload.page,
+        limit: payload.limit,
+        clientId: payload.client_id,
+        search: payload.search,
+      })
+      return sendSuccess(ctx, data, data.meta)
+    } catch (error) {
+      return handleRapportError(ctx, error)
+    }
+  }
+
+  /**
+   * Balance fournisseurs — référence, désignation, solde PDV ; total soldes fournisseurs
+   */
+  async balanceFournisseurs(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(rapportBalanceFournisseursValidator)
+    try {
+      const pos = requirePointDeVente(ctx)
+      const data = await rapportBalanceFournisseurs({
+        pointDeVenteId: pos.pointDeVenteId,
+        page: payload.page,
+        limit: payload.limit,
+        fournisseurId: payload.fournisseur_id,
+        search: payload.search,
+      })
+      return sendSuccess(ctx, data, data.meta)
+    } catch (error) {
+      return handleRapportError(ctx, error)
+    }
+  }
+
+  /**
+   * Relevé fournisseur — fournisseur_id, date_from, date_to ; solde initial, mouvements, solde final
+   */
+  async releveFournisseur(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(rapportReleveFournisseurValidator)
+    try {
+      const pos = requirePointDeVente(ctx)
+      const data = await rapportReleveFournisseur(
+        pos.pointDeVenteId,
+        payload.fournisseur_id,
         payload.date_from,
         payload.date_to,
         { page: payload.page, limit: payload.limit }

@@ -123,6 +123,10 @@ export type ScannedRoutes = {
     'rapports.valeur_stock': { paramsTuple?: []; params?: {} }
     'rapports.balance_clients': { paramsTuple?: []; params?: {} }
     'rapports.releve_client': { paramsTuple?: []; params?: {} }
+    'rapports.depenses': { paramsTuple?: []; params?: {} }
+    'rapports.chiffre_affaires': { paramsTuple?: []; params?: {} }
+    'rapports.balance_fournisseurs': { paramsTuple?: []; params?: {} }
+    'rapports.releve_fournisseur': { paramsTuple?: []; params?: {} }
   }
   GET: {
     'auth.me': { paramsTuple?: []; params?: {} }
@@ -253,6 +257,10 @@ export type ScannedRoutes = {
     'rapports.valeur_stock': { paramsTuple?: []; params?: {} }
     'rapports.balance_clients': { paramsTuple?: []; params?: {} }
     'rapports.releve_client': { paramsTuple?: []; params?: {} }
+    'rapports.depenses': { paramsTuple?: []; params?: {} }
+    'rapports.chiffre_affaires': { paramsTuple?: []; params?: {} }
+    'rapports.balance_fournisseurs': { paramsTuple?: []; params?: {} }
+    'rapports.releve_fournisseur': { paramsTuple?: []; params?: {} }
   }
 }
 declare module '@adonisjs/core/types/http' {

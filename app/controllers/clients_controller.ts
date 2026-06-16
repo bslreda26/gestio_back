@@ -18,8 +18,9 @@ import {
 } from '#validators/client_validator'
 import type { HttpContext } from '@adonisjs/core/http'
 import db from '@adonisjs/lucid/services/db'
-import { maskSolde } from '#helpers/solde_visibility'
+import { maskSolde, withReleveSolde } from '#helpers/solde_visibility'
 import { hasUserPermission } from '#services/permission_service'
+import { computeClientSoldesPdv, computeClientSoldePdv } from '#services/rapport_service'
 
 export default class ClientsController {
   async search(ctx: HttpContext) {
@@ -50,10 +51,17 @@ export default class ClientsController {
     const clients = await query.offset(offset).limit(limit)
     const totalCount = Number(total[0].$extras.total)
 
+    const soldes = await computeClientSoldesPdv(
+      pos.pointDeVenteId,
+      clients.map((c) => c.id)
+    )
+
     const canSeeSolde = hasUserPermission(ctx.auth.getUserOrFail(), 'clients_solde')
     return sendPaginated(
       ctx,
-      clients.map((client) => maskSolde(client.serialize(), canSeeSolde)),
+      clients.map((client) =>
+        maskSolde(withReleveSolde(client.serialize(), soldes.get(client.id) ?? 0), canSeeSolde)
+      ),
       buildMeta(totalCount, page, limit)
     )
   }
@@ -63,14 +71,16 @@ export default class ClientsController {
     const client = await Client.find(id)
     if (!(await assertRecordBelongsToPointDeVente(ctx, client, 'Client'))) return
 
+    const pos = requirePointDeVente(ctx)
     const recentVentes = await Vente.query()
       .where('client_id', id)
       .orderBy('date_vente', 'desc')
       .limit(5)
 
+    const solde = await computeClientSoldePdv(id, pos.pointDeVenteId)
     const canSeeSolde = hasUserPermission(ctx.auth.getUserOrFail(), 'clients_solde')
     return sendSuccess(ctx, {
-      client: maskSolde(client!.serialize(), canSeeSolde),
+      client: maskSolde(withReleveSolde(client!.serialize(), solde), canSeeSolde),
       recentVentes,
     })
   }
@@ -182,8 +192,10 @@ export default class ClientsController {
       .where('reste_a_payer', '>', 0)
       .sum('reste_a_payer as total')
 
+    const solde = await computeClientSoldePdv(id, pos.pointDeVenteId)
+
     return sendSuccess(ctx, {
-      client: { id: client.id, nom: client.nom, code: client.code, solde: client.solde },
+      client: { id: client.id, nom: client.nom, code: client.code, solde },
       totalCreances: Number(creances[0]?.total ?? 0),
       paiements,
     })
