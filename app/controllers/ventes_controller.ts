@@ -11,6 +11,7 @@ import {
 } from '#helpers/point_de_vente_context'
 import { serializeVentesForList } from '#helpers/vente_list_serializer'
 import { serializeVenteLignesForApi } from '#helpers/vente_ligne_serializer'
+import { serializeVenteForApi } from '#helpers/vente_serializer'
 import { getVenteLigneVisibility } from '#helpers/vente_ligne_visibility'
 import { buildMeta, parsePagination, type PaginationInput } from '#helpers/pagination'
 import { CaisseBusinessError } from '#services/caisse_service'
@@ -178,9 +179,14 @@ export default class VentesController {
 
     const lock = await buildVenteLockInfo(vente, ctx.auth.getUserOrFail().id)
 
+    const ligneVisibility = getVenteLigneVisibility(ctx)
+
     return sendSuccess(ctx, {
-      vente,
-      lignes: await serializeVenteLignesForApi(lignes, getVenteLigneVisibility(ctx)),
+      vente: serializeVenteForApi(vente, {
+        includeMarge: ligneVisibility.includeMarge,
+        includeMargePct: ligneVisibility.includeMargePct,
+      }),
+      lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
       client,
       user: user ? { id: user.id, nom: user.nom, prenom: user.prenom, email: user.email } : null,
       paiements,
@@ -245,9 +251,13 @@ export default class VentesController {
         requirePointDeVente(ctx)
       )
       const lignes = await VenteLigne.query().where('vente_id', vente.id)
+      const ligneVisibility = getVenteLigneVisibility(ctx)
       return sendSuccess(ctx, {
-        vente,
-        lignes: await serializeVenteLignesForApi(lignes, getVenteLigneVisibility(ctx)),
+        vente: serializeVenteForApi(vente, {
+        includeMarge: ligneVisibility.includeMarge,
+        includeMargePct: ligneVisibility.includeMargePct,
+      }),
+        lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
       })
     } catch (error) {
       return handleVenteError(ctx, error)
@@ -278,9 +288,13 @@ export default class VentesController {
       )
 
       const lignes = await VenteLigne.query().where('vente_id', updated.id)
+      const ligneVisibility = getVenteLigneVisibility(ctx)
       return sendSuccess(ctx, {
-        vente: updated,
-        lignes: await serializeVenteLignesForApi(lignes, getVenteLigneVisibility(ctx)),
+        vente: serializeVenteForApi(updated, {
+          includeMarge: ligneVisibility.includeMarge,
+          includeMargePct: ligneVisibility.includeMargePct,
+        }),
+        lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
       })
     } catch (error) {
       return handleVenteError(ctx, error)
@@ -436,23 +450,29 @@ export default class VentesController {
           ? 'retour'
           : 'facture'
 
+    const ligneVisibility = getVenteLigneVisibility(ctx)
+
+    const totaux: Record<string, unknown> = {
+      sous_total: vente.sousTotal,
+      remise: vente.remiseMontant,
+      total_ht: vente.totalHt,
+      tva: vente.tvaMontant,
+      total_ttc: vente.totalTtc,
+      montant_paye: vente.montantPaye,
+      reste_a_payer: vente.resteAPayer,
+    }
+    if (ligneVisibility.includeMarge) totaux.marge = Number(vente.marge)
+    if (ligneVisibility.includeMargePct) totaux.marge_pct = Number(vente.margePct)
+
     return sendSuccess(ctx, {
       type: typeDocument,
       statut_label: VENTE_STATUT_LABELS[vente.statut as keyof typeof VENTE_STATUT_LABELS] ?? vente.statut,
       numero: vente.numero,
       date: vente.dateVente,
       client,
-      vente,
-      lignes: await serializeVenteLignesForApi(lignes, getVenteLigneVisibility(ctx)),
-      totaux: {
-        sous_total: vente.sousTotal,
-        remise: vente.remiseMontant,
-        total_ht: vente.totalHt,
-        tva: vente.tvaMontant,
-        total_ttc: vente.totalTtc,
-        montant_paye: vente.montantPaye,
-        reste_a_payer: vente.resteAPayer,
-      },
+      vente: serializeVenteForApi(vente, ligneVisibility),
+      lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
+      totaux,
       generated_at: DateTime.now().toISO(),
     })
   }
@@ -463,12 +483,14 @@ export default class VentesController {
     const pos = requirePointDeVente(ctx)
 
     try {
+      const ligneVisibility = getVenteLigneVisibility(ctx)
       const impression = await recordVenteImpression(payload.id, payload.type)
       const printCtx = await loadVenteImpressionContext(
         payload.id,
         pos.pointDeVenteId,
         payload.type,
-        impression
+        impression,
+        ligneVisibility
       )
 
       const pdf =

@@ -1,4 +1,4 @@
-import { isFacture, VENTE_STATUT, VENTE_STATUT_LABELS } from '#constants/vente_statuts'
+import { isFactureValide, VENTE_STATUT, VENTE_STATUT_LABELS } from '#constants/vente_statuts'
 import { loadProduitCodeMap } from '#helpers/produit_codes'
 import Client from '#models/client'
 import PointDeVente from '#models/point_de_vente'
@@ -41,6 +41,8 @@ export type VenteImpressionContext = {
   statutLabel: string
   documentTitle: string
   generatedAt: DateTime
+  includeMarge: boolean
+  includeMargePct: boolean
 }
 
 const STATUT_PAIEMENT_LABELS: Record<string, string> = {
@@ -61,9 +63,9 @@ function documentTitleForVente(statut: string, type: VenteImpressionType): strin
 }
 
 function assertImpressionAllowed(vente: Vente, type: VenteImpressionType) {
-  if (type === 'bon_sortie' && !isFacture(vente.statut)) {
+  if (type === 'bon_sortie' && !isFactureValide(vente.statut)) {
     throw new VenteBusinessError(
-      'Le bon de sortie est disponible uniquement pour une facture (non validee ou validee)'
+      'Le bon de sortie est disponible uniquement pour une facture validee'
     )
   }
 }
@@ -94,7 +96,8 @@ export async function loadVenteImpressionContext(
   venteId: number,
   pointDeVenteId: number,
   type: VenteImpressionType,
-  impression: VenteImpressionLabel
+  impression: VenteImpressionLabel,
+  visibility: { includeMarge?: boolean; includeMargePct?: boolean } = {}
 ): Promise<VenteImpressionContext> {
   const vente = await Vente.query()
     .where('id', venteId)
@@ -141,5 +144,7 @@ export async function loadVenteImpressionContext(
     statutLabel: VENTE_STATUT_LABELS[vente.statut as keyof typeof VENTE_STATUT_LABELS] ?? vente.statut,
     documentTitle: documentTitleForVente(vente.statut, type),
     generatedAt: DateTime.now(),
+    includeMarge: visibility.includeMarge ?? false,
+    includeMargePct: visibility.includeMargePct ?? false,
   }
 }

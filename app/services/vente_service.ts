@@ -15,7 +15,7 @@ import Vente from '#models/vente'
 import VenteLigne from '#models/vente_ligne'
 import Paiement from '#models/paiement'
 import TvaGroupe from '#models/tva_groupe'
-import { calcMargeLigne, roundMoney, validatePrixPlancher } from '#services/pricing_service'
+import { calcMargeLigne, calculerMargeFacture, roundMoney, validatePrixPlancher } from '#services/pricing_service'
 import { enregistrerEntree as stockEntree, enregistrerSortie as stockSortie } from '#services/stock_service'
 import {
   canVenteAuDetail,
@@ -101,7 +101,8 @@ export function calculerTotauxVente(
   const totalTtc = roundMoney(Math.max(0, sousTotal - totalRemise))
   const totalHt = roundMoney(lignes.reduce((s, l) => s + l.montantHt, 0))
   const tvaMontant = roundMoney(lignes.reduce((s, l) => s + l.montantTva, 0))
-  return { sousTotal, remiseMontant: totalRemise, totalHt, tvaMontant, totalTtc }
+  const { marge, margePct } = calculerMargeFacture(lignes, sousTotal, totalTtc)
+  return { sousTotal, remiseMontant: totalRemise, totalHt, tvaMontant, totalTtc, marge, margePct }
 }
 
 export async function buildLignesFromPayload(
@@ -125,7 +126,6 @@ export async function buildLignesFromPayload(
     const tvaGroupe = await tvaQuery.where('id', produit.tvaGroupeId).first()
     const tvaPct = Number(tvaGroupe?.taux ?? 0)
     const plancherLigne = resolvePlancherLigne(produit, mode)
-    const prixVenteTtcLigne = resolvePrixUnitaireLigne(produit, mode)
     const prixUnitaire = resolvePrixUnitaireLigne(produit, mode, ligne.prix_unitaire)
     const quantiteStock = toStockQuantite(mode, ligne.quantite, produit)
 
@@ -149,7 +149,7 @@ export async function buildLignesFromPayload(
       quantiteStock,
       prixUnitaire,
       plancherLigne,
-      marge: calcMargeLigne(prixVenteTtcLigne, plancherLigne),
+      marge: calcMargeLigne(prixUnitaire, plancherLigne),
       remisePct,
       tvaPct,
       montantHt,
@@ -457,6 +457,8 @@ export async function creerVente(
         totalHt: totaux.totalHt,
         tvaMontant: totaux.tvaMontant,
         totalTtc: totaux.totalTtc,
+        marge: totaux.marge,
+        margePct: totaux.margePct,
         montantPaye: 0,
         resteAPayer: totaux.totalTtc,
         notes: data.notes ?? null,
@@ -566,6 +568,8 @@ export async function mettreAJourVente(
       totalHt: totaux.totalHt,
       tvaMontant: totaux.tvaMontant,
       totalTtc: totaux.totalTtc,
+      marge: totaux.marge,
+      margePct: totaux.margePct,
       resteAPayer: totaux.totalTtc,
       montantPaye: 0,
       statutPaiement: 'non_paye',
@@ -616,8 +620,24 @@ export async function convertirDevisEnFacture(
 
     await verifierCreditClient(vente.clientId, Number(vente.totalTtc), trx)
 
-    vente.statut = VENTE_STATUT.NON_VALIDE
-    vente.numero = nouveauNumero
+    const totaux = calculerTotauxVente(
+      calculated,
+      Number(vente.remisePct),
+      Number(vente.remiseMontant)
+    )
+
+    vente.merge({
+      statut: VENTE_STATUT.NON_VALIDE,
+      numero: nouveauNumero,
+      sousTotal: totaux.sousTotal,
+      remiseMontant: totaux.remiseMontant,
+      totalHt: totaux.totalHt,
+      tvaMontant: totaux.tvaMontant,
+      totalTtc: totaux.totalTtc,
+      marge: totaux.marge,
+      margePct: totaux.margePct,
+      resteAPayer: totaux.totalTtc,
+    })
     vente.useTransaction(trx)
     await vente.save()
 
@@ -626,7 +646,7 @@ export async function convertirDevisEnFacture(
     await applyStockSortie(vente.id, calculated, userId, trx)
 
     const client = await Client.query({ client: trx }).where('id', vente.clientId).firstOrFail()
-    client.solde = roundMoney(Number(client.solde) + Number(vente.totalTtc))
+    client.solde = roundMoney(Number(client.solde) + totaux.totalTtc)
     client.useTransaction(trx)
     await client.save()
 
@@ -811,6 +831,8 @@ export async function creerFactureRetour(
         totalHt: totaux.totalHt,
         tvaMontant: totaux.tvaMontant,
         totalTtc: totaux.totalTtc,
+        marge: totaux.marge,
+        margePct: totaux.margePct,
         montantPaye: 0,
         resteAPayer: totaux.totalTtc,
         notes: notes ?? `Retour sur facture ${facture.numero}`,

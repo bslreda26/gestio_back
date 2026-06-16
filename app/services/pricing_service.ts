@@ -34,6 +34,36 @@ export function calcMargeLigne(prixVenteTtc: number, plancher: number): number {
   return roundMoney(prixVenteTtc - plancher)
 }
 
+/** Marge totale d'une ligne (unitaire × quantité, après remise ligne). */
+export function calcMargeTotaleLigne(
+  margeUnitaire: number,
+  quantite: number,
+  remisePct = 0
+): number {
+  const brutMarge = roundMoney(margeUnitaire * quantite)
+  return roundMoney(brutMarge * (1 - remisePct / 100))
+}
+
+export type LigneMargeInput = {
+  marge: number
+  quantite: number
+  remisePct?: number
+}
+
+/** Marge facture = somme des marges lignes, ajustée par la remise globale. */
+export function calculerMargeFacture(
+  lignes: LigneMargeInput[],
+  sousTotal: number,
+  totalTtc: number
+): { marge: number; margePct: number } {
+  const margeBrute = roundMoney(
+    lignes.reduce((sum, ligne) => sum + calcMargeTotaleLigne(ligne.marge, ligne.quantite, ligne.remisePct ?? 0), 0)
+  )
+  const marge = sousTotal > 0 ? roundMoney(margeBrute * (totalTtc / sousTotal)) : 0
+  const margePct = totalTtc > 0 ? roundMoney((marge / totalTtc) * 100) : 0
+  return { marge, margePct }
+}
+
 export function calcTtc(prixHt: number, tauxTva: number): number {
   return roundMoney(prixHt * (1 + tauxTva / 100))
 }

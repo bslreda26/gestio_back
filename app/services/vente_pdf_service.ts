@@ -1,5 +1,6 @@
 import type { VenteImpressionContext } from '#services/vente_impression_service'
 import { statutPaiementLabel } from '#services/vente_impression_service'
+import { VENTE_STATUT } from '#constants/vente_statuts'
 import PDFDocument from 'pdfkit'
 
 const PAGE_MARGIN = 48
@@ -72,6 +73,31 @@ function drawBadge(doc: PdfDoc, label: string, x: number, y: number) {
     .fontSize(isDuplicata ? 8 : 7)
     .fillColor(C.black)
     .text(text, x, y + (isDuplicata ? 6 : 7), { width, align: 'center' })
+}
+
+function statusBannerText(statut: string): string | null {
+  if (statut === VENTE_STATUT.NON_VALIDE) return 'FACTURE NON VALIDEE'
+  if (statut === VENTE_STATUT.DEVIS) return 'DEVIS — DOCUMENT NON VALIDE'
+  return null
+}
+
+function drawStatusBanner(doc: PdfDoc, ctx: VenteImpressionContext, startY: number): number {
+  const text = statusBannerText(ctx.vente.statut)
+  if (!text) return startY
+
+  const bannerH = 30
+  doc.rect(PAGE_MARGIN, startY, CONTENT_WIDTH, bannerH).fill(C.black)
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(12)
+    .fillColor(C.white)
+    .text(ascii(text), PAGE_MARGIN, startY + 9, {
+      width: CONTENT_WIDTH,
+      align: 'center',
+      characterSpacing: 1.2,
+    })
+
+  return startY + bannerH + 14
 }
 
 function drawPointDeVenteHeader(doc: PdfDoc, ctx: VenteImpressionContext, startY: number) {
@@ -300,6 +326,10 @@ function drawBonSortieLines(doc: PdfDoc, ctx: VenteImpressionContext, startY: nu
   return drawTable(doc, columns, rows, startY, { rowHeight: 18, fontSize: 9 })
 }
 
+function formatPct(value: number): string {
+  return `${new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value)} %`
+}
+
 function drawTotals(doc: PdfDoc, ctx: VenteImpressionContext, y: number) {
   const vente = ctx.vente
   const boxWidth = 240
@@ -309,8 +339,18 @@ function drawTotals(doc: PdfDoc, ctx: VenteImpressionContext, y: number) {
   const rows: [string, string, boolean][] = [
     ['Total HT', formatMoney(Number(vente.totalHt)), false],
     ['TVA', formatMoney(Number(vente.tvaMontant)), false],
-    ['Total TTC', formatMoney(Number(vente.totalTtc)), true],
   ]
+
+  if (ctx.type === 'facture') {
+    if (ctx.includeMarge) {
+      rows.push(['Marge', formatMoney(Number(vente.marge)), false])
+    }
+    if (ctx.includeMargePct) {
+      rows.push(['Marge %', formatPct(Number(vente.margePct)), false])
+    }
+  }
+
+  rows.push(['Total TTC', formatMoney(Number(vente.totalTtc)), true])
 
   const rowH = 15
   const totalRowH = 22
@@ -385,7 +425,8 @@ function renderPdf(render: (doc: PdfDoc) => void): Promise<Buffer> {
 
 export function generateVenteFacturePdf(ctx: VenteImpressionContext): Promise<Buffer> {
   return renderPdf((doc) => {
-    let y = drawPointDeVenteHeader(doc, ctx, PAGE_MARGIN)
+    let y = drawStatusBanner(doc, ctx, PAGE_MARGIN)
+    y = drawPointDeVenteHeader(doc, ctx, y)
     y = drawDocumentTitle(doc, ctx, y)
     y = drawMetaBlock(doc, ctx, y)
     y = drawFactureLines(doc, ctx, y)
@@ -396,7 +437,8 @@ export function generateVenteFacturePdf(ctx: VenteImpressionContext): Promise<Bu
 
 export function generateVenteBonSortiePdf(ctx: VenteImpressionContext): Promise<Buffer> {
   return renderPdf((doc) => {
-    let y = drawPointDeVenteHeader(doc, ctx, PAGE_MARGIN)
+    let y = drawStatusBanner(doc, ctx, PAGE_MARGIN)
+    y = drawPointDeVenteHeader(doc, ctx, y)
     y = drawDocumentTitle(doc, ctx, y)
     y = drawMetaBlock(doc, ctx, y)
     y = drawBonSortieLines(doc, ctx, y)

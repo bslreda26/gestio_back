@@ -610,7 +610,7 @@ export class VenteLigneSchema extends BaseModel {
 }
 
 export class VenteSchema extends BaseModel {
-  static $columns = ['bonSortieImpressionCount', 'clientId', 'createdAt', 'dateEcheance', 'dateVente', 'devisOrigineId', 'factureImpressionCount', 'factureOrigineId', 'id', 'lockExpiresAt', 'lockedAt', 'lockedByUserId', 'montantPaye', 'notes', 'numero', 'pointDeVenteId', 'remiseMontant', 'remisePct', 'resteAPayer', 'sousTotal', 'statut', 'statutPaiement', 'totalHt', 'totalTtc', 'tvaMontant', 'updatedAt', 'userId'] as const
+  static $columns = ['bonSortieImpressionCount', 'clientId', 'createdAt', 'dateEcheance', 'dateVente', 'devisOrigineId', 'factureImpressionCount', 'factureOrigineId', 'id', 'lockExpiresAt', 'lockedAt', 'lockedByUserId', 'marge', 'margePct', 'montantPaye', 'notes', 'numero', 'pointDeVenteId', 'remiseMontant', 'remisePct', 'resteAPayer', 'sousTotal', 'statut', 'statutPaiement', 'totalHt', 'totalTtc', 'tvaMontant', 'updatedAt', 'userId'] as const
   $columns = VenteSchema.$columns
   @column()
   declare bonSortieImpressionCount: number
@@ -636,6 +636,10 @@ export class VenteSchema extends BaseModel {
   declare lockedAt: DateTime | null
   @column()
   declare lockedByUserId: number | null
+  @column()
+  declare marge: string
+  @column()
+  declare margePct: string
   @column()
   declare montantPaye: string
   @column()

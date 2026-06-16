@@ -411,7 +411,33 @@ test.group('API — ventes & stock', (group) => {
     create.assertStatus(200)
     const ligne = create.body().data.lignes[0]
     assert.equal(ligne.prixUnitaire, prixUnitaire)
-    assert.equal(ligne.marge, prixVenteTtc - plancher)
+    assert.equal(ligne.marge, prixUnitaire - plancher)
+  })
+
+  test('admin sees marge and marge_pct on vente facture', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0001')
+    const prixUnitaire = 15000
+    const plancher = Number(produit.plancher)
+
+    const create = await authedPos(client, token)
+      .post('/api/v1/ventes/create')
+      .json({
+        statut: 'devis',
+        client_id: 1,
+        date_vente: '2026-06-10',
+        lignes: [{ produit_id: produit.id, quantite: 2, prix_unitaire: prixUnitaire }],
+      })
+
+    create.assertStatus(200)
+    const venteId = create.body().data.vente.id
+
+    const show = await authedPos(client, token).post('/api/v1/ventes/show').json({ id: venteId })
+    show.assertStatus(200)
+    const vente = show.body().data.vente
+    const expectedMarge = (prixUnitaire - plancher) * 2
+    assert.equal(vente.marge, expectedMarge)
+    assert.equal(vente.margePct, Math.round((expectedMarge / vente.totalTtc) * 10000) / 100)
   })
 
   test('gerant with permission sees marge and plancher on vente lignes', async ({ client, assert }) => {
@@ -451,7 +477,7 @@ test.group('API — ventes & stock', (group) => {
     const show = await authedPos(client, token).post('/api/v1/ventes/show').json({ id: venteId })
     show.assertStatus(200)
     const ligne = show.body().data.lignes[0]
-    assert.equal(ligne.marge, prixVenteTtc - plancher)
+    assert.equal(ligne.marge, prixUnitaire - plancher)
     assert.equal(ligne.plancher, plancher)
   })
 
@@ -492,6 +518,92 @@ test.group('API — ventes & stock', (group) => {
     const ligne = show.body().data.lignes[0]
     assert.notProperty(ligne, 'marge')
     assert.notProperty(ligne, 'plancher')
+    assert.notProperty(show.body().data.vente, 'marge')
+    assert.notProperty(show.body().data.vente, 'margePct')
+  })
+
+  test('user with ligne marge but without marge pct permission sees marge only', async ({
+    client,
+    assert,
+  }) => {
+    const adminToken = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0001')
+    const prixUnitaire = 15000
+    const plancher = Number(produit.plancher)
+
+    const create = await authedPos(client, adminToken).post('/api/v1/ventes/create').json({
+      statut: 'devis',
+      client_id: 1,
+      date_vente: '2026-06-10',
+      lignes: [{ produit_id: produit.id, quantite: 2, prix_unitaire: prixUnitaire }],
+    })
+    create.assertStatus(200)
+    const venteId = create.body().data.vente.id
+
+    const user = await User.create({
+      email: 'facturation.marge.sans.pct@test.local',
+      password: 'Test@12345',
+      nom: 'Fact',
+      prenom: 'MargeSansPct',
+      fullName: 'Fact MargeSansPct',
+      role: 'facturation',
+      pointDeVenteId: DEFAULT_POINT_DE_VENTE_ID,
+      permissions: ['ventes', 'ventes_ligne_marge'],
+      isActive: true,
+    })
+
+    const login = await client.post('/api/v1/auth/login').json({
+      email: user.email,
+      password: 'Test@12345',
+    })
+    login.assertStatus(200)
+    const token = login.body().data.token
+
+    const show = await authedPos(client, token).post('/api/v1/ventes/show').json({ id: venteId })
+    show.assertStatus(200)
+    const vente = show.body().data.vente
+    assert.property(vente, 'marge')
+    assert.equal(vente.marge, (prixUnitaire - plancher) * 2)
+    assert.notProperty(vente, 'margePct')
+  })
+
+  test('custom ventes_marge_pct permission exposes margePct on vente', async ({ client, assert }) => {
+    const adminToken = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0001')
+
+    const create = await authedPos(client, adminToken).post('/api/v1/ventes/create').json({
+      statut: 'devis',
+      client_id: 1,
+      date_vente: '2026-06-10',
+      lignes: [{ produit_id: produit.id, quantite: 1, prix_unitaire: 15000 }],
+    })
+    create.assertStatus(200)
+    const venteId = create.body().data.vente.id
+
+    const user = await User.create({
+      email: 'facturation.marge.pct@test.local',
+      password: 'Test@12345',
+      nom: 'Fact',
+      prenom: 'MargePct',
+      fullName: 'Fact MargePct',
+      role: 'facturation',
+      pointDeVenteId: DEFAULT_POINT_DE_VENTE_ID,
+      permissions: ['ventes', 'ventes_marge_pct'],
+      isActive: true,
+    })
+
+    const login = await client.post('/api/v1/auth/login').json({
+      email: user.email,
+      password: 'Test@12345',
+    })
+    login.assertStatus(200)
+    const token = login.body().data.token
+
+    const show = await authedPos(client, token).post('/api/v1/ventes/show').json({ id: venteId })
+    show.assertStatus(200)
+    const vente = show.body().data.vente
+    assert.notProperty(vente, 'marge')
+    assert.property(vente, 'margePct')
   })
 
   test('facture below plancher is rejected', async ({ client, assert }) => {
@@ -562,6 +674,15 @@ test.group('API — ventes & stock', (group) => {
     second.assertStatus(200)
     assert.equal(second.headers()['x-impression-numero'], '2')
     assert.equal(second.headers()['x-impression-label'], 'DUPLICATA')
+
+    const bonInvalid = await authedPos(client, token).post('/api/v1/ventes/imprimer').json({
+      id: factureId,
+      type: 'bon_sortie',
+    })
+    bonInvalid.assertStatus(422)
+
+    await authedPos(client, token).post('/api/v1/ventes/lock').json({ id: factureId })
+    await authedPos(client, token).post('/api/v1/ventes/valider').json({ id: factureId })
 
     const bon = await authedPos(client, token).post('/api/v1/ventes/imprimer').json({
       id: factureId,

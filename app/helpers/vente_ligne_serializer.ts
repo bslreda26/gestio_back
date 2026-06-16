@@ -36,8 +36,8 @@ function pricingFromProduit(
   }
 
   if (options?.includeMarge) {
-    const prixVenteTtcLigne = resolvePrixUnitaireLigne(produit, mode)
-    result.marge = calcMargeLigne(prixVenteTtcLigne, plancher)
+    const prixUnitaire = Number(ligne.prixUnitaire)
+    result.marge = calcMargeLigne(prixUnitaire, plancher)
   }
 
   return result

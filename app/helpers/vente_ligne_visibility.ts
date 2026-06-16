@@ -5,6 +5,15 @@ export function getVenteLigneVisibility(ctx: HttpContext) {
   const user = ctx.auth.getUserOrFail()
   return {
     includeMarge: hasUserPermission(user, 'ventes_ligne_marge'),
+    includeMargePct: hasUserPermission(user, 'ventes_marge_pct'),
+    includePlancher: hasUserPermission(user, 'ventes_ligne_plancher'),
+  }
+}
+
+export function getVenteLigneVisibilityForUser(user: { role?: string | null; permissions?: string[] | null }) {
+  return {
+    includeMarge: hasUserPermission(user, 'ventes_ligne_marge'),
+    includeMargePct: hasUserPermission(user, 'ventes_marge_pct'),
     includePlancher: hasUserPermission(user, 'ventes_ligne_plancher'),
   }
 }
