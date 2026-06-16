@@ -543,7 +543,7 @@ export async function mettreAJourVente(
     const anciennesLignes = await VenteLigne.query({ client: trx }).where('vente_id', vente.id)
 
     const remisePct = data.remise_pct ?? Number(vente.remisePct)
-    const remiseMontantInput = data.remise_montant ?? Number(vente.remiseMontant)
+    const remiseMontantInput = data.remise_montant ?? 0
     const airsiPct = data.airsi_pct ?? Number(vente.airsiPct)
 
     let calculated: CalculatedLigne[]
@@ -654,7 +654,7 @@ export async function convertirDevisEnFacture(
     const totaux = calculerTotauxVente(
       calculated,
       Number(vente.remisePct),
-      Number(vente.remiseMontant),
+      0,
       Number(vente.airsiPct)
     )
 

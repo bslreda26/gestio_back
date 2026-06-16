@@ -32,6 +32,34 @@ test.group('calculerTotauxVente AIRSI', () => {
     assert.equal(totaux.airsiMontant, 59)
     assert.equal(totaux.totalApresAirsi, 1121)
   })
+
+  test('computes global remise from percentage only', ({ assert }) => {
+    const ligne: CalculatedLigne = {
+      ...sampleLigne(),
+      montantHt: 250000,
+      montantTva: 0,
+      montantTtc: 250000,
+    }
+
+    const totaux = calculerTotauxVente([ligne], 10, 0)
+
+    assert.equal(totaux.sousTotal, 250000)
+    assert.equal(totaux.remiseMontant, 25000)
+    assert.equal(totaux.totalTtc, 225000)
+  })
+
+  test('does not double-count stored remiseMontant as fixed input', ({ assert }) => {
+    const ligne: CalculatedLigne = {
+      ...sampleLigne(),
+      montantHt: 250000,
+      montantTva: 0,
+      montantTtc: 250000,
+    }
+
+    const totaux = calculerTotauxVente([ligne], 10, 25000)
+
+    assert.equal(totaux.remiseMontant, 50000)
+  })
 })
 
 test.group('buildFneInvoicePayload', () => {
