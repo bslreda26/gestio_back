@@ -380,17 +380,18 @@ function drawTotals(doc: PdfDoc, ctx: VenteImpressionContext, y: number) {
   const totalTtc = Number(vente.totalTtc)
   const finalTtc = airsiMontant > 0 ? Number(vente.totalApresAirsi) : totalTtc
 
-  const rows: [string, string, boolean][] = [
-    ['Total HT', formatMoney(Number(vente.totalHt)), false],
-    ['TVA', formatMoney(Number(vente.tvaMontant)), false],
-  ]
+  const rows: [string, string, boolean][] = []
+
+  if (remiseMontant > 0) {
+    rows.push(['Sous-total HT', formatMoney(Number(vente.totalHt) + remiseMontant), false])
+    rows.push(['Remise', `- ${formatMoney(remiseMontant)}`, false])
+  }
+
+  rows.push(['Total HT', formatMoney(Number(vente.totalHt)), false], ['TVA', formatMoney(Number(vente.tvaMontant)), false])
 
   if (ctx.type === 'facture') {
     if (airsiMontant > 0) {
       rows.push([`AIRSI (${formatPct(airsiPct)})`, `- ${formatMoney(airsiMontant)}`, false])
-    }
-    if (remiseMontant > 0) {
-      rows.push(['Remise', `- ${formatMoney(remiseMontant)}`, false])
     }
     rows.push(['Total TTC', formatMoney(finalTtc), true])
   } else {

@@ -98,11 +98,24 @@ export function calculerTotauxVente(
   airsiPct = 0
 ) {
   const sousTotal = roundMoney(lignes.reduce((s, l) => s + l.montantTtc, 0))
-  const remiseGlobalePct = roundMoney(sousTotal * (remisePct / 100))
-  const totalRemise = roundMoney(remiseGlobalePct + remiseMontant)
-  const totalTtc = roundMoney(Math.max(0, sousTotal - totalRemise))
-  const totalHt = roundMoney(lignes.reduce((s, l) => s + l.montantHt, 0))
-  const tvaMontant = roundMoney(lignes.reduce((s, l) => s + l.montantTva, 0))
+  const totalHtBrut = roundMoney(lignes.reduce((s, l) => s + l.montantHt, 0))
+  const tvaBrut = roundMoney(lignes.reduce((s, l) => s + l.montantTva, 0))
+
+  const remiseGlobalePct = roundMoney(totalHtBrut * (remisePct / 100))
+  const totalRemise = roundMoney(Math.min(totalHtBrut, remiseGlobalePct + remiseMontant))
+  const totalHt = roundMoney(totalHtBrut - totalRemise)
+
+  let tvaMontant: number
+  if (totalHtBrut > 0 && totalRemise > 0) {
+    const factor = totalHt / totalHtBrut
+    tvaMontant = roundMoney(
+      lignes.reduce((s, l) => s + roundMoney(l.montantHt * factor * (l.tvaPct / 100)), 0)
+    )
+  } else {
+    tvaMontant = tvaBrut
+  }
+
+  const totalTtc = roundMoney(totalHt + tvaMontant)
   const { marge, margePct } = calculerMargeFacture(lignes, sousTotal, totalTtc)
   const { airsiMontant, totalApresAirsi } = calcAirsi(totalTtc, airsiPct)
   return {

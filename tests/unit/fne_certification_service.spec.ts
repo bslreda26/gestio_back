@@ -33,9 +33,28 @@ test.group('calculerTotauxVente AIRSI', () => {
     assert.equal(totaux.totalApresAirsi, 1121)
   })
 
-  test('computes global remise from percentage only', ({ assert }) => {
+  test('computes global remise from percentage on HT and recalculates TVA', ({ assert }) => {
     const ligne: CalculatedLigne = {
       ...sampleLigne(),
+      tvaPct: 9,
+      montantHt: 20183,
+      montantTva: 1817,
+      montantTtc: 22000,
+    }
+
+    const totaux = calculerTotauxVente([ligne], 10, 0)
+
+    assert.equal(totaux.sousTotal, 22000)
+    assert.equal(totaux.remiseMontant, 2018.3)
+    assert.equal(totaux.totalHt, 18164.7)
+    assert.equal(totaux.tvaMontant, 1634.82)
+    assert.equal(totaux.totalTtc, 19799.52)
+  })
+
+  test('computes global remise from percentage only when TVA is zero', ({ assert }) => {
+    const ligne: CalculatedLigne = {
+      ...sampleLigne(),
+      tvaPct: 0,
       montantHt: 250000,
       montantTva: 0,
       montantTtc: 250000,
@@ -45,12 +64,14 @@ test.group('calculerTotauxVente AIRSI', () => {
 
     assert.equal(totaux.sousTotal, 250000)
     assert.equal(totaux.remiseMontant, 25000)
+    assert.equal(totaux.totalHt, 225000)
     assert.equal(totaux.totalTtc, 225000)
   })
 
   test('does not double-count stored remiseMontant as fixed input', ({ assert }) => {
     const ligne: CalculatedLigne = {
       ...sampleLigne(),
+      tvaPct: 0,
       montantHt: 250000,
       montantTva: 0,
       montantTtc: 250000,
