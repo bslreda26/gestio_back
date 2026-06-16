@@ -64,6 +64,7 @@ export const venteCreateValidator = vine.compile(
     date_echeance: vine.date({ formats: ['iso8601'] }).optional(),
     remise_pct: vine.number().min(0).max(100).optional(),
     remise_montant: vine.number().min(0).optional(),
+    airsi_pct: vine.number().min(0).max(100).optional(),
     notes: vine.string().trim().optional(),
     lignes: vine.array(ligneVenteSchema).minLength(1),
   })
@@ -77,8 +78,16 @@ export const venteUpdateValidator = vine.compile(
     date_echeance: vine.date({ formats: ['iso8601'] }).nullable().optional(),
     remise_pct: vine.number().min(0).max(100).optional(),
     remise_montant: vine.number().min(0).optional(),
+    airsi_pct: vine.number().min(0).max(100).optional(),
     notes: vine.string().trim().optional(),
     lignes: vine.array(ligneVenteSchema).minLength(1).optional(),
+  })
+)
+
+export const venteCertifyValidator = vine.compile(
+  vine.object({
+    id: vine.number().positive().optional(),
+    numero: vine.string().trim().optional(),
   })
 )
 

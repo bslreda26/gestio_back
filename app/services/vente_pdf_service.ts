@@ -1,6 +1,6 @@
 import type { VenteImpressionContext } from '#services/vente_impression_service'
 import { statutPaiementLabel } from '#services/vente_impression_service'
-import { VENTE_STATUT } from '#constants/vente_statuts'
+import { VENTE_STATUT, isFactureRetour } from '#constants/vente_statuts'
 import PDFDocument from 'pdfkit'
 
 const PAGE_MARGIN = 48
@@ -98,6 +98,29 @@ function drawStatusBanner(doc: PdfDoc, ctx: VenteImpressionContext, startY: numb
     })
 
   return startY + bannerH + 14
+}
+
+function fneCertifiedBannerLabel(statut: string): string {
+  if (isFactureRetour(statut)) return 'AVOIR CERTIFIE FNE'
+  return 'FACTURE CERTIFIEE FNE'
+}
+
+function drawFneCertifiedBanner(doc: PdfDoc, ctx: VenteImpressionContext, startY: number): number {
+  if (!ctx.vente.normalise || ctx.type !== 'facture') return startY
+
+  const bannerH = 26
+  doc.rect(PAGE_MARGIN, startY, CONTENT_WIDTH, bannerH).lineWidth(1).strokeColor(C.black).stroke()
+  doc
+    .font('Helvetica-Bold')
+    .fontSize(10)
+    .fillColor(C.black)
+    .text(fneCertifiedBannerLabel(ctx.vente.statut), PAGE_MARGIN, startY + 8, {
+      width: CONTENT_WIDTH,
+      align: 'center',
+      characterSpacing: 1,
+    })
+
+  return startY + bannerH + 12
 }
 
 function drawPointDeVenteHeader(doc: PdfDoc, ctx: VenteImpressionContext, startY: number) {
@@ -205,10 +228,25 @@ function drawMetaBlock(doc: PdfDoc, ctx: VenteImpressionContext, y: number) {
     docRows.push({ label: 'Facture liee', value: vente.numero })
   }
 
+  if (isFactureRetour(vente.statut) && vente.factureOrigineId) {
+    docRows.push({
+      label: 'Facture orig.',
+      value: ctx.factureOrigineNumero ?? String(vente.factureOrigineId),
+    })
+  }
+
   if (ctx.vendeur) {
     const vendeurNom =
       `${ctx.vendeur.prenom ?? ''} ${ctx.vendeur.nom ?? ''}`.trim() || ctx.vendeur.email
     docRows.push({ label: 'Vendeur', value: ascii(vendeurNom) })
+  }
+
+  if (ctx.vente.normalise && ctx.fne) {
+    if (ctx.fne.reference) docRows.push({ label: 'Ref. FNE', value: ascii(ctx.fne.reference) })
+    if (ctx.fne.invoiceId) docRows.push({ label: 'ID FNE', value: ascii(ctx.fne.invoiceId) })
+    if (ctx.vente.certifiedAt) {
+      docRows.push({ label: 'Certifiee', value: formatDate(ctx.vente.certifiedAt) })
+    }
   }
 
   const clientRows: MetaRow[] = [{ label: 'Nom', value: ascii(client.nom) }]
@@ -336,21 +374,28 @@ function drawTotals(doc: PdfDoc, ctx: VenteImpressionContext, y: number) {
   const boxX = PAGE_MARGIN + CONTENT_WIDTH - boxWidth
   const padding = 12
 
+  const airsiPct = Number(vente.airsiPct)
+  const airsiMontant = Number(vente.airsiMontant)
+  const remiseMontant = Number(vente.remiseMontant)
+  const totalTtc = Number(vente.totalTtc)
+  const finalTtc = airsiMontant > 0 ? Number(vente.totalApresAirsi) : totalTtc
+
   const rows: [string, string, boolean][] = [
     ['Total HT', formatMoney(Number(vente.totalHt)), false],
     ['TVA', formatMoney(Number(vente.tvaMontant)), false],
   ]
 
   if (ctx.type === 'facture') {
-    if (ctx.includeMarge) {
-      rows.push(['Marge', formatMoney(Number(vente.marge)), false])
+    if (airsiMontant > 0) {
+      rows.push([`AIRSI (${formatPct(airsiPct)})`, `- ${formatMoney(airsiMontant)}`, false])
     }
-    if (ctx.includeMargePct) {
-      rows.push(['Marge %', formatPct(Number(vente.margePct)), false])
+    if (remiseMontant > 0) {
+      rows.push(['Remise', `- ${formatMoney(remiseMontant)}`, false])
     }
+    rows.push(['Total TTC', formatMoney(finalTtc), true])
+  } else {
+    rows[rows.length - 1] = [rows[rows.length - 1][0], rows[rows.length - 1][1], true]
   }
-
-  rows.push(['Total TTC', formatMoney(Number(vente.totalTtc)), true])
 
   const rowH = 15
   const totalRowH = 22
@@ -382,8 +427,72 @@ function drawTotals(doc: PdfDoc, ctx: VenteImpressionContext, y: number) {
   return y + boxH + 16
 }
 
-function drawFooter(doc: PdfDoc, ctx: VenteImpressionContext) {
-  const footerY = 790
+function drawFneCertificationBlock(doc: PdfDoc, ctx: VenteImpressionContext, y: number): number {
+  if (!ctx.vente.normalise || ctx.type !== 'facture') return y
+
+  if (y > 620) {
+    doc.addPage()
+    y = PAGE_MARGIN
+  }
+
+  const blockH = 118
+  doc.rect(PAGE_MARGIN, y, CONTENT_WIDTH, blockH).lineWidth(0.75).strokeColor(C.black).stroke()
+
+  const qrSize = 88
+  const textX = PAGE_MARGIN + qrSize + 24
+  const textWidth = CONTENT_WIDTH - qrSize - 36
+
+  if (ctx.qrCodePng) {
+    doc.image(ctx.qrCodePng, PAGE_MARGIN + 12, y + 14, { width: qrSize, height: qrSize })
+  } else {
+    doc
+      .rect(PAGE_MARGIN + 12, y + 14, qrSize, qrSize)
+      .lineWidth(0.5)
+      .strokeColor(C.border)
+      .stroke()
+    doc
+      .font('Helvetica')
+      .fontSize(7)
+      .fillColor(C.muted)
+      .text('QR indisponible', PAGE_MARGIN + 12, y + 52, { width: qrSize, align: 'center' })
+  }
+
+  let textY = y + 16
+  doc.font('Helvetica-Bold').fontSize(9).fillColor(C.black).text(
+    isFactureRetour(ctx.vente.statut) ? 'Verification avoir FNE' : 'Verification FNE',
+    textX,
+    textY,
+    { width: textWidth }
+  )
+  textY += 16
+
+  doc.font('Helvetica').fontSize(8).fillColor(C.text)
+  if (ctx.fne?.reference) {
+    doc.text(`Reference : ${ascii(ctx.fne.reference)}`, textX, textY, { width: textWidth })
+    textY += 12
+  }
+  if (ctx.fne?.invoiceId) {
+    doc.text(`ID facture : ${ascii(ctx.fne.invoiceId)}`, textX, textY, { width: textWidth })
+    textY += 12
+  }
+  if (ctx.fne?.token) {
+    doc.text(`URL : ${ascii(ctx.fne.token)}`, textX, textY, { width: textWidth, lineBreak: true })
+    textY += 24
+  }
+
+  doc
+    .font('Helvetica')
+    .fontSize(7)
+    .fillColor(C.muted)
+    .text('Scannez le QR code pour verifier cette facture aupres de la DGI.', textX, y + blockH - 18, {
+      width: textWidth,
+    })
+
+  return y + blockH + 16
+}
+
+function drawFooter(doc: PdfDoc, ctx: VenteImpressionContext, contentBottomY: number) {
+  const footerY = Math.max(contentBottomY + 24, 760)
 
   if (ctx.vente.notes) {
     doc
@@ -426,12 +535,14 @@ function renderPdf(render: (doc: PdfDoc) => void): Promise<Buffer> {
 export function generateVenteFacturePdf(ctx: VenteImpressionContext): Promise<Buffer> {
   return renderPdf((doc) => {
     let y = drawStatusBanner(doc, ctx, PAGE_MARGIN)
+    y = drawFneCertifiedBanner(doc, ctx, y)
     y = drawPointDeVenteHeader(doc, ctx, y)
     y = drawDocumentTitle(doc, ctx, y)
     y = drawMetaBlock(doc, ctx, y)
     y = drawFactureLines(doc, ctx, y)
     y = drawTotals(doc, ctx, y)
-    drawFooter(doc, ctx)
+    y = drawFneCertificationBlock(doc, ctx, y)
+    drawFooter(doc, ctx, y)
   })
 }
 
@@ -442,7 +553,7 @@ export function generateVenteBonSortiePdf(ctx: VenteImpressionContext): Promise<
     y = drawDocumentTitle(doc, ctx, y)
     y = drawMetaBlock(doc, ctx, y)
     y = drawBonSortieLines(doc, ctx, y)
-    drawFooter(doc, ctx)
+    drawFooter(doc, ctx, y)
   })
 }
 

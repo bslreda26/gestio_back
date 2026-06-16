@@ -108,6 +108,18 @@ const routes = {
     tokens: [{"old":"/api/v1/users/permissions/update","type":0,"val":"api","end":""},{"old":"/api/v1/users/permissions/update","type":0,"val":"v1","end":""},{"old":"/api/v1/users/permissions/update","type":0,"val":"users","end":""},{"old":"/api/v1/users/permissions/update","type":0,"val":"permissions","end":""},{"old":"/api/v1/users/permissions/update","type":0,"val":"update","end":""}],
     types: placeholder as Registry['users.permissions_update']['types'],
   },
+  'fne_config.show': {
+    methods: ["POST"],
+    pattern: '/api/v1/fne-config/show',
+    tokens: [{"old":"/api/v1/fne-config/show","type":0,"val":"api","end":""},{"old":"/api/v1/fne-config/show","type":0,"val":"v1","end":""},{"old":"/api/v1/fne-config/show","type":0,"val":"fne-config","end":""},{"old":"/api/v1/fne-config/show","type":0,"val":"show","end":""}],
+    types: placeholder as Registry['fne_config.show']['types'],
+  },
+  'fne_config.upsert': {
+    methods: ["POST"],
+    pattern: '/api/v1/fne-config/upsert',
+    tokens: [{"old":"/api/v1/fne-config/upsert","type":0,"val":"api","end":""},{"old":"/api/v1/fne-config/upsert","type":0,"val":"v1","end":""},{"old":"/api/v1/fne-config/upsert","type":0,"val":"fne-config","end":""},{"old":"/api/v1/fne-config/upsert","type":0,"val":"upsert","end":""}],
+    types: placeholder as Registry['fne_config.upsert']['types'],
+  },
   'admin.tva_groupes.search': {
     methods: ["POST"],
     pattern: '/api/v1/admin/tva-groupes/search',
@@ -455,6 +467,12 @@ const routes = {
     pattern: '/api/v1/ventes/imprimer',
     tokens: [{"old":"/api/v1/ventes/imprimer","type":0,"val":"api","end":""},{"old":"/api/v1/ventes/imprimer","type":0,"val":"v1","end":""},{"old":"/api/v1/ventes/imprimer","type":0,"val":"ventes","end":""},{"old":"/api/v1/ventes/imprimer","type":0,"val":"imprimer","end":""}],
     types: placeholder as Registry['ventes.imprimer']['types'],
+  },
+  'ventes.certify': {
+    methods: ["POST"],
+    pattern: '/api/v1/ventes/certify',
+    tokens: [{"old":"/api/v1/ventes/certify","type":0,"val":"api","end":""},{"old":"/api/v1/ventes/certify","type":0,"val":"v1","end":""},{"old":"/api/v1/ventes/certify","type":0,"val":"ventes","end":""},{"old":"/api/v1/ventes/certify","type":0,"val":"certify","end":""}],
+    types: placeholder as Registry['ventes.certify']['types'],
   },
   'ventes.lock': {
     methods: ["POST"],

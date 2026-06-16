@@ -22,6 +22,9 @@ export async function creerPointDeVente(data: {
   adresse?: string | null
   ville?: string | null
   telephone?: string | null
+  point_of_sale?: string | null
+  establishment?: string | null
+  timbre_reference?: string | null
 }) {
   return db.transaction(async (trx) => {
     const pos = await PointDeVente.create(
@@ -31,6 +34,9 @@ export async function creerPointDeVente(data: {
         adresse: data.adresse ?? null,
         ville: data.ville ?? null,
         telephone: data.telephone ?? null,
+        pointOfSale: data.point_of_sale ?? data.nom,
+        establishment: data.establishment ?? data.nom,
+        timbreReference: data.timbre_reference ?? null,
         isActive: true,
       },
       { client: trx }

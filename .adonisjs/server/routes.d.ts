@@ -21,6 +21,8 @@ export type ScannedRoutes = {
     'users.permissions_catalog': { paramsTuple?: []; params?: {} }
     'users.permissions_show': { paramsTuple?: []; params?: {} }
     'users.permissions_update': { paramsTuple?: []; params?: {} }
+    'fne_config.show': { paramsTuple?: []; params?: {} }
+    'fne_config.upsert': { paramsTuple?: []; params?: {} }
     'admin.tva_groupes.search': { paramsTuple?: []; params?: {} }
     'admin.tva_groupes.show': { paramsTuple?: []; params?: {} }
     'admin.tva_groupes.create': { paramsTuple?: []; params?: {} }
@@ -79,6 +81,7 @@ export type ScannedRoutes = {
     'ventes.paiements_search': { paramsTuple?: []; params?: {} }
     'ventes.document': { paramsTuple?: []; params?: {} }
     'ventes.imprimer': { paramsTuple?: []; params?: {} }
+    'ventes.certify': { paramsTuple?: []; params?: {} }
     'ventes.lock': { paramsTuple?: []; params?: {} }
     'ventes.lock_renew': { paramsTuple?: []; params?: {} }
     'ventes.unlock': { paramsTuple?: []; params?: {} }
@@ -161,6 +164,8 @@ export type ScannedRoutes = {
     'users.permissions_catalog': { paramsTuple?: []; params?: {} }
     'users.permissions_show': { paramsTuple?: []; params?: {} }
     'users.permissions_update': { paramsTuple?: []; params?: {} }
+    'fne_config.show': { paramsTuple?: []; params?: {} }
+    'fne_config.upsert': { paramsTuple?: []; params?: {} }
     'admin.tva_groupes.search': { paramsTuple?: []; params?: {} }
     'admin.tva_groupes.show': { paramsTuple?: []; params?: {} }
     'admin.tva_groupes.create': { paramsTuple?: []; params?: {} }
@@ -218,6 +223,7 @@ export type ScannedRoutes = {
     'ventes.paiements_search': { paramsTuple?: []; params?: {} }
     'ventes.document': { paramsTuple?: []; params?: {} }
     'ventes.imprimer': { paramsTuple?: []; params?: {} }
+    'ventes.certify': { paramsTuple?: []; params?: {} }
     'ventes.lock': { paramsTuple?: []; params?: {} }
     'ventes.lock_renew': { paramsTuple?: []; params?: {} }
     'ventes.unlock': { paramsTuple?: []; params?: {} }

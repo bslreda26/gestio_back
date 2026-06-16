@@ -211,6 +211,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/users_controller').default['permissionsUpdate']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'fne_config.show': {
+    methods: ["POST"]
+    pattern: '/api/v1/fne-config/show'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/apikeys_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/apikeys_controller').default['show']>>>
+    }
+  }
+  'fne_config.upsert': {
+    methods: ["POST"]
+    pattern: '/api/v1/fne-config/upsert'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/apikey_validator').apikeyUpsertValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/apikey_validator').apikeyUpsertValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/apikeys_controller').default['upsert']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/apikeys_controller').default['upsert']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'admin.tva_groupes.search': {
     methods: ["POST"]
     pattern: '/api/v1/admin/tva-groupes/search'
@@ -905,6 +929,18 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/vente_validator').venteImprimerValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/ventes_controller').default['imprimer']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ventes_controller').default['imprimer']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'ventes.certify': {
+    methods: ["POST"]
+    pattern: '/api/v1/ventes/certify'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/vente_validator').venteCertifyValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/vente_validator').venteCertifyValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ventes_controller').default['certify']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ventes_controller').default['certify']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'ventes.lock': {

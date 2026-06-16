@@ -8,7 +8,7 @@
            MySQL 8+
 
   Modules : Ventes · Achats · Clients · Fournisseurs · Produits · Stock ·
-            TVA · Caisse · Règlements · Dépenses · Rapports · Administration
+            TVA · Caisse · Règlements · Dépenses · Rapports · FNE · Administration
 
   Documentation API : API.md (référence complète des endpoints)
 
@@ -32,7 +32,7 @@
     - facturation   : facturation, soldes, paiements fournisseurs
 
   État d'avancement :
-    ☑ Backend API REST /api/v1 (41 migrations MySQL)
+    ☑ Backend API REST /api/v1 (47 migrations MySQL)
     ☑ Multi point de vente (middleware, scoping, numéros préfixés)
     ☑ RBAC par permissions (config/permissions.ts)
     ☑ Unités gros/détail (vente_unite_service.ts)
@@ -40,6 +40,7 @@
     ☑ Soldes client/fournisseur recalculés (alignés relevé)
     ☑ Marge facture + marge % (permissions séparées)
     ☑ Impression PDF facture / bon de sortie
+    ☑ Certification FNE (factures + avoirs, QR, PDF)
     ☑ Tests Japa (unit + functional)
     ☑ Frontend React (gestio_front) — en cours / partiellement livré
 
@@ -85,21 +86,23 @@
     controllers/     auth, users, points_de_vente, clients, fournisseurs,
                      categories, tva_groupes, depense_categories, produits,
                      ventes, achats, caisse, depenses, stock, rapports,
-                     reglements
+                     reglements, apikeys (fne-config)
     models/          entités Lucid (étendent database/schema.ts)
     services/        pricing, vente, vente_lock, vente_unite, vente_pdf,
-                     vente_impression, achat, caisse, stock, rapport,
-                     reglement, code_generator, permission, point_de_vente
+                     vente_impression, fne_certification, apikey, achat,
+                     caisse, stock, rapport, reglement, code_generator,
+                     permission, point_de_vente
     helpers/         api_response, pagination, produit_serializer,
                      vente_ligne_serializer, vente_serializer,
-                     solde_visibility, point_de_vente_context
+                     fne_response_parser, qr_code, solde_visibility,
+                     point_de_vente_context
     validators/      VineJS par module
     middleware/      auth, role (RBAC), point_de_vente
-    constants/       vente_statuts, achat_statuts
+    constants/       vente_statuts, achat_statuts, fne_tva
 
   start/routes.ts    — toutes les routes
   database/
-    migrations/      41 fichiers
+    migrations/      47 fichiers (0042–0047 : FNE)
     seeders/         users, categories, TVA, fournisseurs/clients, produits, caisse
   tests/             functional + unit
 
@@ -148,11 +151,30 @@
     valide       → facture validée (stock déjà déduit)
     retour       → avoir client
 
-  VENTES — totaux facture (migrations 1740000000040, 1740000000041)
+  VENTES — totaux facture (migrations 1740000000040, 1740000000041, 0042)
     total_ht, tva_montant, total_ttc, sous_total, remise_montant
     marge          somme marges lignes (ajustée remise globale)
     marge_pct      marge / total_ttc × 100
+    airsi_pct, airsi_montant, total_apres_airsi  (déduction après TTC)
+    reste_a_payer  basé sur total_apres_airsi − montant_paye
     facture_impression_count, bon_sortie_impression_count
+
+  VENTES — certification FNE (migrations 0042, 0043)
+    normalise, test_normalise, excluded, api_response
+    fne_invoice_id, certified_at
+    vente_lignes.fne_item_id  (UUID ligne FNE, requis pour certifier un avoir)
+
+  CLIENTS — FNE (migration 0044)
+    ncc  Numéro de Compte Contribuable (obligatoire certification B2B)
+
+  POINTS DE VENTE — FNE (migration 0045)
+    point_of_sale, establishment, timbre_reference
+
+  APIKEYS — config FNE (migration 0046)
+    key, prod_url, is_active  (une seule clé active)
+
+  TVA — groupes FNE (migration 0047, mapping dans fne_tva.ts)
+    18 % → TVA | 9 % → TVAB | 0 % → TVAC
 
   VENTE_LIGNES
     mode_vente      piece | detail
@@ -203,7 +225,8 @@
     /clients/*, /fournisseurs/*, /categories/*
     /tva-groupes                (GET lecture métier)
     /produits/*
-    /ventes/*                   (+ ligne-info, lock, document, imprimer PDF)
+    /ventes/*                   (+ ligne-info, lock, document, imprimer PDF, certify)
+    /fne-config/*               (show, upsert — permission fne_admin)
     /achats/*                   (+ ligne-info, recevoir, retour)
     /reglements/client/*, /reglements/fournisseur/*
     /caisse/*
@@ -299,11 +322,106 @@
     POST retour                               → avoir (statut retour)
 
   Lignes : mode_vente piece | detail
+  AIRSI : airsi_pct optionnel (create/update) — montant dû = totalApresAirsi
   Verrou édition : lock / lock-renew / unlock
   Impression : POST /ventes/imprimer (PDF facture ou bon de sortie)
-  Document JSON : POST /ventes/document (aperçu + totaux)
+  Document JSON : POST /ventes/document (aperçu + totaux + certification)
+  Certification FNE : POST /ventes/certify (permission ventes_certify)
+  Facture certifiée (normalise=true) : édition bloquée
 
   Caisse ouverte requise pour factures.
+
+================================================================================
+  10ter. LOGIQUE MÉTIER — CERTIFICATION FNE
+================================================================================
+
+  Services : fne_certification_service.ts, apikey_service.ts
+  Helpers  : fne_response_parser.ts, qr_code.ts
+
+  Prérequis (admin / paramétrage) :
+    1. POST /fne-config/upsert  (clé API + prod_url) — permission fne_admin
+    2. POST /points-de-vente/update  → point_of_sale, establishment
+    3. Client B2B : ncc sur fiche client (create/update)
+
+  Certification facture :
+    POST /ventes/certify { "id": 123 } ou { "numero": "01-FAC-..." }
+    Statuts acceptés : non_valide, valide
+    Appel FNE : POST {prod_url}/external/invoices/sign
+    Persiste : normalise, api_response, fne_invoice_id, certified_at,
+               fne_item_id sur chaque ligne
+
+  Certification avoir (retour) :
+    Facture d'origine doit être normalise=true avec fne_invoice_id
+    Lignes retour liées (ligne_origine_id) ; origine doit avoir fne_item_id
+    Appel FNE : POST .../invoices/{fneInvoiceId}/refund
+
+  Affichage frontend :
+    - Badge « Certifiée FNE » si vente.normalise
+    - QR : certification.fne.token ou qrContent (URL vérification DGI)
+    - POST /ventes/document → bloc certification complet
+    - PDF : header X-FNE-Certified: true + QR intégré
+
+  Permissions :
+    ventes_certify  → bouton certifier
+    fne_admin       → écran configuration clé API
+
+  Voir API.md section Ventes + Configuration FNE pour payloads détaillés.
+
+================================================================================
+  10quater. INTÉGRATION FRONTEND — CHECKLIST FNE
+================================================================================
+
+  Types TypeScript (gestio_front) — champs à ajouter :
+
+  Vente :
+    normalise, testNormalise, excluded, apiResponse, fneInvoiceId,
+    certifiedAt, airsiPct, airsiMontant, totalApresAirsi
+    (resteAPayer déjà présent — recalculé sur totalApresAirsi)
+
+  VenteLigne :
+    fneItemId, ligneOrigineId
+
+  Client :
+    ncc
+
+  PointDeVente :
+    pointOfSale, establishment, timbreReference
+
+  Écrans / flux :
+
+  1. Admin FNE (fne_admin)
+     - Formulaire clé API + URL prod → POST /fne-config/upsert
+     - Affichage masqué → POST /fne-config/show
+
+  2. Paramètres PDV
+     - Champs point_of_sale, establishment, timbre_reference
+
+  3. Fiche client
+     - Champ ncc (requis avant certification B2B)
+
+  4. Facture — création / édition
+     - Champ airsi_pct (optionnel)
+     - Afficher totalApresAirsi comme montant dû (pas seulement totalTtc)
+     - Désactiver édition si normalise === true
+
+  5. Facture — détail
+     - Bouton « Certifier FNE » si ventes_certify && !normalise && !excluded
+     - Après certify : badge + QR (lib qrcode ou img depuis token URL)
+     - Erreurs 422 : afficher message métier
+
+  6. Impression
+     - POST /ventes/imprimer → blob PDF
+     - Optionnel : lire X-FNE-Certified
+
+  7. Avoir
+     - Certifier facture origine d'abord
+     - POST /ventes/retour puis POST /ventes/certify sur l'avoir
+     - PDF : bandeau « AVOIR CERTIFIE FNE »
+
+  Services API à créer / étendre :
+    fneConfigService.ts  → show, upsert
+    ventesService.ts     → certify(id | numero)
+    types vente/client/pdv mis à jour
 
 ================================================================================
   10bis. LOGIQUE MÉTIER — SOLDES & RELEVÉS
@@ -314,9 +432,12 @@
             computeClientSoldesPdv, computeFournisseurSoldesPdv
 
   CLIENT (par PDV) :
-    Débit  : factures (valide + non_valide)
+    Débit  : factures (valide + non_valide) — relevé somme total_ttc
     Crédit : avoirs, paiements vente, règlements client (+)
     solde = total_débit − total_crédit
+
+  Note : reste à payer sur facture = total_apres_airsi − montant_paye
+  (AIRSI déduit après TTC). Afficher totalApresAirsi comme montant dû sur la fiche facture.
 
   FOURNISSEUR (par PDV) :
     Débit  : réceptions achat (TTC lignes reçues)
@@ -432,11 +553,22 @@
   Scénarios couverts : pricing (CMUP, plancher, marge facture), unités stock,
   achat gros, frais ligne achat, vente piece, caisse sessions (blocage si fermée),
   permissions (ventes_ligne_marge, ventes_marge_pct), soldes recalculés,
-  relevés client/fournisseur, impression PDF, retours…
+  relevés client/fournisseur, impression PDF, retours,
+  FNE (mapping TVA, parser réponse, certification service)…
 
 ================================================================================
   17. JOURNAL DES ÉVOLUTIONS RÉCENTES (backend)
 ================================================================================
+
+  Certification FNE (migrations 0042–0047)
+    - Champs ventes : normalise, airsi, api_response, fne_invoice_id…
+    - vente_lignes.fne_item_id pour avoirs certifiés
+    - clients.ncc, PDV point_of_sale / establishment
+    - Table apikeys + routes /fne-config/*
+    - POST /ventes/certify (facture + avoir)
+    - PDF : bandeau FNE, QR, AIRSI dans totaux
+    - Permissions ventes_certify, fne_admin
+    - Mapping TVA 18/9/0 % → codes FNE (TVA, TVAB, TVAC)
 
   Soldes compte client / fournisseur
     - Fiche et liste : solde recalculé par PDV (identique au relevé)

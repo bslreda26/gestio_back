@@ -25,6 +25,15 @@ export default class PointDeVente extends BaseModel {
   @column()
   declare isActive: boolean
 
+  @column()
+  declare pointOfSale: string | null
+
+  @column()
+  declare establishment: string | null
+
+  @column()
+  declare timbreReference: string | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

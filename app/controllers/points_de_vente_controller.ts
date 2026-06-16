@@ -18,6 +18,9 @@ function serializePointDeVente(pos: PointDeVente) {
     adresse: pos.adresse,
     ville: pos.ville,
     telephone: pos.telephone,
+    point_of_sale: pos.pointOfSale,
+    establishment: pos.establishment,
+    timbre_reference: pos.timbreReference,
     is_active: pos.isActive,
     created_at: pos.createdAt,
     updated_at: pos.updatedAt,
@@ -69,6 +72,9 @@ export default class PointsDeVenteController {
       adresse: payload.adresse,
       ville: payload.ville,
       telephone: payload.telephone,
+      point_of_sale: payload.point_of_sale,
+      establishment: payload.establishment,
+      timbre_reference: payload.timbre_reference,
     })
 
     return sendSuccess(ctx, serializePointDeVente(pos))
@@ -91,6 +97,9 @@ export default class PointsDeVenteController {
     if (payload.adresse !== undefined) pos.adresse = payload.adresse ?? null
     if (payload.ville !== undefined) pos.ville = payload.ville ?? null
     if (payload.telephone !== undefined) pos.telephone = payload.telephone ?? null
+    if (payload.point_of_sale !== undefined) pos.pointOfSale = payload.point_of_sale ?? null
+    if (payload.establishment !== undefined) pos.establishment = payload.establishment ?? null
+    if (payload.timbre_reference !== undefined) pos.timbreReference = payload.timbre_reference ?? null
     if (payload.is_active !== undefined) pos.isActive = payload.is_active
 
     await pos.save()

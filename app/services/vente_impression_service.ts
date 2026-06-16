@@ -1,5 +1,7 @@
 import { isFactureValide, VENTE_STATUT, VENTE_STATUT_LABELS } from '#constants/vente_statuts'
+import { parseFneApiResponse, type ParsedFneResponse } from '#helpers/fne_response_parser'
 import { loadProduitCodeMap } from '#helpers/produit_codes'
+import { generateQrCodePng } from '#helpers/qr_code'
 import Client from '#models/client'
 import PointDeVente from '#models/point_de_vente'
 import User from '#models/user'
@@ -43,6 +45,9 @@ export type VenteImpressionContext = {
   generatedAt: DateTime
   includeMarge: boolean
   includeMargePct: boolean
+  fne: ParsedFneResponse | null
+  qrCodePng: Buffer | null
+  factureOrigineNumero?: string | null
 }
 
 const STATUT_PAIEMENT_LABELS: Record<string, string> = {
@@ -131,6 +136,22 @@ export async function loadVenteImpressionContext(
     montantTtc: Number(ligne.montantTtc),
   }))
 
+  const fne = vente.normalise ? parseFneApiResponse(vente.apiResponse) : null
+  let qrCodePng: Buffer | null = null
+  if (fne?.qrContent) {
+    try {
+      qrCodePng = await generateQrCodePng(fne.qrContent)
+    } catch {
+      qrCodePng = null
+    }
+  }
+
+  let factureOrigineNumero: string | null = null
+  if (vente.factureOrigineId) {
+    const factureOrigine = await Vente.find(vente.factureOrigineId)
+    factureOrigineNumero = factureOrigine?.numero ?? null
+  }
+
   return {
     type,
     impression,
@@ -146,5 +167,8 @@ export async function loadVenteImpressionContext(
     generatedAt: DateTime.now(),
     includeMarge: visibility.includeMarge ?? false,
     includeMargePct: visibility.includeMargePct ?? false,
+    fne,
+    qrCodePng,
+    factureOrigineNumero,
   }
 }

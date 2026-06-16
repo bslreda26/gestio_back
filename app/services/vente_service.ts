@@ -38,6 +38,7 @@ import {
   generateVenteNumero,
 } from '#services/code_generator_service'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { calcAirsi } from '#constants/fne_tva'
 import { DateTime } from 'luxon'
 
 export type LigneVenteInput = {
@@ -93,7 +94,8 @@ function calcLigneMontants(
 export function calculerTotauxVente(
   lignes: CalculatedLigne[],
   remisePct = 0,
-  remiseMontant = 0
+  remiseMontant = 0,
+  airsiPct = 0
 ) {
   const sousTotal = roundMoney(lignes.reduce((s, l) => s + l.montantTtc, 0))
   const remiseGlobalePct = roundMoney(sousTotal * (remisePct / 100))
@@ -102,7 +104,19 @@ export function calculerTotauxVente(
   const totalHt = roundMoney(lignes.reduce((s, l) => s + l.montantHt, 0))
   const tvaMontant = roundMoney(lignes.reduce((s, l) => s + l.montantTva, 0))
   const { marge, margePct } = calculerMargeFacture(lignes, sousTotal, totalTtc)
-  return { sousTotal, remiseMontant: totalRemise, totalHt, tvaMontant, totalTtc, marge, margePct }
+  const { airsiMontant, totalApresAirsi } = calcAirsi(totalTtc, airsiPct)
+  return {
+    sousTotal,
+    remiseMontant: totalRemise,
+    totalHt,
+    tvaMontant,
+    totalTtc,
+    airsiPct,
+    airsiMontant,
+    totalApresAirsi,
+    marge,
+    margePct,
+  }
 }
 
 export async function buildLignesFromPayload(
@@ -302,6 +316,7 @@ export type CreateVenteInput = {
   date_echeance?: DateTime | null
   remise_pct?: number
   remise_montant?: number
+  airsi_pct?: number
   notes?: string | null
   lignes: LigneVenteInput[]
 }
@@ -313,8 +328,15 @@ export type UpdateVenteInput = {
   date_echeance?: DateTime | null
   remise_pct?: number
   remise_montant?: number
+  airsi_pct?: number
   notes?: string | null
   lignes?: LigneVenteInput[]
+}
+
+function assertVenteModifiablePourFne(vente: Vente) {
+  if (vente.normalise) {
+    throw new VenteBusinessError('Une facture certifiée FNE ne peut plus être modifiée')
+  }
 }
 
 function venteLigneToCalculated(ligne: VenteLigne): CalculatedLigne {
@@ -429,14 +451,16 @@ export async function creerVente(
       }
     }
 
+    const airsiPct = data.airsi_pct ?? 0
     const totaux = calculerTotauxVente(
       calculated,
       data.remise_pct ?? 0,
-      data.remise_montant ?? 0
+      data.remise_montant ?? 0,
+      airsiPct
     )
 
     if (isFactureInvalide(data.statut)) {
-      await verifierCreditClient(data.client_id, totaux.totalTtc, trx)
+      await verifierCreditClient(data.client_id, totaux.totalApresAirsi, trx)
     }
 
     const vente = await Vente.create(
@@ -457,10 +481,13 @@ export async function creerVente(
         totalHt: totaux.totalHt,
         tvaMontant: totaux.tvaMontant,
         totalTtc: totaux.totalTtc,
+        airsiPct: totaux.airsiPct,
+        airsiMontant: totaux.airsiMontant,
+        totalApresAirsi: totaux.totalApresAirsi,
         marge: totaux.marge,
         margePct: totaux.margePct,
         montantPaye: 0,
-        resteAPayer: totaux.totalTtc,
+        resteAPayer: totaux.totalApresAirsi,
         notes: data.notes ?? null,
       },
       { client: trx }
@@ -471,7 +498,7 @@ export async function creerVente(
     if (isFactureInvalide(data.statut)) {
       await applyStockSortie(vente.id, calculated, userId, trx)
       const client = await Client.query({ client: trx }).where('id', data.client_id).firstOrFail()
-      client.solde = roundMoney(Number(client.solde) + totaux.totalTtc)
+      client.solde = roundMoney(Number(client.solde) + totaux.totalApresAirsi)
       client.useTransaction(trx)
       await client.save()
     }
@@ -492,6 +519,8 @@ export async function mettreAJourVente(
       throw new VenteBusinessError('Seul un devis ou une facture non validée peut être modifié')
     }
 
+    assertVenteModifiablePourFne(vente)
+
     const isFacture = isFactureInvalide(vente.statut)
 
     if (isFacture) {
@@ -510,11 +539,12 @@ export async function mettreAJourVente(
     }
 
     const ancienClientId = vente.clientId
-    const ancienTotal = Number(vente.totalTtc)
+    const ancienTotal = Number(vente.totalApresAirsi)
     const anciennesLignes = await VenteLigne.query({ client: trx }).where('vente_id', vente.id)
 
     const remisePct = data.remise_pct ?? Number(vente.remisePct)
     const remiseMontantInput = data.remise_montant ?? Number(vente.remiseMontant)
+    const airsiPct = data.airsi_pct ?? Number(vente.airsiPct)
 
     let calculated: CalculatedLigne[]
 
@@ -543,7 +573,7 @@ export async function mettreAJourVente(
       calculated = anciennesLignes.map(venteLigneToCalculated)
     }
 
-    const totaux = calculerTotauxVente(calculated, remisePct, remiseMontantInput)
+    const totaux = calculerTotauxVente(calculated, remisePct, remiseMontantInput, airsiPct)
     const nouveauClientId = data.client_id ?? vente.clientId
 
     if (isFacture) {
@@ -551,7 +581,7 @@ export async function mettreAJourVente(
         ancienClientId,
         nouveauClientId,
         ancienTotal,
-        totaux.totalTtc,
+        totaux.totalApresAirsi,
         trx
       )
     }
@@ -562,6 +592,9 @@ export async function mettreAJourVente(
       dateEcheance:
         data.date_echeance !== undefined ? data.date_echeance : vente.dateEcheance,
       remisePct,
+      airsiPct: totaux.airsiPct,
+      airsiMontant: totaux.airsiMontant,
+      totalApresAirsi: totaux.totalApresAirsi,
       notes: data.notes !== undefined ? data.notes ?? null : vente.notes,
       sousTotal: totaux.sousTotal,
       remiseMontant: totaux.remiseMontant,
@@ -570,7 +603,7 @@ export async function mettreAJourVente(
       totalTtc: totaux.totalTtc,
       marge: totaux.marge,
       margePct: totaux.margePct,
-      resteAPayer: totaux.totalTtc,
+      resteAPayer: totaux.totalApresAirsi,
       montantPaye: 0,
       statutPaiement: 'non_paye',
     })
@@ -618,13 +651,14 @@ export async function convertirDevisEnFacture(
       }
     }
 
-    await verifierCreditClient(vente.clientId, Number(vente.totalTtc), trx)
-
     const totaux = calculerTotauxVente(
       calculated,
       Number(vente.remisePct),
-      Number(vente.remiseMontant)
+      Number(vente.remiseMontant),
+      Number(vente.airsiPct)
     )
+
+    await verifierCreditClient(vente.clientId, totaux.totalApresAirsi, trx)
 
     vente.merge({
       statut: VENTE_STATUT.NON_VALIDE,
@@ -634,9 +668,11 @@ export async function convertirDevisEnFacture(
       totalHt: totaux.totalHt,
       tvaMontant: totaux.tvaMontant,
       totalTtc: totaux.totalTtc,
+      airsiMontant: totaux.airsiMontant,
+      totalApresAirsi: totaux.totalApresAirsi,
       marge: totaux.marge,
       margePct: totaux.margePct,
-      resteAPayer: totaux.totalTtc,
+      resteAPayer: totaux.totalApresAirsi,
     })
     vente.useTransaction(trx)
     await vente.save()
@@ -646,7 +682,7 @@ export async function convertirDevisEnFacture(
     await applyStockSortie(vente.id, calculated, userId, trx)
 
     const client = await Client.query({ client: trx }).where('id', vente.clientId).firstOrFail()
-    client.solde = roundMoney(Number(client.solde) + totaux.totalTtc)
+    client.solde = roundMoney(Number(client.solde) + totaux.totalApresAirsi)
     client.useTransaction(trx)
     await client.save()
 
@@ -709,7 +745,7 @@ export async function supprimerFacture(venteId: number, userId: number) {
     }
 
     const client = await Client.query({ client: trx }).where('id', vente.clientId).firstOrFail()
-    client.solde = roundMoney(Math.max(0, Number(client.solde) - Number(vente.totalTtc)))
+    client.solde = roundMoney(Math.max(0, Number(client.solde) - Number(vente.totalApresAirsi)))
     client.useTransaction(trx)
     await client.save()
 
@@ -831,6 +867,9 @@ export async function creerFactureRetour(
         totalHt: totaux.totalHt,
         tvaMontant: totaux.tvaMontant,
         totalTtc: totaux.totalTtc,
+        airsiPct: 0,
+        airsiMontant: 0,
+        totalApresAirsi: totaux.totalTtc,
         marge: totaux.marge,
         margePct: totaux.margePct,
         montantPaye: 0,
@@ -923,7 +962,9 @@ export async function enregistrerPaiementVente(data: PaiementVenteInput, userId:
     )
 
     vente.montantPaye = roundMoney(Number(vente.montantPaye) + data.montant)
-    vente.resteAPayer = roundMoney(Math.max(0, Number(vente.totalTtc) - Number(vente.montantPaye)))
+    vente.resteAPayer = roundMoney(
+      Math.max(0, Number(vente.totalApresAirsi) - Number(vente.montantPaye))
+    )
 
     if (vente.resteAPayer <= 0) vente.statutPaiement = 'paye'
     else if (vente.montantPaye > 0) vente.statutPaiement = 'partiel'

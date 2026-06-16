@@ -18,6 +18,7 @@
 import { middleware } from '#start/kernel'
 import router from '@adonisjs/core/services/router'
 
+const ApikeysController = () => import('#controllers/apikeys_controller')
 const AuthController = () => import('#controllers/auth_controller')
 const ClientsController = () => import('#controllers/clients_controller')
 const FournisseursController = () => import('#controllers/fournisseurs_controller')
@@ -88,6 +89,15 @@ router
           .prefix('users')
           .as('users')
           .use(middleware.role({ permission: 'users' }))
+
+        router
+          .group(() => {
+            router.post('show', [ApikeysController, 'show']).as('show')
+            router.post('upsert', [ApikeysController, 'upsert']).as('upsert')
+          })
+          .prefix('fne-config')
+          .as('fne_config')
+          .use(middleware.role({ permission: 'fne_admin' }))
 
         router
           .group(() => {
@@ -265,6 +275,7 @@ router
             router.post('paiements-search', [VentesController, 'paiementsSearch']).as('paiements_search').use(middleware.role({ permission: 'ventes' }))
             router.post('document', [VentesController, 'document']).as('document').use(middleware.role({ permission: 'ventes' }))
             router.post('imprimer', [VentesController, 'imprimer']).as('imprimer').use(middleware.role({ permission: 'ventes' }))
+            router.post('certify', [VentesController, 'certify']).as('certify').use(middleware.role({ permission: 'ventes_certify' }))
             router.post('lock', [VentesController, 'lock']).as('lock').use(middleware.role({ permission: 'ventes_write' }))
             router.post('lock-renew', [VentesController, 'lockRenew']).as('lock_renew').use(middleware.role({ permission: 'ventes_write' }))
             router.post('unlock', [VentesController, 'unlock']).as('unlock').use(middleware.role({ permission: 'ventes_write' }))

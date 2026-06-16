@@ -5,6 +5,7 @@
 
 export const controllers = {
   Achats: () => import('#controllers/achats_controller'),
+  Apikeys: () => import('#controllers/apikeys_controller'),
   Auth: () => import('#controllers/auth_controller'),
   Caisse: () => import('#controllers/caisse_controller'),
   Categories: () => import('#controllers/categories_controller'),

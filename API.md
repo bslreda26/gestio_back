@@ -115,6 +115,8 @@ Permissions notables :
 | `ventes_marge_pct` | Voir la **marge %** sur la facture / devis (PDF inclus) |
 | `ventes_ligne_plancher` | Voir le plancher sur les lignes vente |
 | `ventes_retour` | Créer un avoir client |
+| `ventes_certify` | Certifier une facture ou un avoir auprès de la FNE |
+| `fne_admin` | Configurer la clé API FNE (`/fne-config/*`) |
 | `achats_paiement` | Payer un achat (séparé de `achats_write`) |
 | `clients_solde` | Consulter le solde client (fiche, liste, relevé) |
 | `fournisseurs_solde` | Consulter le solde fournisseur (fiche, liste) |
@@ -239,6 +241,60 @@ Permission: `points_de_vente`. Pas de header PDV.
 | POST | `/points-de-vente/update` |
 | POST | `/points-de-vente/deactivate` |
 
+### Champs FNE (certification)
+
+| Champ | Description |
+|-------|-------------|
+| `point_of_sale` | Nom PDV envoyé à la FNE (`pointOfSale`) |
+| `establishment` | Nom établissement envoyé à la FNE |
+| `timbre_reference` | Code produit timbre (ligne exclue du payload ; force `paymentMethod: cash`) |
+
+Préremplis à `nom` par migration si non renseignés. À configurer via `POST /points-de-vente/update`.
+
+```json
+{
+  "id": 1,
+  "point_of_sale": "magasin-centre",
+  "establishment": "GESTIO SARL",
+  "timbre_reference": "TIMBRE-FNE"
+}
+```
+
+---
+
+## Configuration FNE (admin)
+
+Permission: `fne_admin`. Pas de header PDV.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/fne-config/show` | Lire la config active (clé masquée) |
+| POST | `/fne-config/upsert` | Enregistrer clé + URL production |
+
+```json
+// POST /fne-config/upsert
+{
+  "key": "votre-cle-api-fne",
+  "prod_url": "https://url-api-fne-production",
+  "is_active": true
+}
+
+// Response
+{
+  "data": {
+    "message": "Configuration FNE enregistree",
+    "apikey": {
+      "id": 1,
+      "key_preview": "abcd...wxyz",
+      "prod_url": "https://...",
+      "is_active": true
+    }
+  }
+}
+```
+
+Une seule clé active à la fois (`upsert` désactive les précédentes).
+
 ---
 
 ## Users
@@ -316,6 +372,21 @@ Auth + `X-Point-De-Vente-Id`.
 
 `type`: `B2B` \| `B2C` \| `B2F` \| `B2G` (défaut `B2C`)
 
+| Champ | Description |
+|-------|-------------|
+| `ncc` | Numéro de Compte Contribuable — **obligatoire pour certification FNE B2B** |
+
+```json
+// POST /clients/create
+{
+  "nom": "Société ABC",
+  "type": "B2B",
+  "ncc": "9606123E",
+  "email": "client@ex.com",
+  "telephone": "+2250700000001"
+}
+```
+
 ### Solde client (compte)
 
 Le champ `solde` renvoyé par **`/clients/search`**, **`/clients/show`** et **`/clients/solde`** est **recalculé** depuis les mouvements du point de vente courant (même logique que le relevé), et non lu depuis la valeur stockée en base.
@@ -389,6 +460,18 @@ Scope PDV. Permissions `categories` / `categories_write`.
 |--------|------|------------|
 | GET | `/tva-groupes` | `produits` |
 | POST | `/tva-groupes/show` | `produits` |
+
+### Codes FNE (mapping automatique par taux)
+
+Le backend mappe le taux TVA produit → code FNE à la certification :
+
+| Taux | Code FNE | Référence seed |
+|------|----------|----------------|
+| 18 % | `TVA` | `TVA18` |
+| 9 % | `TVAB` | `TVA9` |
+| 0 % | `TVAC` | `TVA0` |
+
+Seuls ces 3 taux sont acceptés pour la certification. Assigner le bon `tva_groupe_id` sur chaque produit.
 
 ---
 
@@ -500,6 +583,7 @@ Création directe facture : `POST /ventes/create` avec `"statut": "non_valide"`.
 | POST | `/ventes/paiements-search` | `ventes` |
 | POST | `/ventes/document` | `ventes` |
 | POST | `/ventes/imprimer` | `ventes` |
+| POST | `/ventes/certify` | `ventes_certify` |
 | POST | `/ventes/lock` | `ventes_write` |
 | POST | `/ventes/lock-renew` | `ventes_write` |
 | POST | `/ventes/unlock` | `ventes_write` |
@@ -511,6 +595,7 @@ Création directe facture : `POST /ventes/create` avec `"statut": "non_valide"`.
   "statut": "non_valide",
   "client_id": 1,
   "date_vente": "2026-06-15",
+  "airsi_pct": 5,
   "lignes": [
     {
       "produit_id": 3,
@@ -524,7 +609,123 @@ Création directe facture : `POST /ventes/create` avec `"statut": "non_valide"`.
 
 `statut` à la création : `devis` \| `non_valide`  
 `mode_vente` : `piece` (gros) \| `detail` (unité détail, si `venteAuDetail`)  
-`prix_unitaire` : optionnel (TTC, selon mode)
+`prix_unitaire` : optionnel (TTC, selon mode)  
+`airsi_pct` : optionnel (0–100). Déduction **après** le total TTC (ex. 20 000 TTC − 5 % = 19 000 net).
+
+### Update
+
+```json
+{
+  "id": 123,
+  "airsi_pct": 3,
+  "remise_pct": 0,
+  "lignes": [ ... ]
+}
+```
+
+Refusé si `normalise = true` (422).
+
+### Champs vente — totaux & AIRSI
+
+| Champ | Description |
+|-------|-------------|
+| `totalTtc` | Total TTC brut (lignes − remises) |
+| `airsiPct` | Taux AIRSI (%) |
+| `airsiMontant` | Montant déduit (`totalTtc × airsiPct / 100`) |
+| `totalApresAirsi` | **Montant net client** (= `totalTtc − airsiMontant`) |
+| `resteAPayer` | Basé sur `totalApresAirsi` − `montantPaye` |
+
+`airsi_pct` modifiable via `POST /ventes/create` et `POST /ventes/update`.  
+Une facture **déjà certifiée FNE** (`normalise = true`) ne peut plus être modifiée.
+
+### Champs vente — certification FNE
+
+| Champ | Type | Description |
+|-------|------|-------------|
+| `normalise` | boolean | `true` = certifiée FNE |
+| `testNormalise` | boolean | `true` si la FNE a renvoyé un avertissement test |
+| `excluded` | boolean | `true` = exclue de la certification |
+| `apiResponse` | string | JSON brut réponse FNE |
+| `fneInvoiceId` | string | UUID facture/avoir FNE |
+| `certifiedAt` | datetime | Date certification |
+| `factureOrigineId` | number | Facture source (avoir / retour) |
+
+### Champs vente_lignes — FNE
+
+| Champ | Description |
+|-------|-------------|
+| `fneItemId` | UUID ligne FNE (rempli après certification ; requis pour certifier un avoir) |
+| `ligneOrigineId` | Ligne facture d'origine (sur les avoirs) |
+
+### Certification FNE
+
+Permission: `ventes_certify`
+
+```json
+// POST /ventes/certify
+{ "id": 123 }
+
+// ou par numéro
+{ "numero": "01-FAC-2026-0001" }
+```
+
+**Facture** (`non_valide` ou `valide`) → envoi à la FNE (`invoiceType: sale`).  
+**Avoir** (`retour`) → envoi à la FNE (`POST .../invoices/{fneInvoiceId}/refund`) avec les `fneItemId` des lignes d'origine.
+
+Prérequis facture :
+- Config FNE active (`/fne-config/upsert`)
+- PDV : `point_of_sale`, `establishment`
+- Client B2B : `ncc` renseigné
+- Au moins 1 ligne
+- `normalise = false`, `excluded = false`
+
+Prérequis avoir :
+- Facture d'origine certifiée (`normalise = true`, `fneInvoiceId` présent)
+- Chaque ligne retour liée (`ligneOrigineId`) avec `fneItemId` sur la ligne d'origine
+
+```json
+// Response succès (facture)
+{
+  "data": {
+    "message": "Facture certifiée avec succès",
+    "vente": { "id": 123, "normalise": true, "fneInvoiceId": "uuid-...", ... },
+    "lignes": [ ... ],
+    "fne": {
+      "statusCode": 200,
+      "reference": "9606123E25000000019",
+      "token": "https://fne.dgi.gouv.ci/verify/...",
+      "invoice": { "id": "uuid-...", "items": [ ... ] }
+    }
+  }
+}
+
+// Response succès (avoir)
+{
+  "data": {
+    "message": "Avoir certifié avec succès",
+    ...
+  }
+}
+```
+
+Erreur métier → HTTP **422** avec `message` en français.
+
+### Workflow certification (frontend)
+
+```
+1. Créer facture (non_valide ou valide)
+2. POST /ventes/certify { id }
+3. Si normalise === true → afficher badge + QR (parser fne.token)
+4. POST /ventes/imprimer → PDF avec QR intégré
+
+Avoir :
+1. Facture origine certifiée
+2. POST /ventes/retour { facture_id, lignes }
+3. POST /ventes/certify { id: retour_id }
+4. Imprimer PDF avoir certifié
+```
+
+---
 
 ### Ligne-info
 
@@ -565,7 +766,40 @@ Sans permission, le champ est **omis** de la réponse (`show`, `create`, `update
 
 `POST /ventes/document` — aperçu structuré pour impression frontend.
 
-Retourne `vente`, `lignes`, `totaux` (avec `marge` / `marge_pct` selon permissions), `client`, `type`, `statut_label`.
+Retourne `vente`, `lignes`, `totaux`, `client`, `type`, `statut_label`, `certification`, `facture_origine` (si avoir).
+
+```json
+{
+  "data": {
+    "type": "facture",
+    "numero": "01-FAC-2026-0001",
+    "totaux": {
+      "total_ht": 1000,
+      "tva": 180,
+      "total_ttc": 1180,
+      "airsi_pct": 5,
+      "airsi_montant": 59,
+      "total_apres_airsi": 1121,
+      "reste_a_payer": 1121
+    },
+    "certification": {
+      "normalise": true,
+      "test_normalise": false,
+      "certified_at": "2026-06-16T10:00:00.000+00:00",
+      "fne_invoice_id": "uuid-fne-...",
+      "fne": {
+        "reference": "9606123E25000000019",
+        "token": "https://fne.dgi.gouv.ci/verify/...",
+        "qrContent": "https://fne.dgi.gouv.ci/verify/...",
+        "invoiceId": "uuid-fne-..."
+      }
+    },
+    "facture_origine": null
+  }
+}
+```
+
+Sur un **avoir** (`type: "retour"`), `facture_origine` contient `id`, `numero`, `fne_invoice_id`, `normalise`.
 
 ### Impression PDF
 
@@ -586,10 +820,17 @@ En-têtes de réponse :
 | `X-Impression-Numero` | N° d'impression (1 = original) |
 | `X-Impression-Label` | `ORIGINAL` ou `DUPLICATA` |
 | `X-Impression-Duplicata` | `true` / `false` |
+| `X-FNE-Certified` | `true` si `vente.normalise` |
 
 Compteurs : `facture_impression_count`, `bon_sortie_impression_count` sur `ventes`.
 
-PDF facture — bloc totaux : Total HT, TVA, **Marge** et **Marge %** (si permissions utilisateur), Total TTC.
+**PDF facture certifiée** (`normalise = true`) :
+- Bandeau « FACTURE CERTIFIEE FNE » ou « AVOIR CERTIFIE FNE »
+- Bloc totaux : Total HT, TVA, Marge (si permission), Total TTC, **AIRSI** (si > 0), **Total net**
+- Bloc vérification : QR code (depuis `fne.token`), référence FNE, ID facture
+- Métadonnées : Ref. FNE, ID FNE, date certification
+
+**Affichage QR côté frontend** (hors PDF) : parser `vente.apiResponse` ou utiliser `certification.fne` depuis `/ventes/document`. Champ `token` ou `qrContent` = URL à encoder en QR.
 
 ---
 
@@ -861,6 +1102,8 @@ Chèque, virement, mobile money, carte : **pas d'impact caisse**, mais l'enregis
 | POST | `/api/v1/points-de-vente/create` |
 | POST | `/api/v1/points-de-vente/update` |
 | POST | `/api/v1/points-de-vente/deactivate` |
+| POST | `/api/v1/fne-config/show` |
+| POST | `/api/v1/fne-config/upsert` |
 | POST | `/api/v1/users/search` |
 | POST | `/api/v1/users/show` |
 | POST | `/api/v1/users/create` |
@@ -927,6 +1170,7 @@ Chèque, virement, mobile money, carte : **pas d'impact caisse**, mais l'enregis
 | POST | `/api/v1/ventes/paiements-search` |
 | POST | `/api/v1/ventes/document` |
 | POST | `/api/v1/ventes/imprimer` |
+| POST | `/api/v1/ventes/certify` |
 | POST | `/api/v1/ventes/lock` |
 | POST | `/api/v1/ventes/lock-renew` |
 | POST | `/api/v1/ventes/unlock` |

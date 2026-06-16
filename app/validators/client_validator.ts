@@ -12,6 +12,7 @@ const clientFields = {
   ville: vine.string().trim().maxLength(100).optional(),
   pays: vine.string().trim().maxLength(100).optional(),
   credit_limit: vine.number().min(0).optional(),
+  ncc: vine.string().trim().maxLength(50).optional(),
   notes: vine.string().trim().optional(),
 }
 
@@ -44,6 +45,7 @@ export const clientUpdateValidator = vine.compile(
     ville: vine.string().trim().maxLength(100).optional(),
     pays: vine.string().trim().maxLength(100).optional(),
     credit_limit: vine.number().min(0).optional(),
+    ncc: vine.string().trim().maxLength(50).nullable().optional(),
     notes: vine.string().trim().optional(),
     is_active: vine.boolean().optional(),
   })

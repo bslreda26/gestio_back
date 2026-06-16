@@ -29,6 +29,9 @@ export const pointDeVenteCreateValidator = vine.compile(
     adresse: vine.string().trim().optional(),
     ville: vine.string().trim().maxLength(100).optional(),
     telephone: vine.string().trim().maxLength(20).optional(),
+    point_of_sale: vine.string().trim().maxLength(150).optional(),
+    establishment: vine.string().trim().maxLength(150).optional(),
+    timbre_reference: vine.string().trim().maxLength(50).nullable().optional(),
   })
 )
 
@@ -47,5 +50,8 @@ export const pointDeVenteUpdateValidator = vine.compile(
     ville: vine.string().trim().maxLength(100).nullable().optional(),
     telephone: vine.string().trim().maxLength(20).nullable().optional(),
     is_active: vine.boolean().optional(),
+    point_of_sale: vine.string().trim().maxLength(150).nullable().optional(),
+    establishment: vine.string().trim().maxLength(150).nullable().optional(),
+    timbre_reference: vine.string().trim().maxLength(50).nullable().optional(),
   })
 )

@@ -106,3 +106,45 @@ Content-Type: application/json
   "facture_id": 1,
   "lignes": [{ "ligne_id": 1, "quantite": 1 }]
 }
+
+### 12. Config FNE (admin)
+POST {{baseUrl}}/fne-config/upsert
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "key": "votre-cle-api-fne",
+  "prod_url": "https://url-api-fne-production",
+  "is_active": true
+}
+
+### 13. Certifier facture FNE
+POST {{baseUrl}}/ventes/certify
+Authorization: Bearer {{token}}
+Content-Type: application/json
+X-Point-De-Vente-Id: 1
+
+{
+  "id": 1
+}
+
+### 14. Document facture (aperçu + certification)
+POST {{baseUrl}}/ventes/document
+Authorization: Bearer {{token}}
+Content-Type: application/json
+X-Point-De-Vente-Id: 1
+
+{
+  "id": 1
+}
+
+### 15. Imprimer PDF facture
+POST {{baseUrl}}/ventes/imprimer
+Authorization: Bearer {{token}}
+Content-Type: application/json
+X-Point-De-Vente-Id: 1
+
+{
+  "id": 1,
+  "type": "facture"
+}

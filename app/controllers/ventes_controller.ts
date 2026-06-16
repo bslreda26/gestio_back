@@ -1,3 +1,4 @@
+import { parseFneApiResponse } from '#helpers/fne_response_parser'
 import Client from '#models/client'
 import Paiement from '#models/paiement'
 import User from '#models/user'
@@ -25,6 +26,11 @@ import {
   VenteLockError,
 } from '#services/vente_lock_service'
 import {
+  FneCertificationError,
+  certifierVenteParId,
+  certifierVenteParNumero,
+} from '#services/fne_certification_service'
+import {
   annulerDevis,
   convertirDevisEnFacture,
   mettreAJourVente,
@@ -47,6 +53,7 @@ import {
 } from '#services/vente_pdf_service'
 import {
   venteAnnulerValidator,
+  venteCertifyValidator,
   venteCreateValidator,
   venteIdValidator,
   venteLigneInfoValidator,
@@ -59,7 +66,7 @@ import {
   venteUnlockValidator,
   venteUpdateValidator,
 } from '#validators/vente_validator'
-import { VENTE_STATUT, VENTE_STATUT_LABELS } from '#constants/vente_statuts'
+import { VENTE_STATUT, VENTE_STATUT_LABELS, isFactureRetour } from '#constants/vente_statuts'
 import type { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
 
@@ -98,7 +105,11 @@ function handleVenteError(ctx: HttpContext, error: unknown) {
   if (error instanceof VenteLockError) {
     throw error
   }
-  if (error instanceof VenteBusinessError || error instanceof CaisseBusinessError) {
+  if (
+    error instanceof VenteBusinessError ||
+    error instanceof CaisseBusinessError ||
+    error instanceof FneCertificationError
+  ) {
     return sendError(ctx, error.message, 422)
   }
   throw error
@@ -248,6 +259,7 @@ export default class VentesController {
           date_echeance: payload.date_echeance ?? null,
           remise_pct: payload.remise_pct,
           remise_montant: payload.remise_montant,
+          airsi_pct: payload.airsi_pct,
           notes: payload.notes ?? null,
           lignes: payload.lignes,
         },
@@ -284,6 +296,7 @@ export default class VentesController {
           date_echeance: payload.date_echeance,
           remise_pct: payload.remise_pct,
           remise_montant: payload.remise_montant,
+          airsi_pct: payload.airsi_pct,
           notes: payload.notes,
           lignes: payload.lignes,
         },
@@ -462,11 +475,18 @@ export default class VentesController {
       total_ht: vente.totalHt,
       tva: vente.tvaMontant,
       total_ttc: vente.totalTtc,
+      airsi_pct: Number(vente.airsiPct),
+      airsi_montant: Number(vente.airsiMontant),
+      total_apres_airsi: Number(vente.totalApresAirsi),
       montant_paye: vente.montantPaye,
       reste_a_payer: vente.resteAPayer,
     }
     if (ligneVisibility.includeMarge) totaux.marge = Number(vente.marge)
     if (ligneVisibility.includeMargePct) totaux.marge_pct = Number(vente.margePct)
+
+    const factureOrigine = vente.factureOrigineId
+      ? await Vente.find(vente.factureOrigineId)
+      : null
 
     return sendSuccess(ctx, {
       type: typeDocument,
@@ -474,6 +494,21 @@ export default class VentesController {
       numero: vente.numero,
       date: vente.dateVente,
       client,
+      facture_origine: factureOrigine
+        ? {
+            id: factureOrigine.id,
+            numero: factureOrigine.numero,
+            fne_invoice_id: factureOrigine.fneInvoiceId,
+            normalise: factureOrigine.normalise,
+          }
+        : null,
+      certification: {
+        normalise: vente.normalise,
+        test_normalise: vente.testNormalise,
+        certified_at: vente.certifiedAt,
+        fne_invoice_id: vente.fneInvoiceId,
+        fne: vente.normalise ? parseFneApiResponse(vente.apiResponse) : null,
+      },
       vente: serializeVenteForApi(vente, ligneVisibility),
       lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
       totaux,
@@ -508,7 +543,47 @@ export default class VentesController {
         .header('X-Impression-Numero', String(impression.impression_numero))
         .header('X-Impression-Label', impression.label)
         .header('X-Impression-Duplicata', impression.is_duplicata ? 'true' : 'false')
+        .header('X-FNE-Certified', printCtx.vente.normalise ? 'true' : 'false')
         .send(pdf)
+    } catch (error) {
+      return handleVenteError(ctx, error)
+    }
+  }
+
+  async certify(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(venteCertifyValidator)
+
+    if (!payload.id && !payload.numero) {
+      return sendError(ctx, 'Indiquez id ou numero de la facture', 422)
+    }
+
+    const venteId = payload.id ?? (await Vente.findBy('numero', payload.numero!))?.id
+    if (!venteId) {
+      return sendError(ctx, 'Facture introuvable', 404)
+    }
+
+    const venteRecord = await Vente.find(venteId)
+    if (!(await assertRecordBelongsToPointDeVente(ctx, venteRecord, 'Vente'))) return
+
+    try {
+      const vente = payload.id
+        ? await certifierVenteParId(payload.id)
+        : await certifierVenteParNumero(payload.numero!)
+
+      const lignes = await VenteLigne.query().where('vente_id', vente.id)
+      const ligneVisibility = getVenteLigneVisibility(ctx)
+
+      return sendSuccess(ctx, {
+        message: isFactureRetour(vente.statut)
+          ? 'Avoir certifié avec succès'
+          : 'Facture certifiée avec succès',
+        vente: serializeVenteForApi(vente, {
+          includeMarge: ligneVisibility.includeMarge,
+          includeMargePct: ligneVisibility.includeMargePct,
+        }),
+        lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
+        fne: vente.apiResponse ? JSON.parse(vente.apiResponse) : null,
+      })
     } catch (error) {
       return handleVenteError(ctx, error)
     }

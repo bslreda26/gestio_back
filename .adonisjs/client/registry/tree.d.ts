@@ -25,6 +25,10 @@ export interface ApiDefinition {
     permissionsShow: typeof routes['users.permissions_show']
     permissionsUpdate: typeof routes['users.permissions_update']
   }
+  fneConfig: {
+    show: typeof routes['fne_config.show']
+    upsert: typeof routes['fne_config.upsert']
+  }
   admin: {
     tvaGroupes: {
       search: typeof routes['admin.tva_groupes.search']
@@ -110,6 +114,7 @@ export interface ApiDefinition {
     paiementsSearch: typeof routes['ventes.paiements_search']
     document: typeof routes['ventes.document']
     imprimer: typeof routes['ventes.imprimer']
+    certify: typeof routes['ventes.certify']
     lock: typeof routes['ventes.lock']
     lockRenew: typeof routes['ventes.lock_renew']
     unlock: typeof routes['ventes.unlock']

@@ -93,6 +93,23 @@ export class AchatSchema extends BaseModel {
   declare userId: number
 }
 
+export class ApikeySchema extends BaseModel {
+  static $columns = ['createdAt', 'id', 'isActive', 'key', 'prodUrl', 'updatedAt'] as const
+  $columns = ApikeySchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isActive: boolean
+  @column()
+  declare key: string
+  @column()
+  declare prodUrl: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
 export class AuthAccessTokenSchema extends BaseModel {
   static $columns = ['abilities', 'createdAt', 'expiresAt', 'hash', 'id', 'lastUsedAt', 'name', 'tokenableId', 'type', 'updatedAt'] as const
   $columns = AuthAccessTokenSchema.$columns
@@ -227,7 +244,7 @@ export class CategorySchema extends BaseModel {
 }
 
 export class ClientSchema extends BaseModel {
-  static $columns = ['adresse', 'code', 'createdAt', 'creditLimit', 'email', 'id', 'isActive', 'nom', 'notes', 'pays', 'pointDeVenteId', 'solde', 'telephone', 'type', 'updatedAt', 'ville'] as const
+  static $columns = ['adresse', 'code', 'createdAt', 'creditLimit', 'email', 'id', 'isActive', 'ncc', 'nom', 'notes', 'pays', 'pointDeVenteId', 'solde', 'telephone', 'type', 'updatedAt', 'ville'] as const
   $columns = ClientSchema.$columns
   @column()
   declare adresse: string | null
@@ -243,6 +260,8 @@ export class ClientSchema extends BaseModel {
   declare id: number
   @column()
   declare isActive: boolean
+  @column()
+  declare ncc: string | null
   @column()
   declare nom: string
   @column()
@@ -368,7 +387,7 @@ export class PaiementSchema extends BaseModel {
 }
 
 export class PointsDeVenteSchema extends BaseModel {
-  static $columns = ['adresse', 'code', 'createdAt', 'id', 'isActive', 'nom', 'telephone', 'updatedAt', 'ville'] as const
+  static $columns = ['adresse', 'code', 'createdAt', 'establishment', 'id', 'isActive', 'nom', 'pointOfSale', 'telephone', 'timbreReference', 'updatedAt', 'ville'] as const
   $columns = PointsDeVenteSchema.$columns
   @column()
   declare adresse: string | null
@@ -376,6 +395,8 @@ export class PointsDeVenteSchema extends BaseModel {
   declare code: string
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
+  @column()
+  declare establishment: string | null
   @column({ isPrimary: true })
   declare id: number
   @column()
@@ -383,7 +404,11 @@ export class PointsDeVenteSchema extends BaseModel {
   @column()
   declare nom: string
   @column()
+  declare pointOfSale: string | null
+  @column()
   declare telephone: string | null
+  @column()
+  declare timbreReference: string | null
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
   @column()
@@ -567,12 +592,14 @@ export class UserSchema extends BaseModel {
 }
 
 export class VenteLigneSchema extends BaseModel {
-  static $columns = ['createdAt', 'designation', 'id', 'ligneOrigineId', 'marge', 'modeVente', 'montantHt', 'montantTtc', 'montantTva', 'plancherLigne', 'prixUnitaire', 'produitId', 'quantite', 'quantiteRetournee', 'quantiteStock', 'remisePct', 'tvaPct', 'updatedAt', 'venteId'] as const
+  static $columns = ['createdAt', 'designation', 'fneItemId', 'id', 'ligneOrigineId', 'marge', 'modeVente', 'montantHt', 'montantTtc', 'montantTva', 'plancherLigne', 'prixUnitaire', 'produitId', 'quantite', 'quantiteRetournee', 'quantiteStock', 'remisePct', 'tvaPct', 'updatedAt', 'venteId'] as const
   $columns = VenteLigneSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column()
   declare designation: string
+  @column()
+  declare fneItemId: string | null
   @column({ isPrimary: true })
   declare id: number
   @column()
@@ -610,10 +637,18 @@ export class VenteLigneSchema extends BaseModel {
 }
 
 export class VenteSchema extends BaseModel {
-  static $columns = ['bonSortieImpressionCount', 'clientId', 'createdAt', 'dateEcheance', 'dateVente', 'devisOrigineId', 'factureImpressionCount', 'factureOrigineId', 'id', 'lockExpiresAt', 'lockedAt', 'lockedByUserId', 'marge', 'margePct', 'montantPaye', 'notes', 'numero', 'pointDeVenteId', 'remiseMontant', 'remisePct', 'resteAPayer', 'sousTotal', 'statut', 'statutPaiement', 'totalHt', 'totalTtc', 'tvaMontant', 'updatedAt', 'userId'] as const
+  static $columns = ['airsiMontant', 'airsiPct', 'apiResponse', 'bonSortieImpressionCount', 'certifiedAt', 'clientId', 'createdAt', 'dateEcheance', 'dateVente', 'devisOrigineId', 'excluded', 'factureImpressionCount', 'factureOrigineId', 'fneInvoiceId', 'id', 'lockExpiresAt', 'lockedAt', 'lockedByUserId', 'marge', 'margePct', 'montantPaye', 'normalise', 'notes', 'numero', 'pointDeVenteId', 'remiseMontant', 'remisePct', 'resteAPayer', 'sousTotal', 'statut', 'statutPaiement', 'testNormalise', 'totalApresAirsi', 'totalHt', 'totalTtc', 'tvaMontant', 'updatedAt', 'userId'] as const
   $columns = VenteSchema.$columns
   @column()
+  declare airsiMontant: string
+  @column()
+  declare airsiPct: string
+  @column()
+  declare apiResponse: string | null
+  @column()
   declare bonSortieImpressionCount: number
+  @column.dateTime()
+  declare certifiedAt: DateTime | null
   @column()
   declare clientId: number
   @column.dateTime({ autoCreate: true })
@@ -625,9 +660,13 @@ export class VenteSchema extends BaseModel {
   @column()
   declare devisOrigineId: number | null
   @column()
+  declare excluded: boolean
+  @column()
   declare factureImpressionCount: number
   @column()
   declare factureOrigineId: number | null
+  @column()
+  declare fneInvoiceId: string | null
   @column({ isPrimary: true })
   declare id: number
   @column.dateTime()
@@ -642,6 +681,8 @@ export class VenteSchema extends BaseModel {
   declare margePct: string
   @column()
   declare montantPaye: string
+  @column()
+  declare normalise: boolean
   @column()
   declare notes: string | null
   @column()
@@ -660,6 +701,10 @@ export class VenteSchema extends BaseModel {
   declare statut: string
   @column()
   declare statutPaiement: string
+  @column()
+  declare testNormalise: boolean
+  @column()
+  declare totalApresAirsi: string
   @column()
   declare totalHt: string
   @column()
