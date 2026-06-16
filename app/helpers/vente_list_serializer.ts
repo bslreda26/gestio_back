@@ -1,7 +1,11 @@
 import Client from '#models/client'
+import { serializeVenteForApi } from '#helpers/vente_serializer'
 import type Vente from '#models/vente'
 
-export async function serializeVentesForList(ventes: Vente[]) {
+export async function serializeVentesForList(
+  ventes: Vente[],
+  options: { includeMarge?: boolean; includeMargePct?: boolean } = {},
+) {
   if (ventes.length === 0) return []
 
   const clientIds = [...new Set(ventes.map((v) => v.clientId))]
@@ -11,7 +15,7 @@ export async function serializeVentesForList(ventes: Vente[]) {
   return ventes.map((vente) => {
     const client = clientById.get(vente.clientId)
     return {
-      ...vente.serialize(),
+      ...serializeVenteForApi(vente, options),
       client: client ? { id: client.id, nom: client.nom, code: client.code } : null,
       clientNom: client?.nom ?? null,
     }

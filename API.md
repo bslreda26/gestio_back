@@ -111,11 +111,13 @@ Permissions notables :
 | Permission | Usage |
 |------------|--------|
 | `produits_plancher` | Modifier plancher, moyenne achat, dernier prix achat |
-| `ventes_ligne_marge` | Voir la marge sur les lignes vente |
+| `ventes_ligne_marge` | Voir la marge unitaire sur les lignes vente |
+| `ventes_marge_pct` | Voir la **marge %** sur la facture / devis (PDF inclus) |
 | `ventes_ligne_plancher` | Voir le plancher sur les lignes vente |
 | `ventes_retour` | Créer un avoir client |
 | `achats_paiement` | Payer un achat (séparé de `achats_write`) |
-| `clients_solde` | Consulter le solde client |
+| `clients_solde` | Consulter le solde client (fiche, liste, relevé) |
+| `fournisseurs_solde` | Consulter le solde fournisseur (fiche, liste) |
 | `tva_admin` | CRUD groupes TVA (`/admin/tva-groupes`) |
 | `categories_admin` | CRUD catégories admin (`/admin/categories`) |
 | `depense_categories_admin` | CRUD catégories dépenses (`/admin/depense-categories`) |
@@ -314,20 +316,56 @@ Auth + `X-Point-De-Vente-Id`.
 
 `type`: `B2B` \| `B2C` \| `B2F` \| `B2G` (défaut `B2C`)
 
+### Solde client (compte)
+
+Le champ `solde` renvoyé par **`/clients/search`**, **`/clients/show`** et **`/clients/solde`** est **recalculé** depuis les mouvements du point de vente courant (même logique que le relevé), et non lu depuis la valeur stockée en base.
+
+**Formule (PDV courant)** :
+
+```
+solde = Σ factures validées TTC
+      + Σ factures non validées TTC
+      − Σ avoirs client TTC
+      − Σ paiements vente
+      − Σ règlements client (crédit)
+      + Σ règlements client (débit, montant négatif)
+```
+
+- Permission `clients_solde` requise pour voir `solde` (sinon champ omis).
+- `POST /clients/solde` retourne aussi `totalCreances` (somme des `reste_a_payer` sur factures ouvertes) et les derniers paiements.
+
 ---
 
 ## Fournisseurs
 
 Partagés entre PDV. Auth + header PDV.
 
-| Method | Path |
-|--------|------|
-| POST | `/fournisseurs/search` |
-| POST | `/fournisseurs/show` |
-| POST | `/fournisseurs/create` |
-| POST | `/fournisseurs/update` |
-| POST | `/fournisseurs/deactivate` |
-| POST | `/fournisseurs/achats` |
+| Method | Path | Permission |
+|--------|------|------------|
+| POST | `/fournisseurs/search` | `fournisseurs` |
+| POST | `/fournisseurs/show` | `fournisseurs` |
+| POST | `/fournisseurs/create` | `fournisseurs_write` |
+| POST | `/fournisseurs/update` | `fournisseurs_write` |
+| POST | `/fournisseurs/deactivate` | `fournisseurs_write` |
+| POST | `/fournisseurs/achats` | `fournisseurs` |
+
+### Solde fournisseur (compte)
+
+Le champ `solde` renvoyé par **`/fournisseurs/search`** et **`/fournisseurs/show`** est **recalculé** pour le **point de vente courant** (aligné sur le relevé fournisseur), et non la valeur globale `fournisseurs.solde` en base.
+
+**Formule (PDV courant)** :
+
+```
+solde = Σ réceptions achat TTC (lignes reçues)
+      − Σ retours fournisseur TTC
+      − Σ paiements achat
+      − Σ règlements fournisseur (crédit)
+      + Σ règlements fournisseur (débit, montant négatif)
+```
+
+- Permission `fournisseurs_solde` requise pour voir `solde` (sinon champ omis).
+- Solde **positif** = dette envers le fournisseur ; solde **négatif** = trop-perçu / avance fournisseur.
+- Le relevé détaillé : `POST /rapports/releve-fournisseur`.
 
 ---
 
@@ -461,6 +499,7 @@ Création directe facture : `POST /ventes/create` avec `"statut": "non_valide"`.
 | POST | `/ventes/paiement` | `ventes_paiement` |
 | POST | `/ventes/paiements-search` | `ventes` |
 | POST | `/ventes/document` | `ventes` |
+| POST | `/ventes/imprimer` | `ventes` |
 | POST | `/ventes/lock` | `ventes_write` |
 | POST | `/ventes/lock-renew` | `ventes_write` |
 | POST | `/ventes/unlock` | `ventes_write` |
@@ -497,6 +536,60 @@ Création directe facture : `POST /ventes/create` avec `"statut": "non_valide"`.
 Retourne `prix_unitaire`, `quantite_stock`, `stock_label`, `plancher`, `marge` (si permissions), `contenance`, `unite`, `unite_gros`, `vente_au_detail`.
 
 Caisse **ouverte** requise pour créer/modifier une facture (`non_valide`).
+
+### Totaux facture — marge & marge %
+
+Champs sur l'objet `vente` (migration `1740000000041`) :
+
+| Champ | Description |
+|-------|-------------|
+| `marge` | Somme des marges lignes (unitaire × quantité, remise ligne), ajustée si remise globale |
+| `margePct` | `marge / totalTtc × 100` |
+
+**Marge unitaire ligne** : `prix_unitaire − plancher_ligne` (TTC).
+
+Calcul automatique à la création, mise à jour et conversion devis → facture (`calculerTotauxVente` + `calculerMargeFacture`).
+
+**Visibilité (droits d'accès)** :
+
+| Champ | Permission |
+|-------|------------|
+| `marge` (montant facture) | `ventes_ligne_marge` |
+| `margePct` | `ventes_marge_pct` (défaut : admin, gérant — assignable par utilisateur) |
+| `marge` sur ligne | `ventes_ligne_marge` |
+| `plancher` sur ligne | `ventes_ligne_plancher` |
+
+Sans permission, le champ est **omis** de la réponse (`show`, `create`, `update`, `document`).
+
+### Document JSON
+
+`POST /ventes/document` — aperçu structuré pour impression frontend.
+
+Retourne `vente`, `lignes`, `totaux` (avec `marge` / `marge_pct` selon permissions), `client`, `type`, `statut_label`.
+
+### Impression PDF
+
+`POST /ventes/imprimer`
+
+```json
+{ "id": 12, "type": "facture" }
+```
+
+`type` : `facture` (facture / devis / avoir avec prix) \| `bon_sortie` (sans prix, facture validée uniquement).
+
+Réponse : `application/pdf` (binaire).
+
+En-têtes de réponse :
+
+| Header | Description |
+|--------|-------------|
+| `X-Impression-Numero` | N° d'impression (1 = original) |
+| `X-Impression-Label` | `ORIGINAL` ou `DUPLICATA` |
+| `X-Impression-Duplicata` | `true` / `false` |
+
+Compteurs : `facture_impression_count`, `bon_sortie_impression_count` sur `ventes`.
+
+PDF facture — bloc totaux : Total HT, TVA, **Marge** et **Marge %** (si permissions utilisateur), Total TTC.
 
 ---
 
@@ -661,15 +754,47 @@ Tant qu'aucune session n'est ouverte (`statut: fermee`), les opérations caisse 
 
 ## Rapports
 
-Permission: `rapports`
+Permission: `rapports`. Header PDV requis.
 
-| Method | Path |
-|--------|------|
-| POST | `/rapports/caisse` |
-| POST | `/rapports/stock-actuel` |
-| POST | `/rapports/valeur-stock` |
-| POST | `/rapports/balance-clients` |
-| POST | `/rapports/releve-client` |
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/rapports/caisse` | Mouvements caisse sur période |
+| POST | `/rapports/stock-actuel` | Stock actuel par produit |
+| POST | `/rapports/valeur-stock` | Valorisation stock (plancher × quantité) |
+| POST | `/rapports/balance-clients` | Liste clients + solde PDV recalculé |
+| POST | `/rapports/releve-client` | Relevé compte client (période) |
+| POST | `/rapports/balance-fournisseurs` | Liste fournisseurs + solde PDV recalculé |
+| POST | `/rapports/releve-fournisseur` | Relevé compte fournisseur (période) |
+| POST | `/rapports/depenses` | Dépenses sur période |
+| POST | `/rapports/chiffre-affaires` | Chiffre d'affaires sur période |
+
+### Relevé client / fournisseur
+
+```json
+// POST /rapports/releve-client
+{
+  "client_id": 1,
+  "date_from": "2026-06-01",
+  "date_to": "2026-06-16",
+  "page": 1,
+  "limit": 50
+}
+```
+
+```json
+// POST /rapports/releve-fournisseur
+{
+  "fournisseur_id": 1,
+  "date_from": "2026-06-01",
+  "date_to": "2026-06-16",
+  "page": 1,
+  "limit": 50
+}
+```
+
+Réponse : `periode`, `client`/`fournisseur`, `totaux` (`soldeInitial`, `totalDebit`, `totalCredit`, `soldeFinal`), `lignes` (mouvements paginés avec solde courant).
+
+Le **solde final** du relevé utilise la même formule que les fiches compte (`search` / `show`).
 
 ---
 
@@ -769,6 +894,7 @@ Chèque, virement, mobile money, carte : **pas d'impact caisse**, mais l'enregis
 | POST | `/api/v1/ventes/paiement` |
 | POST | `/api/v1/ventes/paiements-search` |
 | POST | `/api/v1/ventes/document` |
+| POST | `/api/v1/ventes/imprimer` |
 | POST | `/api/v1/ventes/lock` |
 | POST | `/api/v1/ventes/lock-renew` |
 | POST | `/api/v1/ventes/unlock` |
@@ -813,6 +939,10 @@ Chèque, virement, mobile money, carte : **pas d'impact caisse**, mais l'enregis
 | POST | `/api/v1/rapports/valeur-stock` |
 | POST | `/api/v1/rapports/balance-clients` |
 | POST | `/api/v1/rapports/releve-client` |
+| POST | `/api/v1/rapports/balance-fournisseurs` |
+| POST | `/api/v1/rapports/releve-fournisseur` |
+| POST | `/api/v1/rapports/depenses` |
+| POST | `/api/v1/rapports/chiffre-affaires` |
 
 ---
 

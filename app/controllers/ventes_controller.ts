@@ -128,7 +128,11 @@ export default class VentesController {
 
     const total = await query.clone().count('* as total')
     const ventes = await query.offset(offset).limit(limit)
-    const data = await serializeVentesForList(ventes)
+    const ligneVisibility = getVenteLigneVisibility(ctx)
+    const data = await serializeVentesForList(ventes, {
+      includeMarge: ligneVisibility.includeMarge,
+      includeMargePct: ligneVisibility.includeMargePct,
+    })
 
     return sendPaginated(ctx, data, buildMeta(Number(total[0].$extras.total), page, limit))
   }

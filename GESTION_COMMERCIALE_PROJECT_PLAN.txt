@@ -32,11 +32,14 @@
     - facturation   : facturation, soldes, paiements fournisseurs
 
   État d'avancement :
-    ☑ Backend API REST /api/v1 (39 migrations MySQL)
+    ☑ Backend API REST /api/v1 (41 migrations MySQL)
     ☑ Multi point de vente (middleware, scoping, numéros préfixés)
     ☑ RBAC par permissions (config/permissions.ts)
     ☑ Unités gros/détail (vente_unite_service.ts)
     ☑ Sessions caisse
+    ☑ Soldes client/fournisseur recalculés (alignés relevé)
+    ☑ Marge facture + marge % (permissions séparées)
+    ☑ Impression PDF facture / bon de sortie
     ☑ Tests Japa (unit + functional)
     ☑ Frontend React (gestio_front) — en cours / partiellement livré
 
@@ -84,18 +87,19 @@
                      ventes, achats, caisse, depenses, stock, rapports,
                      reglements
     models/          entités Lucid (étendent database/schema.ts)
-    services/        pricing, vente, vente_lock, vente_unite, achat,
-                     caisse, stock, rapport, reglement, code_generator,
-                     permission, point_de_vente
+    services/        pricing, vente, vente_lock, vente_unite, vente_pdf,
+                     vente_impression, achat, caisse, stock, rapport,
+                     reglement, code_generator, permission, point_de_vente
     helpers/         api_response, pagination, produit_serializer,
-                     vente_ligne_serializer, point_de_vente_context
+                     vente_ligne_serializer, vente_serializer,
+                     solde_visibility, point_de_vente_context
     validators/      VineJS par module
     middleware/      auth, role (RBAC), point_de_vente
     constants/       vente_statuts, achat_statuts
 
   start/routes.ts    — toutes les routes
   database/
-    migrations/      39 fichiers
+    migrations/      41 fichiers
     seeders/         users, categories, TVA, fournisseurs/clients, produits, caisse
   tests/             functional + unit
 
@@ -144,10 +148,23 @@
     valide       → facture validée (stock déjà déduit)
     retour       → avoir client
 
+  VENTES — totaux facture (migrations 1740000000040, 1740000000041)
+    total_ht, tva_montant, total_ttc, sous_total, remise_montant
+    marge          somme marges lignes (ajustée remise globale)
+    marge_pct      marge / total_ttc × 100
+    facture_impression_count, bon_sortie_impression_count
+
   VENTE_LIGNES
     mode_vente      piece | detail
     quantite_stock  quantité déduite du stock (unité détail)
-    plancher_ligne, marge (marge visible selon permission)
+    plancher_ligne, marge (unitaire = prix_unitaire − plancher_ligne)
+
+  SOLDES COMPTE (clients / fournisseurs)
+    Affichage API (search, show) = solde RECALCULÉ par PDV (rapport_service)
+    Aligné sur relevé client / relevé fournisseur
+    clients.solde / fournisseurs.solde en base = mis à jour par opérations
+      (paiements, règlements, réceptions…) — ne pas utiliser pour l'affichage fiche
+    Permissions : clients_solde, fournisseurs_solde
 
   ACHATS — statuts (migration 1740000000035)
     commande     → bon de commande
@@ -186,14 +203,14 @@
     /clients/*, /fournisseurs/*, /categories/*
     /tva-groupes                (GET lecture métier)
     /produits/*
-    /ventes/*                   (+ ligne-info, lock, document)
+    /ventes/*                   (+ ligne-info, lock, document, imprimer PDF)
     /achats/*                   (+ ligne-info, recevoir, retour)
     /reglements/client/*, /reglements/fournisseur/*
     /caisse/*
     /depense-categories         (GET)
     /depenses/*
     /stock/*
-    /rapports/*
+    /rapports/*                 (balance, relevés, CA, dépenses…)
 
   Numérotation documents :
     {pdv}-DEV-{année}-{seq}   devis
@@ -256,6 +273,19 @@
 
   Validation vente : prix_unitaire (TTC) >= plancher_ligne
 
+  Marge ligne (pricing_service.calcMargeLigne) :
+    marge_unitaire = prix_unitaire − plancher_ligne
+
+  Marge facture (pricing_service.calculerMargeFacture) :
+    par ligne : marge_unitaire × quantite × (1 − remise_pct_ligne / 100)
+    somme lignes, puis × (total_ttc / sous_total) si remise globale
+    marge_pct = marge / total_ttc × 100
+
+  Permissions affichage :
+    ventes_ligne_marge   → marge ligne + marge montant facture
+    ventes_marge_pct     → marge_pct facture (défaut admin/gérant, assignable)
+    ventes_ligne_plancher → plancher ligne
+
 ================================================================================
   10. LOGIQUE MÉTIER — VENTES
 ================================================================================
@@ -270,8 +300,37 @@
 
   Lignes : mode_vente piece | detail
   Verrou édition : lock / lock-renew / unlock
+  Impression : POST /ventes/imprimer (PDF facture ou bon de sortie)
+  Document JSON : POST /ventes/document (aperçu + totaux)
 
   Caisse ouverte requise pour factures.
+
+================================================================================
+  10bis. LOGIQUE MÉTIER — SOLDES & RELEVÉS
+================================================================================
+
+  Service : app/services/rapport_service.ts
+  Helpers : computeClientSoldePdv, computeFournisseurSoldePdv,
+            computeClientSoldesPdv, computeFournisseurSoldesPdv
+
+  CLIENT (par PDV) :
+    Débit  : factures (valide + non_valide)
+    Crédit : avoirs, paiements vente, règlements client (+)
+    solde = total_débit − total_crédit
+
+  FOURNISSEUR (par PDV) :
+    Débit  : réceptions achat (TTC lignes reçues)
+    Crédit : retours, paiements achat, règlements fournisseur (+)
+    solde = total_débit − total_crédit
+
+  Endpoints alignés sur cette logique :
+    POST /clients/search, /clients/show, /clients/solde
+    POST /fournisseurs/search, /fournisseurs/show
+    POST /rapports/balance-clients, /rapports/releve-client
+    POST /rapports/balance-fournisseurs, /rapports/releve-fournisseur
+
+  Note : un fournisseur est partagé entre PDV mais le solde affiché
+  est toujours celui du PDV sélectionné (header X-Point-De-Vente-Id).
 
 ================================================================================
   11. LOGIQUE MÉTIER — ACHATS
@@ -370,8 +429,31 @@
   npm test                    (gestio_test, transactions rollback)
   node ace test --files tests/unit/vente_unite_service.spec.ts
 
-  Scénarios couverts : pricing (CMUP, plancher), unités stock, achat gros,
-  frais ligne achat, vente piece, caisse sessions (blocage si fermée),
-  permissions, retours…
+  Scénarios couverts : pricing (CMUP, plancher, marge facture), unités stock,
+  achat gros, frais ligne achat, vente piece, caisse sessions (blocage si fermée),
+  permissions (ventes_ligne_marge, ventes_marge_pct), soldes recalculés,
+  relevés client/fournisseur, impression PDF, retours…
+
+================================================================================
+  17. JOURNAL DES ÉVOLUTIONS RÉCENTES (backend)
+================================================================================
+
+  Soldes compte client / fournisseur
+    - Fiche et liste : solde recalculé par PDV (identique au relevé)
+    - Ne plus afficher clients.solde / fournisseurs.solde bruts
+
+  Marge facture
+    - Champs ventes.marge et ventes.marge_pct persistés
+    - Permission ventes_marge_pct (droits d'accès, défaut admin + gérant)
+    - PDF facture : marge et marge % selon permissions utilisateur
+
+  Impression
+    - POST /ventes/imprimer → PDF (facture | bon_sortie)
+    - Compteurs original / duplicata
+
+  Rapports
+    - balance-fournisseurs, releve-fournisseur, depenses, chiffre-affaires
+
+  Voir API.md pour payloads et exemples détaillés.
 
 ================================================================================
