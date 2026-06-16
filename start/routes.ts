@@ -436,6 +436,14 @@ router
               .post('releve-fournisseur', [RapportsController, 'releveFournisseur'])
               .as('releve_fournisseur')
               .use(middleware.role({ permission: 'rapports' }))
+            router
+              .post('reglement-clients', [RapportsController, 'reglementClients'])
+              .as('reglement_clients')
+              .use(middleware.role({ permission: 'rapports' }))
+            router
+              .post('reglement-fournisseurs', [RapportsController, 'reglementFournisseurs'])
+              .as('reglement_fournisseurs')
+              .use(middleware.role({ permission: 'rapports' }))
           })
           .prefix('rapports')
           .as('rapports')

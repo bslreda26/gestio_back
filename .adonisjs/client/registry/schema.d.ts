@@ -1483,4 +1483,28 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['releveFournisseur']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'rapports.reglement_clients': {
+    methods: ["POST"]
+    pattern: '/api/v1/rapports/reglement-clients'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/rapport_validator').rapportReglementClientsValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/rapport_validator').rapportReglementClientsValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['reglementClients']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['reglementClients']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'rapports.reglement_fournisseurs': {
+    methods: ["POST"]
+    pattern: '/api/v1/rapports/reglement-fournisseurs'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/rapport_validator').rapportReglementFournisseursValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/rapport_validator').rapportReglementFournisseursValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['reglementFournisseurs']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['reglementFournisseurs']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
 }

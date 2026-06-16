@@ -9,6 +9,8 @@ import {
   rapportDepenses,
   rapportReleveClient,
   rapportReleveFournisseur,
+  rapportReglementClients,
+  rapportReglementFournisseurs,
   rapportStockActuel,
   rapportValeurStock,
 } from '#services/rapport_service'
@@ -20,6 +22,8 @@ import {
   rapportDepensesValidator,
   rapportReleveClientValidator,
   rapportReleveFournisseurValidator,
+  rapportReglementClientsValidator,
+  rapportReglementFournisseursValidator,
   rapportStockActuelValidator,
   rapportValeurStockValidator,
 } from '#validators/rapport_validator'
@@ -207,6 +211,52 @@ export default class RapportsController {
         payload.date_to,
         { page: payload.page, limit: payload.limit }
       )
+      return sendSuccess(ctx, data, data.meta)
+    } catch (error) {
+      return handleRapportError(ctx, error)
+    }
+  }
+
+  /**
+   * Rapport règlements clients — date_from, date_to ; liste paginée + totaux période
+   */
+  async reglementClients(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(rapportReglementClientsValidator)
+    try {
+      const pos = requirePointDeVente(ctx)
+      const data = await rapportReglementClients({
+        pointDeVenteId: pos.pointDeVenteId,
+        dateFrom: payload.date_from,
+        dateTo: payload.date_to,
+        page: payload.page,
+        limit: payload.limit,
+        clientId: payload.client_id,
+        modePaiement: payload.mode_paiement,
+        search: payload.search,
+      })
+      return sendSuccess(ctx, data, data.meta)
+    } catch (error) {
+      return handleRapportError(ctx, error)
+    }
+  }
+
+  /**
+   * Rapport règlements fournisseurs — date_from, date_to ; liste paginée + totaux période
+   */
+  async reglementFournisseurs(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(rapportReglementFournisseursValidator)
+    try {
+      const pos = requirePointDeVente(ctx)
+      const data = await rapportReglementFournisseurs({
+        pointDeVenteId: pos.pointDeVenteId,
+        dateFrom: payload.date_from,
+        dateTo: payload.date_to,
+        page: payload.page,
+        limit: payload.limit,
+        fournisseurId: payload.fournisseur_id,
+        modePaiement: payload.mode_paiement,
+        search: payload.search,
+      })
       return sendSuccess(ctx, data, data.meta)
     } catch (error) {
       return handleRapportError(ctx, error)

@@ -744,6 +744,18 @@ const routes = {
     tokens: [{"old":"/api/v1/rapports/releve-fournisseur","type":0,"val":"api","end":""},{"old":"/api/v1/rapports/releve-fournisseur","type":0,"val":"v1","end":""},{"old":"/api/v1/rapports/releve-fournisseur","type":0,"val":"rapports","end":""},{"old":"/api/v1/rapports/releve-fournisseur","type":0,"val":"releve-fournisseur","end":""}],
     types: placeholder as Registry['rapports.releve_fournisseur']['types'],
   },
+  'rapports.reglement_clients': {
+    methods: ["POST"],
+    pattern: '/api/v1/rapports/reglement-clients',
+    tokens: [{"old":"/api/v1/rapports/reglement-clients","type":0,"val":"api","end":""},{"old":"/api/v1/rapports/reglement-clients","type":0,"val":"v1","end":""},{"old":"/api/v1/rapports/reglement-clients","type":0,"val":"rapports","end":""},{"old":"/api/v1/rapports/reglement-clients","type":0,"val":"reglement-clients","end":""}],
+    types: placeholder as Registry['rapports.reglement_clients']['types'],
+  },
+  'rapports.reglement_fournisseurs': {
+    methods: ["POST"],
+    pattern: '/api/v1/rapports/reglement-fournisseurs',
+    tokens: [{"old":"/api/v1/rapports/reglement-fournisseurs","type":0,"val":"api","end":""},{"old":"/api/v1/rapports/reglement-fournisseurs","type":0,"val":"v1","end":""},{"old":"/api/v1/rapports/reglement-fournisseurs","type":0,"val":"rapports","end":""},{"old":"/api/v1/rapports/reglement-fournisseurs","type":0,"val":"reglement-fournisseurs","end":""}],
+    types: placeholder as Registry['rapports.reglement_fournisseurs']['types'],
+  },
 } as const satisfies Record<string, AdonisEndpoint>
 
 export { routes }

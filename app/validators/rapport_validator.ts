@@ -1,4 +1,5 @@
 import vine from '@vinejs/vine'
+import { MODES_PAIEMENT } from '#validators/reglement_validator'
 
 const stockAlertValues = ['rupture', 'alerte', 'normal', 'surstock'] as const
 
@@ -84,5 +85,29 @@ export const rapportReleveFournisseurValidator = vine.compile(
     date_to: vine.date({ formats: ['iso8601'] }),
     page: vine.number().min(1).optional(),
     limit: vine.number().min(1).max(100).optional(),
+  })
+)
+
+export const rapportReglementClientsValidator = vine.compile(
+  vine.object({
+    date_from: vine.date({ formats: ['iso8601'] }),
+    date_to: vine.date({ formats: ['iso8601'] }),
+    page: vine.number().min(1).optional(),
+    limit: vine.number().min(1).max(100).optional(),
+    client_id: vine.number().positive().optional(),
+    mode_paiement: vine.enum(MODES_PAIEMENT).optional(),
+    search: vine.string().trim().optional(),
+  })
+)
+
+export const rapportReglementFournisseursValidator = vine.compile(
+  vine.object({
+    date_from: vine.date({ formats: ['iso8601'] }),
+    date_to: vine.date({ formats: ['iso8601'] }),
+    page: vine.number().min(1).optional(),
+    limit: vine.number().min(1).max(100).optional(),
+    fournisseur_id: vine.number().positive().optional(),
+    mode_paiement: vine.enum(MODES_PAIEMENT).optional(),
+    search: vine.string().trim().optional(),
   })
 )

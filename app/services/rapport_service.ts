@@ -1247,3 +1247,193 @@ export async function rapportReleveFournisseur(
     meta,
   }
 }
+
+type ReglementReportFilters = {
+  pointDeVenteId: number
+  dateFrom: DateTime
+  dateTo: DateTime
+  page?: number
+  limit?: number
+  modePaiement?: string
+  search?: string
+}
+
+function clientReglementReportQuery(filters: ReglementReportFilters & { clientId?: number }) {
+  const query = Reglement.query()
+    .where('type', 'client')
+    .where('point_de_vente_id', filters.pointDeVenteId)
+    .where('date_reglement', '>=', toSqlDate(filters.dateFrom))
+    .where('date_reglement', '<=', toSqlDate(filters.dateTo))
+
+  if (filters.clientId) query.where('client_id', filters.clientId)
+  if (filters.modePaiement) query.where('mode_paiement', filters.modePaiement)
+  if (filters.search) {
+    const term = `%${filters.search}%`
+    query.whereIn(
+      'client_id',
+      Client.query()
+        .where('point_de_vente_id', filters.pointDeVenteId)
+        .where((q) => q.whereILike('nom', term).orWhereILike('code', term))
+        .select('id')
+    )
+  }
+
+  return query
+}
+
+function fournisseurReglementReportQuery(
+  filters: ReglementReportFilters & { fournisseurId?: number }
+) {
+  const query = Reglement.query()
+    .where('type', 'fournisseur')
+    .where('point_de_vente_id', filters.pointDeVenteId)
+    .where('date_reglement', '>=', toSqlDate(filters.dateFrom))
+    .where('date_reglement', '<=', toSqlDate(filters.dateTo))
+
+  if (filters.fournisseurId) query.where('fournisseur_id', filters.fournisseurId)
+  if (filters.modePaiement) query.where('mode_paiement', filters.modePaiement)
+  if (filters.search) {
+    const term = `%${filters.search}%`
+    query.whereIn(
+      'fournisseur_id',
+      Fournisseur.query()
+        .where((q) =>
+          q.whereILike('nom', term).orWhereILike('code', term).orWhereILike('ville', term)
+        )
+        .select('id')
+    )
+  }
+
+  return query
+}
+
+async function buildReglementReportTotals(baseQuery: ReturnType<typeof clientReglementReportQuery>) {
+  const [countRow, totalsRow] = await Promise.all([
+    baseQuery.clone().count('* as total'),
+    baseQuery
+      .clone()
+      .select(
+        db.raw('COALESCE(SUM(CASE WHEN montant > 0 THEN montant ELSE 0 END), 0) as total_encaissements'),
+        db.raw('COALESCE(SUM(CASE WHEN montant < 0 THEN ABS(montant) ELSE 0 END), 0) as total_remboursements'),
+        db.raw('COALESCE(SUM(montant), 0) as total_net')
+      )
+      .first() as Promise<{
+      total_encaissements: string | number
+      total_remboursements: string | number
+      total_net: string | number
+    } | null>,
+  ])
+
+  return {
+    nombreReglements: Number(countRow[0].$extras.total),
+    totalEncaissements: roundMoney(Number(totalsRow?.total_encaissements ?? 0)),
+    totalRemboursements: roundMoney(Number(totalsRow?.total_remboursements ?? 0)),
+    totalNet: roundMoney(Number(totalsRow?.total_net ?? 0)),
+  }
+}
+
+export async function rapportReglementClients(
+  filters: ReglementReportFilters & { clientId?: number }
+) {
+  if (filters.dateFrom > filters.dateTo) {
+    throw new RapportBusinessError('date_from doit être antérieure ou égale à date_to')
+  }
+
+  const { page, limit, offset } = parsePagination(filters)
+  const baseQuery = clientReglementReportQuery(filters)
+
+  const [totaux, reglements] = await Promise.all([
+    buildReglementReportTotals(baseQuery),
+    baseQuery
+      .clone()
+      .orderBy('date_reglement', 'asc')
+      .orderBy('id', 'asc')
+      .offset(offset)
+      .limit(limit),
+  ])
+
+  const clientIds = [...new Set(reglements.map((r) => r.clientId).filter((id): id is number => id !== null))]
+  const clients =
+    clientIds.length > 0
+      ? await Client.query().whereIn('id', clientIds)
+      : []
+  const clientMap = new Map(clients.map((client) => [client.id, client]))
+  const meta = buildMeta(totaux.nombreReglements, page, limit)
+
+  const lignes = reglements.map((reglement) => {
+    const client = reglement.clientId ? clientMap.get(reglement.clientId) : undefined
+    return {
+      id: reglement.id,
+      date: toSqlDate(reglement.dateReglement),
+      reference: client?.code ?? '',
+      designation: client?.nom ?? '',
+      montant: roundMoney(Number(reglement.montant)),
+      modePaiement: reglement.modePaiement,
+      referenceExterne: reglement.referenceExterne,
+      soldeAvant: roundMoney(Number(reglement.soldeAvant)),
+      soldeApres: roundMoney(Number(reglement.soldeApres)),
+    }
+  })
+
+  return {
+    periode: { dateFrom: toSqlDate(filters.dateFrom), dateTo: toSqlDate(filters.dateTo) },
+    lignes,
+    meta,
+    totaux,
+  }
+}
+
+export async function rapportReglementFournisseurs(
+  filters: ReglementReportFilters & { fournisseurId?: number }
+) {
+  if (filters.dateFrom > filters.dateTo) {
+    throw new RapportBusinessError('date_from doit être antérieure ou égale à date_to')
+  }
+
+  const { page, limit, offset } = parsePagination(filters)
+  const baseQuery = fournisseurReglementReportQuery(filters)
+
+  const [totaux, reglements] = await Promise.all([
+    buildReglementReportTotals(baseQuery),
+    baseQuery
+      .clone()
+      .orderBy('date_reglement', 'asc')
+      .orderBy('id', 'asc')
+      .offset(offset)
+      .limit(limit),
+  ])
+
+  const fournisseurIds = [
+    ...new Set(reglements.map((r) => r.fournisseurId).filter((id): id is number => id !== null)),
+  ]
+  const fournisseurs =
+    fournisseurIds.length > 0
+      ? await Fournisseur.query().whereIn('id', fournisseurIds)
+      : []
+  const fournisseurMap = new Map(fournisseurs.map((fournisseur) => [fournisseur.id, fournisseur]))
+  const meta = buildMeta(totaux.nombreReglements, page, limit)
+
+  const lignes = reglements.map((reglement) => {
+    const fournisseur = reglement.fournisseurId
+      ? fournisseurMap.get(reglement.fournisseurId)
+      : undefined
+    return {
+      id: reglement.id,
+      date: toSqlDate(reglement.dateReglement),
+      reference: fournisseur?.code ?? '',
+      designation: fournisseur?.nom ?? '',
+      montant: roundMoney(Number(reglement.montant)),
+      modePaiement: reglement.modePaiement,
+      referenceExterne: reglement.referenceExterne,
+      soldeAvant: roundMoney(Number(reglement.soldeAvant)),
+      soldeApres: roundMoney(Number(reglement.soldeApres)),
+    }
+  })
+
+  return {
+    periode: { dateFrom: toSqlDate(filters.dateFrom), dateTo: toSqlDate(filters.dateTo) },
+    lignes,
+    meta,
+    totaux,
+  }
+}

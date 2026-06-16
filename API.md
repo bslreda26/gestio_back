@@ -767,6 +767,8 @@ Permission: `rapports`. Header PDV requis.
 | POST | `/rapports/releve-fournisseur` | Relevé compte fournisseur (période) |
 | POST | `/rapports/depenses` | Dépenses sur période |
 | POST | `/rapports/chiffre-affaires` | Chiffre d'affaires sur période |
+| POST | `/rapports/reglement-clients` | Règlements clients sur période |
+| POST | `/rapports/reglement-fournisseurs` | Règlements fournisseurs sur période |
 
 ### Relevé client / fournisseur
 
@@ -795,6 +797,36 @@ Permission: `rapports`. Header PDV requis.
 Réponse : `periode`, `client`/`fournisseur`, `totaux` (`soldeInitial`, `totalDebit`, `totalCredit`, `soldeFinal`), `lignes` (mouvements paginés avec solde courant).
 
 Le **solde final** du relevé utilise la même formule que les fiches compte (`search` / `show`).
+
+### Règlements clients / fournisseurs
+
+```json
+// POST /rapports/reglement-clients
+{
+  "date_from": "2026-06-01",
+  "date_to": "2026-06-16",
+  "client_id": 1,
+  "mode_paiement": "especes",
+  "search": "dupont",
+  "page": 1,
+  "limit": 50
+}
+```
+
+```json
+// POST /rapports/reglement-fournisseurs
+{
+  "date_from": "2026-06-01",
+  "date_to": "2026-06-16",
+  "fournisseur_id": 1,
+  "mode_paiement": "virement",
+  "search": "acme",
+  "page": 1,
+  "limit": 50
+}
+```
+
+Réponse : `periode`, `lignes` (règlements paginés avec client/fournisseur, montant, mode de paiement, soldes), `totaux` (`nombreReglements`, `totalEncaissements`, `totalRemboursements`, `totalNet`).
 
 ---
 
@@ -943,6 +975,8 @@ Chèque, virement, mobile money, carte : **pas d'impact caisse**, mais l'enregis
 | POST | `/api/v1/rapports/releve-fournisseur` |
 | POST | `/api/v1/rapports/depenses` |
 | POST | `/api/v1/rapports/chiffre-affaires` |
+| POST | `/api/v1/rapports/reglement-clients` |
+| POST | `/api/v1/rapports/reglement-fournisseurs` |
 
 ---
 
