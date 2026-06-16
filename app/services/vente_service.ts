@@ -99,8 +99,9 @@ export function calculerTotauxVente(
   const remiseGlobalePct = roundMoney(sousTotal * (remisePct / 100))
   const totalRemise = roundMoney(remiseGlobalePct + remiseMontant)
   const totalTtc = roundMoney(Math.max(0, sousTotal - totalRemise))
+  const totalHt = roundMoney(lignes.reduce((s, l) => s + l.montantHt, 0))
   const tvaMontant = roundMoney(lignes.reduce((s, l) => s + l.montantTva, 0))
-  return { sousTotal, remiseMontant: totalRemise, tvaMontant, totalTtc }
+  return { sousTotal, remiseMontant: totalRemise, totalHt, tvaMontant, totalTtc }
 }
 
 export async function buildLignesFromPayload(
@@ -453,6 +454,7 @@ export async function creerVente(
         sousTotal: totaux.sousTotal,
         remisePct: data.remise_pct ?? 0,
         remiseMontant: totaux.remiseMontant,
+        totalHt: totaux.totalHt,
         tvaMontant: totaux.tvaMontant,
         totalTtc: totaux.totalTtc,
         montantPaye: 0,
@@ -561,6 +563,7 @@ export async function mettreAJourVente(
       notes: data.notes !== undefined ? data.notes ?? null : vente.notes,
       sousTotal: totaux.sousTotal,
       remiseMontant: totaux.remiseMontant,
+      totalHt: totaux.totalHt,
       tvaMontant: totaux.tvaMontant,
       totalTtc: totaux.totalTtc,
       resteAPayer: totaux.totalTtc,
@@ -805,6 +808,7 @@ export async function creerFactureRetour(
         sousTotal: totaux.sousTotal,
         remisePct: 0,
         remiseMontant: 0,
+        totalHt: totaux.totalHt,
         tvaMontant: totaux.tvaMontant,
         totalTtc: totaux.totalTtc,
         montantPaye: 0,

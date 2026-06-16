@@ -447,6 +447,7 @@ export default class VentesController {
       totaux: {
         sous_total: vente.sousTotal,
         remise: vente.remiseMontant,
+        total_ht: vente.totalHt,
         tva: vente.tvaMontant,
         total_ttc: vente.totalTtc,
         montant_paye: vente.montantPaye,

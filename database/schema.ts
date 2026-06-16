@@ -610,7 +610,7 @@ export class VenteLigneSchema extends BaseModel {
 }
 
 export class VenteSchema extends BaseModel {
-  static $columns = ['bonSortieImpressionCount', 'clientId', 'createdAt', 'dateEcheance', 'dateVente', 'devisOrigineId', 'factureImpressionCount', 'factureOrigineId', 'id', 'lockExpiresAt', 'lockedAt', 'lockedByUserId', 'montantPaye', 'notes', 'numero', 'pointDeVenteId', 'remiseMontant', 'remisePct', 'resteAPayer', 'sousTotal', 'statut', 'statutPaiement', 'totalTtc', 'tvaMontant', 'updatedAt', 'userId'] as const
+  static $columns = ['bonSortieImpressionCount', 'clientId', 'createdAt', 'dateEcheance', 'dateVente', 'devisOrigineId', 'factureImpressionCount', 'factureOrigineId', 'id', 'lockExpiresAt', 'lockedAt', 'lockedByUserId', 'montantPaye', 'notes', 'numero', 'pointDeVenteId', 'remiseMontant', 'remisePct', 'resteAPayer', 'sousTotal', 'statut', 'statutPaiement', 'totalHt', 'totalTtc', 'tvaMontant', 'updatedAt', 'userId'] as const
   $columns = VenteSchema.$columns
   @column()
   declare bonSortieImpressionCount: number
@@ -656,6 +656,8 @@ export class VenteSchema extends BaseModel {
   declare statut: string
   @column()
   declare statutPaiement: string
+  @column()
+  declare totalHt: string
   @column()
   declare totalTtc: string
   @column()
