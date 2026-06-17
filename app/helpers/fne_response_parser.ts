@@ -46,6 +46,42 @@ function deepFindString(root: unknown, keys: string[]): string | null {
   return null
 }
 
+function isFneErrorStatus(status: number | null): boolean {
+  if (status === 500) return true
+  if (status != null && status >= 400) return true
+  return false
+}
+
+function certificationRecord(
+  response: string | Record<string, unknown> | null | undefined
+): Record<string, unknown> | null {
+  if (typeof response === 'string') {
+    try {
+      return JSON.parse(response) as Record<string, unknown>
+    } catch {
+      return null
+    }
+  }
+  return asRecord(response)
+}
+
+export function formatFneErrorMessage(response: Record<string, unknown>): string {
+  const message = response.message
+  if (Array.isArray(message)) {
+    const parts = message.filter((part) => typeof part === 'string' && part.trim())
+    if (parts.length) return parts.join('; ')
+  }
+  if (typeof message === 'string' && message.trim()) return message.trim()
+  const status = typeof response.statusCode === 'number' ? response.statusCode : null
+  if (status != null) return `Erreur FNE (HTTP ${status})`
+  return "La facture n'a pas été certifiée par la FNE"
+}
+
+export function resolveFneStoredInvoiceId(record: Record<string, unknown>): string | null {
+  const invoice = asRecord(record.invoice)
+  return pickString(record.invoiceId, invoice?.id, record.reference)
+}
+
 export function parseFneApiResponse(apiResponse: string | null | undefined): ParsedFneResponse | null {
   if (!apiResponse?.trim()) return null
 
@@ -83,7 +119,7 @@ export function parseFneApiResponse(apiResponse: string | null | undefined): Par
 
   return {
     statusCode: typeof parsed.statusCode === 'number' ? parsed.statusCode : null,
-    invoiceId: pickString(parsed.invoiceId, invoice?.id),
+    invoiceId: resolveFneStoredInvoiceId(parsed),
     reference,
     ncc: pickString(parsed.ncc, invoice?.ncc),
     token,
@@ -93,30 +129,29 @@ export function parseFneApiResponse(apiResponse: string | null | undefined): Par
   }
 }
 
-/** True when FNE returned an invoice id without an explicit HTTP-style error. */
+/** True when FNE returned a sale invoice id or a refund reference + token. */
 export function isFneCertificationSuccessful(
   response: string | Record<string, unknown> | null | undefined
 ): boolean {
-  let record: Record<string, unknown> | null = null
-
-  if (typeof response === 'string') {
-    const parsed = parseFneApiResponse(response)
-    if (!parsed?.invoiceId) return false
-    if (parsed.statusCode === 500) return false
-    if (parsed.statusCode != null && parsed.statusCode >= 400) return false
-    return true
-  }
-
-  record = asRecord(response)
+  const record = certificationRecord(response)
   if (!record) return false
 
-  const invoice = asRecord(record.invoice)
-  const invoiceId = pickString(record.invoiceId, invoice?.id)
-  if (!invoiceId) return false
-
   const status = typeof record.statusCode === 'number' ? record.statusCode : null
-  if (status === 500) return false
-  if (status != null && status >= 400) return false
+  if (isFneErrorStatus(status)) return false
 
-  return true
+  if (resolveFneStoredInvoiceId(record)) return true
+
+  const invoice = asRecord(record.invoice)
+  const token = pickString(
+    record.token,
+    invoice?.token,
+    deepFindString(record, ['token', 'verificationUrl', 'verification_url'])
+  )
+  const reference = pickString(
+    record.reference,
+    invoice?.reference,
+    deepFindString(record, ['reference', 'fiscalReference', 'fiscal_reference'])
+  )
+
+  return Boolean(reference && token)
 }

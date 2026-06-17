@@ -1,6 +1,7 @@
 import {
   buildFneInvoicePayload,
   buildFneRefundItems,
+  buildFneRefundPayload,
 } from '#services/fne_certification_service'
 import Produit from '#models/produit'
 import VenteLigne from '#models/vente_ligne'
@@ -273,5 +274,16 @@ test.group('buildFneRefundItems', () => {
         ),
       /n'a pas d'identifiant FNE/
     )
+  })
+
+  test('wraps refund items in FNE payload envelope', ({ assert }) => {
+    const items = [
+      { id: 'fne-item-uuid-1', quantity: 1 },
+      { id: 'fne-item-uuid-2', quantity: 3 },
+    ]
+
+    assert.deepEqual(buildFneRefundPayload(items), {
+      items,
+    })
   })
 })

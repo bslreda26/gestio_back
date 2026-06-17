@@ -4,7 +4,7 @@ import {
   isFacture,
   isFactureRetour,
 } from '#constants/vente_statuts'
-import { isFneCertificationSuccessful } from '#helpers/fne_response_parser'
+import { isFneCertificationSuccessful, formatFneErrorMessage, resolveFneStoredInvoiceId } from '#helpers/fne_response_parser'
 import Apikey from '#models/apikey'
 import Client from '#models/client'
 import Paiement from '#models/paiement'
@@ -50,13 +50,17 @@ export type FneRefundItemPayload = {
   quantity: number
 }
 
+export type FneRefundPayload = {
+  items: FneRefundItemPayload[]
+}
+
 export type FneSignResponse = {
   statusCode?: number
   invoice?: {
     id?: string
     items?: { id?: string; reference?: string }[]
   }
-  message?: string
+  message?: string | string[]
   reference?: string
   token?: string
   ncc?: string
@@ -200,6 +204,10 @@ export function buildFneRefundItems(
   return items
 }
 
+export function buildFneRefundPayload(items: FneRefundItemPayload[]): FneRefundPayload {
+  return { items }
+}
+
 async function resolvePaymentMethod(
   vente: Vente,
   lignes: VenteLigne[],
@@ -271,13 +279,14 @@ export async function signRefundWithFne(
   items: FneRefundItemPayload[]
 ): Promise<FneSignResponse> {
   const url = `${apiKey.prodUrl.replace(/\/$/, '')}/external/invoices/${encodeURIComponent(parentInvoiceId)}/refund`
+  const payload = buildFneRefundPayload(items)
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey.key}`,
     },
-    body: JSON.stringify(items),
+    body: JSON.stringify(payload),
   })
 
   const raw = await response.text()
@@ -414,7 +423,7 @@ async function persistCertificationResult(
   vente.normalise = certified
 
   if (certified) {
-    const invoiceId = fneResponse.invoice?.id?.trim()
+    const invoiceId = resolveFneStoredInvoiceId(fneResponse as Record<string, unknown>)?.trim()
     if (!invoiceId) {
       throw new FneCertificationError("Identifiant facture FNE manquant dans la réponse")
     }
@@ -442,7 +451,7 @@ async function persistCertificationResult(
 
   if (!certified) {
     throw new FneCertificationError(
-      fneResponse.message ?? "La facture n'a pas été certifiée par la FNE"
+      formatFneErrorMessage(fneResponse as Record<string, unknown>)
     )
   }
 

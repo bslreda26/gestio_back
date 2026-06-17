@@ -1,4 +1,7 @@
-import { parseFneApiResponse } from '#helpers/fne_response_parser'
+import {
+  isFneCertificationSuccessful,
+  parseFneApiResponse,
+} from '#helpers/fne_response_parser'
 import { test } from '@japa/runner'
 
 test.group('parseFneApiResponse', () => {
@@ -24,5 +27,34 @@ test.group('parseFneApiResponse', () => {
 
   test('returns null for invalid json', ({ assert }) => {
     assert.isNull(parseFneApiResponse('not-json'))
+  })
+
+  test('parses refund success without invoice object', ({ assert }) => {
+    const parsed = parseFneApiResponse(
+      JSON.stringify({
+        ncc: '9606123E',
+        reference: 'A9606123E2500000006',
+        token: 'https://fne.dgi.gouv.ci/verify/refund-1',
+      })
+    )
+
+    assert.isNotNull(parsed)
+    assert.equal(parsed!.invoiceId, 'A9606123E2500000006')
+    assert.equal(parsed!.reference, 'A9606123E2500000006')
+    assert.isTrue(
+      isFneCertificationSuccessful({
+        reference: 'A9606123E2500000006',
+        token: 'https://fne.dgi.gouv.ci/verify/refund-1',
+      })
+    )
+  })
+
+  test('rejects refund bad request responses', ({ assert }) => {
+    assert.isFalse(
+      isFneCertificationSuccessful({
+        message: 'Bad Request Exception',
+        statusCode: 400,
+      })
+    )
   })
 })
