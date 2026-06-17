@@ -80,17 +80,19 @@ export class VenteBusinessError extends Error {
   }
 }
 
-function calcLigneMontants(
+/** Remise ligne sur le HT, puis TVA et TTC calculés sur le HT remisé. */
+export function calcLigneMontants(
   quantite: number,
   prixUnitaireTtc: number,
   tvaPct: number,
   remisePct: number
 ) {
-  const brutTtc = roundMoney(quantite * prixUnitaireTtc)
-  const remise = roundMoney(brutTtc * (remisePct / 100))
-  const montantTtc = roundMoney(brutTtc - remise)
-  const montantHt = roundMoney(montantTtc / (1 + tvaPct / 100))
-  const montantTva = roundMoney(montantTtc - montantHt)
+  const prixUnitaireHt = roundMoney(prixUnitaireTtc / (1 + tvaPct / 100))
+  const brutHt = roundMoney(quantite * prixUnitaireHt)
+  const remiseHt = roundMoney(brutHt * (remisePct / 100))
+  const montantHt = roundMoney(brutHt - remiseHt)
+  const montantTva = roundMoney(montantHt * (tvaPct / 100))
+  const montantTtc = roundMoney(montantHt + montantTva)
   return { montantHt, montantTva, montantTtc }
 }
 

@@ -74,9 +74,15 @@ export class FneCertificationError extends Error {
   }
 }
 
+/** Prix unitaire HT catalogue (avant remise ligne) — attendu par la FNE dans `items[].amount`. */
 function lignePrixUnitaireHt(ligne: VenteLigne): number {
   const qty = Number(ligne.quantite)
   if (qty <= 0) return 0
+  const tvaPct = Number(ligne.tvaPct)
+  const prixUnitaireTtc = Number(ligne.prixUnitaire)
+  if (prixUnitaireTtc > 0) {
+    return roundMoney(prixUnitaireTtc / (1 + tvaPct / 100))
+  }
   return roundMoney(Number(ligne.montantHt) / qty)
 }
 

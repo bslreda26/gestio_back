@@ -192,6 +192,7 @@ test.group('buildFneInvoicePayload', () => {
         produitId: 1,
         designation: 'Produit test',
         quantite: '2',
+        prixUnitaire: '590.00',
         remisePct: '0',
         tvaPct: '18',
         montantHt: '1000.00',
@@ -230,6 +231,48 @@ test.group('buildFneInvoicePayload', () => {
     assert.equal(payload.commercialMessage, 'ref: 01-FAC-2026-0001 Merci')
   })
 
+  test('sends gross unit HT and line discount separately for FNE', ({ assert }) => {
+    const vente = {
+      numero: '01-FAC-2026-0004',
+      dateVente: DateTime.fromISO('2026-01-15'),
+      sousTotal: '21240.00',
+      totalTtc: '21240.00',
+      totalApresAirsi: '21240.00',
+      airsiPct: '0.00',
+      airsiMontant: '0.00',
+      tvaMontant: '3240.00',
+      remisePct: '0.00',
+      notes: null,
+    } as any
+
+    const payload = buildFneInvoicePayload({
+      vente,
+      client: { nom: 'Client', type: 'B2C' } as any,
+      pointDeVente: { nom: 'PDV', pointOfSale: 'pdv', establishment: 'etab' } as any,
+      lignes: [
+        {
+          id: 1,
+          produitId: 1,
+          designation: 'Produit',
+          quantite: '1',
+          prixUnitaire: '23600.00',
+          remisePct: '10',
+          tvaPct: '18',
+          montantHt: '18000.00',
+          montantTtc: '21240.00',
+          airsiPct: '0.00',
+          airsiMontant: '0.00',
+          montantApresAirsi: '21240.00',
+        },
+      ] as any[],
+      produitsById: new Map([[1, { id: 1, code: 'PRD-1' } as Produit]]),
+      paymentMethod: 'cash',
+    })
+
+    assert.equal(payload.items[0].amount, 20000)
+    assert.equal(payload.items[0].discount, 10)
+  })
+
   test('sends AIRSI rate in customTaxes amount, not the FCFA montant', ({ assert }) => {
     const vente = {
       numero: '01-FAC-2026-0003',
@@ -254,6 +297,7 @@ test.group('buildFneInvoicePayload', () => {
           produitId: 1,
           designation: 'Produit',
           quantite: '1',
+          prixUnitaire: '30000.00',
           remisePct: '0',
           tvaPct: '18',
           montantHt: '25423.73',
@@ -296,6 +340,7 @@ test.group('buildFneInvoicePayload', () => {
           produitId: 1,
           designation: 'Produit',
           quantite: '1',
+          prixUnitaire: '1180.00',
           remisePct: '0',
           tvaPct: '18',
           montantHt: '1000.00',
