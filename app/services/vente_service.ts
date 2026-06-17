@@ -15,8 +15,9 @@ import Vente from '#models/vente'
 import VenteLigne from '#models/vente_ligne'
 import Paiement from '#models/paiement'
 import TvaGroupe from '#models/tva_groupe'
+import { resolveDepotForPointDeVente } from '#services/depot_service'
 import { calcMargeLigne, calculerMargeFacture, roundMoney, validatePrixPlancher } from '#services/pricing_service'
-import { enregistrerEntree as stockEntree, enregistrerSortie as stockSortie } from '#services/stock_service'
+import { enregistrerEntree as stockEntree, enregistrerSortie as stockSortie, getStockDisponible } from '#services/stock_service'
 import {
   canVenteAuDetail,
   formatStockLabel,
@@ -77,6 +78,19 @@ export class VenteBusinessError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'VenteBusinessError'
+  }
+}
+
+/** Une facture ne peut pas contenir le même article (produit) sur plusieurs lignes. */
+export function assertProduitsUniquesSurFacture(lignes: LigneVenteInput[]) {
+  const seen = new Set<number>()
+  for (const ligne of lignes) {
+    if (seen.has(ligne.produit_id)) {
+      throw new VenteBusinessError(
+        'Un même article ne peut pas figurer plusieurs fois sur une facture'
+      )
+    }
+    seen.add(ligne.produit_id)
   }
 }
 
@@ -307,7 +321,8 @@ async function applyStockSortie(
   venteId: number,
   lignes: CalculatedLigne[],
   userId: number,
-  trx: TransactionClientContract
+  trx: TransactionClientContract,
+  depotId?: number
 ) {
   for (const l of lignes) {
     await stockSortie(
@@ -316,7 +331,9 @@ async function applyStockSortie(
       'vente',
       { referenceId: venteId, referenceType: 'vente' },
       userId,
-      trx
+      trx,
+      null,
+      depotId
     )
   }
 }
@@ -325,7 +342,8 @@ async function applyStockEntreeRetour(
   venteId: number,
   lignes: CalculatedLigne[],
   userId: number,
-  trx: TransactionClientContract
+  trx: TransactionClientContract,
+  depotId?: number
 ) {
   for (const l of lignes) {
     await stockEntree(
@@ -334,7 +352,9 @@ async function applyStockEntreeRetour(
       'retour_client',
       { referenceId: venteId, referenceType: 'vente_retour' },
       userId,
-      trx
+      trx,
+      null,
+      depotId
     )
   }
 }
@@ -351,6 +371,7 @@ export type CreateVenteInput = {
   date_echeance?: DateTime | null
   remise_pct?: number
   notes?: string | null
+  depot_id?: number
   lignes: LigneVenteInput[]
 }
 
@@ -361,6 +382,7 @@ export type UpdateVenteInput = {
   date_echeance?: DateTime | null
   remise_pct?: number
   notes?: string | null
+  depot_id?: number
   lignes?: LigneVenteInput[]
 }
 
@@ -396,7 +418,8 @@ async function restituerStockFacture(
   numero: string,
   lignes: VenteLigne[],
   userId: number,
-  trx: TransactionClientContract
+  trx: TransactionClientContract,
+  depotId?: number | null
 ) {
   for (const ligne of lignes) {
     await stockEntree(
@@ -406,7 +429,8 @@ async function restituerStockFacture(
       { referenceId: venteId, referenceType: 'vente_modification' },
       userId,
       trx,
-      `Modification facture ${numero}`
+      `Modification facture ${numero}`,
+      depotId ?? undefined
     )
   }
 }
@@ -472,14 +496,22 @@ export async function creerVente(
 
     const checkPlancher = isFactureInvalide(data.statut)
     const checkStock = isFactureInvalide(data.statut)
+    if (checkStock) {
+      assertProduitsUniquesSurFacture(data.lignes)
+    }
     const calculated = await buildLignesFromPayload(data.lignes, checkPlancher, trx)
+    const depot = await resolveDepotForPointDeVente(pos.pointDeVenteId, data.depot_id, trx)
 
     if (checkStock) {
       for (const l of calculated) {
-        const produit = await Produit.query({ client: trx }).where('id', l.produitId).firstOrFail()
-        if (Number(produit.stockActuel) < l.quantiteStock) {
+        const { produit, quantite: disponible } = await getStockDisponible(
+          l.produitId,
+          depot.id,
+          trx
+        )
+        if (disponible < l.quantiteStock) {
           throw new VenteBusinessError(
-            `Stock insuffisant pour ${produit.nom} (disponible: ${formatStockLabel(produit, Number(produit.stockActuel))})`
+            `Stock insuffisant pour ${produit.nom} (disponible: ${formatStockLabel(produit, disponible)})`
           )
         }
       }
@@ -495,6 +527,7 @@ export async function creerVente(
       {
         numero,
         pointDeVenteId: pos.pointDeVenteId,
+        depotId: depot.id,
         clientId: data.client_id,
         userId,
         devisOrigineId: null,
@@ -524,7 +557,7 @@ export async function creerVente(
     await persistLignes(vente.id, calculated, trx)
 
     if (isFactureInvalide(data.statut)) {
-      await applyStockSortie(vente.id, calculated, userId, trx)
+      await applyStockSortie(vente.id, calculated, userId, trx, depot.id)
       const client = await Client.query({ client: trx }).where('id', data.client_id).firstOrFail()
       client.solde = roundMoney(Number(client.solde) + totaux.totalApresAirsi)
       client.useTransaction(trx)
@@ -571,12 +604,26 @@ export async function mettreAJourVente(
     const anciennesLignes = await VenteLigne.query({ client: trx }).where('vente_id', vente.id)
 
     const remisePct = data.remise_pct ?? Number(vente.remisePct)
+    const posId = pointDeVenteId ?? vente.pointDeVenteId
+    const depot = await resolveDepotForPointDeVente(
+      posId,
+      data.depot_id ?? vente.depotId ?? undefined,
+      trx
+    )
 
     let calculated: CalculatedLigne[]
 
     if (data.lignes) {
       if (isFacture) {
-        await restituerStockFacture(vente.id, vente.numero, anciennesLignes, userId, trx)
+        assertProduitsUniquesSurFacture(data.lignes)
+        await restituerStockFacture(
+          vente.id,
+          vente.numero,
+          anciennesLignes,
+          userId,
+          trx,
+          vente.depotId
+        )
       }
 
       await VenteLigne.query({ client: trx }).where('vente_id', vente.id).delete()
@@ -584,14 +631,18 @@ export async function mettreAJourVente(
 
       if (isFacture) {
         for (const l of calculated) {
-          const produit = await Produit.query({ client: trx }).where('id', l.produitId).firstOrFail()
-          if (Number(produit.stockActuel) < l.quantiteStock) {
+          const { produit, quantite: disponible } = await getStockDisponible(
+            l.produitId,
+            depot.id,
+            trx
+          )
+          if (disponible < l.quantiteStock) {
             throw new VenteBusinessError(
-              `Stock insuffisant pour ${produit.nom} (disponible: ${formatStockLabel(produit, Number(produit.stockActuel))})`
+              `Stock insuffisant pour ${produit.nom} (disponible: ${formatStockLabel(produit, disponible)})`
             )
           }
         }
-        await applyStockSortie(vente.id, calculated, userId, trx)
+        await applyStockSortie(vente.id, calculated, userId, trx, depot.id)
       }
 
       await persistLignes(vente.id, calculated, trx)
@@ -614,6 +665,7 @@ export async function mettreAJourVente(
 
     vente.merge({
       clientId: nouveauClientId,
+      depotId: depot.id,
       dateVente: data.date_vente ?? vente.dateVente,
       dateEcheance:
         data.date_echeance !== undefined ? data.date_echeance : vente.dateEcheance,
@@ -666,13 +718,19 @@ export async function convertirDevisEnFacture(
       remise_pct: Number(l.remisePct),
     }))
 
+    assertProduitsUniquesSurFacture(lignesInput)
     const calculated = await buildLignesFromPayload(lignesInput, true, trx)
+    const depot = await resolveDepotForPointDeVente(
+      vente.pointDeVenteId,
+      vente.depotId ?? undefined,
+      trx
+    )
 
     for (const l of calculated) {
-      const produit = await Produit.query({ client: trx }).where('id', l.produitId).firstOrFail()
-      if (Number(produit.stockActuel) < l.quantiteStock) {
+      const { produit, quantite: disponible } = await getStockDisponible(l.produitId, depot.id, trx)
+      if (disponible < l.quantiteStock) {
         throw new VenteBusinessError(
-          `Stock insuffisant pour ${produit.nom} (disponible: ${formatStockLabel(produit, Number(produit.stockActuel))})`
+          `Stock insuffisant pour ${produit.nom} (disponible: ${formatStockLabel(produit, disponible)})`
         )
       }
     }
@@ -684,6 +742,7 @@ export async function convertirDevisEnFacture(
     vente.merge({
       statut: VENTE_STATUT.NON_VALIDE,
       numero: nouveauNumero,
+      depotId: depot.id,
       sousTotal: totaux.sousTotal,
       remiseMontant: totaux.remiseMontant,
       totalHt: totaux.totalHt,
@@ -701,7 +760,7 @@ export async function convertirDevisEnFacture(
 
     await VenteLigne.query({ client: trx }).where('vente_id', venteId).delete()
     await persistLignes(vente.id, calculated, trx)
-    await applyStockSortie(vente.id, calculated, userId, trx)
+    await applyStockSortie(vente.id, calculated, userId, trx, depot.id)
 
     const client = await Client.query({ client: trx }).where('id', vente.clientId).firstOrFail()
     client.solde = roundMoney(Number(client.solde) + totaux.totalApresAirsi)
@@ -762,7 +821,8 @@ export async function supprimerFacture(venteId: number, userId: number) {
         { referenceId: venteId, referenceType: 'vente_suppression' },
         userId,
         trx,
-        `Suppression facture ${vente.numero}`
+        `Suppression facture ${vente.numero}`,
+        vente.depotId ?? undefined
       )
     }
 
@@ -805,7 +865,8 @@ export async function creerFactureRetour(
   lignesRetour: LigneRetourInput[],
   userId: number,
   pos: PointDeVenteParams,
-  notes?: string | null
+  notes?: string | null,
+  depotId?: number
 ) {
   const numeroRetour = await generateRetourNumero(pos.pointDeVenteCode)
 
@@ -875,11 +936,17 @@ export async function creerFactureRetour(
     }
 
     const totaux = calculerTotauxVente(calculated, Number(facture.remisePct))
+    const depotRetour = await resolveDepotForPointDeVente(
+      pos.pointDeVenteId,
+      depotId ?? facture.depotId ?? undefined,
+      trx
+    )
 
     const retour = await Vente.create(
       {
         numero: numeroRetour,
         pointDeVenteId: pos.pointDeVenteId,
+        depotId: depotRetour.id,
         clientId: facture.clientId,
         userId,
         devisOrigineId: null,
@@ -935,7 +1002,7 @@ export async function creerFactureRetour(
       )
     }
 
-    await applyStockEntreeRetour(retour.id, calculated, userId, trx)
+    await applyStockEntreeRetour(retour.id, calculated, userId, trx, depotRetour.id)
 
     const client = await Client.query({ client: trx }).where('id', facture.clientId).firstOrFail()
     client.solde = roundMoney(Math.max(0, Number(client.solde) - totaux.totalApresAirsi))

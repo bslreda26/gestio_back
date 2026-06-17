@@ -27,12 +27,12 @@ Source of truth: `start/routes.ts`
 
 | Scope | Modules |
 |-------|---------|
-| Per PDV | `clients`, `produits`, `categories`, `ventes`, `achats`, `caisses`, `depenses`, `reglements` |
+| Per PDV | `clients`, `produits`, `categories`, `ventes`, `achats`, `caisses`, `depots`, `depenses`, `reglements` |
 | Shared | `fournisseurs` |
 | No PDV header | `auth`, `points-de-vente`, `users`, `admin/*` |
 
 - Document numbers: `{code_pdv}-DEV|FAC|RET|ACH|AVR-{année}-{seq}` (ex. `01-FAC-2026-0001`)
-- Creating a PDV auto-creates its default **caisse**
+- Creating a PDV auto-creates its default **caisse** and default **dépôt** (`is_default: true`)
 - `GET /auth/me` returns `role`, `permissions`, `point_de_vente_id`, `points_de_vente[]`
 
 ---
@@ -143,13 +143,27 @@ Règle : `unite` + `uniteGros` + `contenance > 1` → produit **gros + détail**
 
 ### Stock interne
 
-`produits.stock_actuel` est toujours en **unité détail** (kg pour le riz 50 kg/sac).
+`produits.stock_actuel` est toujours en **unité détail** (kg pour le riz 50 kg/sac).  
+C'est la **somme** des quantités sur tous les dépôts actifs du point de vente (`depot_stocks.quantite`).
 
 | Opération | Conversion |
 |-----------|------------|
 | Achat en gros (`mode_achat: piece`) | `quantite_stock = quantite × contenance` |
 | Vente en gros (`mode_vente: piece`) | idem |
 | Vente/achat au détail (`detail`) | `quantite_stock = quantite` |
+
+### Stock multi-dépôt
+
+Chaque point de vente possède un ou plusieurs **dépôts** (magasin, entrepôt…). Le stock détaillé est dans `depot_stocks` ; `stock_actuel` reste le total agrégé (sync automatique à chaque mouvement).
+
+| Règle | Comportement |
+|-------|--------------|
+| Dépôt par défaut | Un dépôt `is_default: true` par PDV ; utilisé si `depot_id` omis |
+| Vente / achat / ajustement | Mouvement sur le dépôt choisi (`depot_id`) ou le défaut |
+| Transfert | Sortie dépôt source + entrée dépôt destination (2 mouvements `type: transfert`) |
+| Inventaire / perte | Ajustement ou sortie sur le **stock total** produit (`/stock/inventaire`, `/stock/perte`) |
+| Retour client | Entrée stock sur `depot_id` (sinon dépôt de la facture, sinon défaut) |
+| Désactivation dépôt | Refusé si stock > 0 sans `transfer_to_depot_id` ; sinon transfert total puis désactivation |
 
 ### Champs affichage stock (réponse `produits/*`, `stock/*`)
 
@@ -160,9 +174,24 @@ Règle : `unite` + `uniteGros` + `contenance > 1` → produit **gros + détail**
 | `stockPieces` | Nombre de pièces/sacs entiers |
 | `stockResteDetail` | Reliquat en unité détail |
 | `stockLabel` | **Libellé à afficher** (ex. `35 SAC`, `55 SAC + 35 kg`) |
-| `stockStatus` | `rupture` \| `alerte` \| `normal` \| `surstock` |
+| `stockStatus` | `rupture` \| `alerte` \| `normal` \| `surstock` (agrégé sur tous les dépôts si `stocksParDepot` présent) |
+| `stocksParDepot` | Tableau par dépôt actif (voir ci-dessous) |
 
 **Ne pas** afficher `stockActuel` + `unite` — utiliser **`stockLabel`**.
+
+#### Objet `stocksParDepot[]` (search / show produit, stock/search, alertes)
+
+| Champ | Description |
+|-------|-------------|
+| `depot_id` | ID dépôt |
+| `depot_code` | Code court (ex. `01`, `ENT`) |
+| `depot_nom` | Libellé (ex. `Magasin principal`) |
+| `is_default` | Dépôt par défaut du PDV |
+| `quantite` | Stock dans ce dépôt (unité détail) |
+| `stock_label` | Libellé affichable pour ce dépôt |
+| `stock_status` | Statut alerte **pour ce dépôt** (`rupture` \| `alerte` \| `normal` \| `surstock`) |
+
+Exemple UI : « 10 en Magasin, 50 en Entrepôt » = lire `stocksParDepot[].stock_label` ou `quantite` + unités produit.
 
 ### Ajustement manuel
 
@@ -172,12 +201,14 @@ Règle : `unite` + `uniteGros` + `contenance > 1` → produit **gros + détail**
 {
   "id": 3,
   "type": "entree",
+  "depot_id": 2,
   "quantite_pieces": 5,
   "quantite_detail": 10,
   "notes": "Inventaire"
 }
 ```
 
+`depot_id` optionnel — défaut : dépôt par défaut du PDV.  
 Ou legacy : `{ "quantite": 260 }` (unité détail).
 
 ---
@@ -547,6 +578,14 @@ La saisie `moyenne_achat_ht` en update enregistre la **moyenne achat HT hors fra
 
 Ex. 39 sac + 30 kg (stock interne 1980 kg, contenance 50) → retrait contenance → **39,6 sac** affiché (pas 1980 sac).
 
+### Réponse search / show
+
+Inclut `stocksParDepot` (voir [Stock multi-dépôt](#stock-multi-dépôt)) et `stockStatus` agrégé.
+
+### Alertes
+
+`POST /produits/alertes` accepte `depot_id` optionnel : ne liste que les produits en alerte/rupture sur ce dépôt (ou sur n'importe quel dépôt si omis).
+
 ---
 
 ## Ventes
@@ -601,6 +640,7 @@ Création directe facture : `POST /ventes/create` avec `"statut": "non_valide"`.
   "statut": "non_valide",
   "client_id": 1,
   "date_vente": "2026-06-15",
+  "depot_id": 2,
   "lignes": [
     {
       "produit_id": 3,
@@ -613,8 +653,10 @@ Création directe facture : `POST /ventes/create` avec `"statut": "non_valide"`.
 ```
 
 `statut` à la création : `devis` \| `non_valide`  
+`depot_id` optionnel — dépôt de sortie stock (défaut : dépôt par défaut du PDV). Stock vérifié **sur ce dépôt** uniquement.  
 `mode_vente` : `piece` (gros) \| `detail` (unité détail, si `venteAuDetail`)  
 `prix_unitaire` : optionnel (TTC, selon mode)  
+**Facture** (`non_valide` / `valide`) : un même `produit_id` ne peut apparaître qu'**une fois** par facture (422). Les **devis** autorisent les doublons.  
 **AIRSI** : défini sur le **produit** (`produits.airsi_pct`), copié automatiquement sur chaque ligne — pas de champ `airsi_pct` sur la vente.
 
 ### Update
@@ -622,11 +664,13 @@ Création directe facture : `POST /ventes/create` avec `"statut": "non_valide"`.
 ```json
 {
   "id": 123,
+  "depot_id": 2,
   "remise_pct": 0,
   "lignes": [ ... ]
 }
 ```
 
+`depot_id` optionnel — change le dépôt de sortie stock (recalcule les mouvements).  
 Refusé si `normalise = true` (422).
 
 ### Champs vente — totaux & AIRSI
@@ -674,6 +718,7 @@ Une facture **déjà certifiée FNE** (`normalise = true`) ne peut plus être mo
 | `fneInvoiceId` | string | UUID facture/avoir FNE |
 | `certifiedAt` | datetime | Date certification |
 | `factureOrigineId` | number | Facture source (avoir / retour) |
+| `depotId` | number \| null | Dépôt de sortie (vente) ou d'entrée (retour) ; défaut = dépôt par défaut PDV |
 
 ### Certification FNE
 
@@ -763,11 +808,13 @@ Avoir :
 ```json
 {
   "facture_id": 123,
+  "depot_id": 2,
   "lignes": [{ "ligne_id": 10, "quantite": 1 }],
   "notes": "Retour marchandise"
 }
 ```
 
+`depot_id` optionnel — dépôt d'**entrée** stock (défaut : dépôt de la facture d'origine, puis dépôt par défaut).  
 Les totaux de l'avoir **reprennent la `remise_pct` de la facture d'origine** (remise globale + AIRSI sur TTC après remise), pour rester alignés avec la FNE.  
 Montant crédité client / `reste_a_payer` facture : `totalApresAirsi` de l'avoir.
 
@@ -946,11 +993,13 @@ Le champ `frais` est prérempli avec le **frais produit** (modifiable via le par
 ```json
 {
   "id": 15,
+  "depot_id": 2,
   "date_reception": "2026-06-15",
   "lignes": [{ "ligne_id": 17, "quantite_recue": 55 }]
 }
 ```
 
+`depot_id` optionnel — dépôt d'entrée stock (défaut : dépôt par défaut).  
 Met à jour stock (× contenance), CMUP, `dernierPrixAchatHt`, solde fournisseur.
 
 Paiement achat possible uniquement si `statut = achat` (marchandise reçue).
@@ -1027,16 +1076,111 @@ Tant qu'aucune session n'est ouverte (`statut: fermee`), les opérations caisse 
 
 ---
 
+## Dépôts
+
+Permission : `stock` (lecture), `stock_write` (écriture). Header PDV requis.
+
+| Method | Path | Permission | Description |
+|--------|------|------------|-------------|
+| POST | `/depots/search` | `stock` | Liste / recherche dépôts |
+| POST | `/depots/show` | `stock` | Détail dépôt |
+| POST | `/depots/create` | `stock_write` | Créer un dépôt |
+| POST | `/depots/update` | `stock_write` | Modifier (nom, code, défaut…) |
+| POST | `/depots/deactivate` | `stock_write` | Désactiver (transfert optionnel) |
+| POST | `/depots/stocks` | `stock` | Produits en stock dans un dépôt |
+| POST | `/depots/transfert` | `stock_write` | Transfert inter-dépôts |
+
+### Create
+
+```json
+{
+  "code": "ENT",
+  "nom": "Entrepôt",
+  "adresse": "Zone industrielle",
+  "is_default": false
+}
+```
+
+`code` optionnel — généré automatiquement si omis. Un seul dépôt `is_default` par PDV.
+
+### Transfert
+
+```json
+{
+  "produit_id": 3,
+  "quantite": 10,
+  "depot_source_id": 1,
+  "depot_dest_id": 2,
+  "notes": "Réappro magasin"
+}
+```
+
+Crée deux mouvements `stock_mouvements` (`type: transfert`, `motif: transfert`).  
+422 si stock insuffisant sur le dépôt source.
+
+### Désactivation avec transfert
+
+```json
+{
+  "id": 2,
+  "transfer_to_depot_id": 1
+}
+```
+
+Si le dépôt contient encore du stock, `transfer_to_depot_id` est **obligatoire** (transfert de tout le stock puis désactivation).  
+Impossible de désactiver le dépôt par défaut.
+
+### Stocks par dépôt
+
+```json
+// POST /depots/stocks
+{ "depot_id": 2, "page": 1, "limit": 20, "search": "RIZ" }
+```
+
+Retourne les lignes `depot_stocks` avec `quantite > 0` et le produit sérialisé.
+
+---
+
 ## Stock
 
-| Method | Path |
-|--------|------|
-| POST | `/stock/search` |
-| POST | `/stock/mouvements/search` |
-| GET | `/stock/valorisation` |
-| POST | `/stock/alertes` |
+| Method | Path | Permission | Description |
+|--------|------|------------|-------------|
+| POST | `/stock/search` | `stock` | Liste produits avec valorisation |
+| POST | `/stock/mouvements/search` | `stock` | Historique mouvements |
+| GET | `/stock/valorisation` | `stock` | Valorisation totale |
+| POST | `/stock/alertes` | `stock` | Produits en alerte / rupture |
+| POST | `/stock/inventaire` | `stock_write` | Inventaire (ajustement à quantité comptée sur le stock total) |
+| POST | `/stock/perte` | `stock_write` | Perte / casse sur le stock total |
 
-`stock/search` : mêmes filtres que `produits/search` + `valeurStock` par ligne.
+### Inventaire
+
+```json
+{
+  "produit_id": 3,
+  "quantite_comptee": 150,
+  "notes": "Inventaire annuel"
+}
+```
+
+Ajuste le stock total du produit à `quantite_comptee` (entrée ou sortie selon l'écart). Les entrées passent par le dépôt par défaut ; les sorties sont réparties sur les dépôts (défaut en priorité).
+
+### Perte
+
+```json
+{
+  "produit_id": 3,
+  "quantite": 5,
+  "notes": "Casse"
+}
+```
+
+Sortie stock (`motif: perte`) sur le stock total. 422 si stock insuffisant.
+
+`stock/search` : mêmes filtres que `produits/search` + `valeurStock` par ligne + **`stocksParDepot`**.
+
+`stock/alertes` : produits en alerte/rupture ; filtre optionnel `depot_id` (alerte par dépôt).
+
+`stock/mouvements/search` : filtres `produit_id`, `depot_id`, `type` (`entree` \| `sortie` \| `ajustement` \| `transfert`), `motif`, `date_from`, `date_to`.
 
 ---
 
@@ -1047,7 +1191,7 @@ Permission: `rapports`. Header PDV requis.
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/rapports/caisse` | Mouvements caisse sur période |
-| POST | `/rapports/stock-actuel` | Stock actuel par produit |
+| POST | `/rapports/stock-actuel` | Stock actuel par produit (+ `stocksParDepot`, filtre `depot_id`) |
 | POST | `/rapports/valeur-stock` | Valorisation stock (plancher × quantité) |
 | POST | `/rapports/balance-clients` | Liste clients + solde PDV recalculé |
 | POST | `/rapports/releve-client` | Relevé compte client (période) |
@@ -1085,6 +1229,24 @@ Permission: `rapports`. Header PDV requis.
 Réponse : `periode`, `client`/`fournisseur`, `totaux` (`soldeInitial`, `totalDebit`, `totalCredit`, `soldeFinal`), `lignes` (mouvements paginés avec solde courant).
 
 Le **solde final** du relevé utilise la même formule que les fiches compte (`search` / `show`).
+
+### Stock actuel
+
+```json
+// POST /rapports/stock-actuel
+{
+  "page": 1,
+  "limit": 50,
+  "categorie_id": 1,
+  "stock_alert": "alerte",
+  "depot_id": 2,
+  "search": "RIZ",
+  "is_active": true
+}
+```
+
+Avec `depot_id` : `stockActuel` et `stockStatus` de chaque ligne reflètent **ce dépôt** ; `stocksParDepot` conserve le détail complet.  
+Sans `depot_id` : `stockStatus` agrégé (alerte si un dépôt ou le total est en alerte).
 
 ### Règlements clients / fournisseurs
 
@@ -1253,10 +1415,19 @@ Chèque, virement, mobile money, carte : **pas d'impact caisse**, mais l'enregis
 | POST | `/api/v1/depenses/create` |
 | POST | `/api/v1/depenses/update` |
 | POST | `/api/v1/depenses/delete` |
+| POST | `/api/v1/depots/search` |
+| POST | `/api/v1/depots/show` |
+| POST | `/api/v1/depots/create` |
+| POST | `/api/v1/depots/update` |
+| POST | `/api/v1/depots/deactivate` |
+| POST | `/api/v1/depots/stocks` |
+| POST | `/api/v1/depots/transfert` |
 | POST | `/api/v1/stock/search` |
 | POST | `/api/v1/stock/mouvements/search` |
 | GET | `/api/v1/stock/valorisation` |
 | POST | `/api/v1/stock/alertes` |
+| POST | `/api/v1/stock/inventaire` |
+| POST | `/api/v1/stock/perte` |
 | POST | `/api/v1/rapports/caisse` |
 | POST | `/api/v1/rapports/stock-actuel` |
 | POST | `/api/v1/rapports/valeur-stock` |

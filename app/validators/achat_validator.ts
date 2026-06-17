@@ -92,6 +92,7 @@ export const achatRecevoirValidator = vine.compile(
   vine.object({
     id: vine.number().positive(),
     date_reception: vine.date({ formats: ['iso8601'] }).optional(),
+    depot_id: vine.number().positive().optional(),
     lignes: vine.array(ligneRecueSchema).minLength(1),
   })
 )

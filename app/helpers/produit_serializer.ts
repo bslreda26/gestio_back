@@ -1,6 +1,10 @@
 import type Produit from '#models/produit'
 import { getStockStatus } from '#helpers/produit_query'
 import {
+  aggregateStockStatus,
+  type SerializedDepotStock,
+} from '#helpers/depot_stock_serializer'
+import {
   fromProduitPrixStockage,
   getContenance,
   hasUniteDetailConfig,
@@ -65,7 +69,7 @@ function serializeCataloguePrix(
 export function serializeProduit(
   produit: Produit,
   extras: Record<string, unknown> = {},
-  options?: { hidePlancher?: boolean; tauxTva?: number }
+  options?: { hidePlancher?: boolean; tauxTva?: number; stocksParDepot?: SerializedDepotStock[] }
 ) {
   const json = produit.serialize()
   const tauxTva = resolveTauxTva(extras, options)
@@ -73,6 +77,9 @@ export function serializeProduit(
   const stockDetail = Number(json.stockActuel ?? produit.stockActuel)
   const contenance = getContenance(produit)
   const stockDisplay = resolveStockDisplay(produit, stockDetail)
+  const stocksParDepot = options?.stocksParDepot ?? []
+  const stockMinimum = Number(json.stockMinimum ?? produit.stockMinimum)
+  const stockMaximum = Number(json.stockMaximum ?? produit.stockMaximum)
 
   return {
     ...json,
@@ -85,11 +92,11 @@ export function serializeProduit(
     stockPieces: stockDisplay.stockPieces,
     stockResteDetail: stockDisplay.stockResteDetail,
     stockLabel: stockDisplay.stockLabel,
-    stockStatus: getStockStatus(
-      stockDetail,
-      Number(json.stockMinimum ?? produit.stockMinimum),
-      Number(json.stockMaximum ?? produit.stockMaximum)
-    ),
+    stocksParDepot,
+    stockStatus:
+      stocksParDepot.length > 0
+        ? aggregateStockStatus(stocksParDepot, stockMinimum, stockMaximum, stockDetail)
+        : getStockStatus(stockDetail, stockMinimum, stockMaximum),
     ...extras,
   }
 }

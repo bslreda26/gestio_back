@@ -1411,6 +1411,114 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/stock_controller').default['alertes']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'stock.inventaire': {
+    methods: ["POST"]
+    pattern: '/api/v1/stock/inventaire'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/stock_validator').stockInventaireValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/stock_validator').stockInventaireValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/stock_controller').default['inventaire']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/stock_controller').default['inventaire']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'stock.perte': {
+    methods: ["POST"]
+    pattern: '/api/v1/stock/perte'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/stock_validator').stockPerteValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/stock_validator').stockPerteValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/stock_controller').default['perte']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/stock_controller').default['perte']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'depots.search': {
+    methods: ["POST"]
+    pattern: '/api/v1/depots/search'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/depot_validator').depotSearchValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/depot_validator').depotSearchValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/depots_controller').default['search']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/depots_controller').default['search']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'depots.show': {
+    methods: ["POST"]
+    pattern: '/api/v1/depots/show'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/depot_validator').depotIdValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/depot_validator').depotIdValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/depots_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/depots_controller').default['show']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'depots.create': {
+    methods: ["POST"]
+    pattern: '/api/v1/depots/create'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/depot_validator').depotCreateValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/depot_validator').depotCreateValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/depots_controller').default['create']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/depots_controller').default['create']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'depots.update': {
+    methods: ["POST"]
+    pattern: '/api/v1/depots/update'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/depot_validator').depotUpdateValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/depot_validator').depotUpdateValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/depots_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/depots_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'depots.deactivate': {
+    methods: ["POST"]
+    pattern: '/api/v1/depots/deactivate'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/depot_validator').depotDeactivateValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/depot_validator').depotDeactivateValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/depots_controller').default['deactivate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/depots_controller').default['deactivate']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'depots.transfert': {
+    methods: ["POST"]
+    pattern: '/api/v1/depots/transfert'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/depot_validator').depotTransfertValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/depot_validator').depotTransfertValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/depots_controller').default['transfert']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/depots_controller').default['transfert']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'depots.stocks': {
+    methods: ["POST"]
+    pattern: '/api/v1/depots/stocks'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/depot_validator').depotStockSearchValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/depot_validator').depotStockSearchValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/depots_controller').default['stocks']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/depots_controller').default['stocks']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'rapports.caisse': {
     methods: ["POST"]
     pattern: '/api/v1/rapports/caisse'

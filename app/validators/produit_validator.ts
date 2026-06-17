@@ -77,6 +77,7 @@ export const produitAjustementValidator = vine.compile(
     /** Reliquat en unité de détail (kg, litre…) — si vente au détail activée */
     quantite_detail: vine.number().min(0).optional(),
     notes: vine.string().trim().optional(),
+    depot_id: vine.number().positive().optional(),
   })
 )
 
@@ -93,5 +94,6 @@ export const produitAlertesValidator = vine.compile(
   vine.object({
     page: vine.number().min(1).optional(),
     limit: vine.number().min(1).max(100).optional(),
+    depot_id: vine.number().positive().optional(),
   })
 )

@@ -49,7 +49,7 @@ export class AchatLigneSchema extends BaseModel {
 }
 
 export class AchatSchema extends BaseModel {
-  static $columns = ['achatOrigineId', 'createdAt', 'dateAchat', 'dateReception', 'fournisseurId', 'id', 'montantPaye', 'notes', 'numero', 'pointDeVenteId', 'referenceFournisseur', 'remiseMontant', 'resteAPayer', 'sousTotal', 'statut', 'statutPaiement', 'totalTtc', 'tvaMontant', 'updatedAt', 'userId'] as const
+  static $columns = ['achatOrigineId', 'createdAt', 'dateAchat', 'dateReception', 'depotId', 'fournisseurId', 'id', 'montantPaye', 'notes', 'numero', 'pointDeVenteId', 'referenceFournisseur', 'remiseMontant', 'resteAPayer', 'sousTotal', 'statut', 'statutPaiement', 'totalTtc', 'tvaMontant', 'updatedAt', 'userId'] as const
   $columns = AchatSchema.$columns
   @column()
   declare achatOrigineId: number | null
@@ -59,6 +59,8 @@ export class AchatSchema extends BaseModel {
   declare dateAchat: DateTime
   @column.date()
   declare dateReception: DateTime | null
+  @column()
+  declare depotId: number | null
   @column()
   declare fournisseurId: number
   @column({ isPrimary: true })
@@ -326,6 +328,46 @@ export class DepenseSchema extends BaseModel {
   declare userId: number
 }
 
+export class DepotStockSchema extends BaseModel {
+  static $columns = ['createdAt', 'depotId', 'id', 'produitId', 'quantite', 'updatedAt'] as const
+  $columns = DepotStockSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare depotId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare produitId: number
+  @column()
+  declare quantite: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
+export class DepotSchema extends BaseModel {
+  static $columns = ['adresse', 'code', 'createdAt', 'id', 'isActive', 'isDefault', 'nom', 'pointDeVenteId', 'updatedAt'] as const
+  $columns = DepotSchema.$columns
+  @column()
+  declare adresse: string | null
+  @column()
+  declare code: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare isActive: boolean
+  @column()
+  declare isDefault: boolean
+  @column()
+  declare nom: string
+  @column()
+  declare pointDeVenteId: number
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
 export class FournisseurSchema extends BaseModel {
   static $columns = ['adresse', 'code', 'contactNom', 'createdAt', 'email', 'id', 'isActive', 'nom', 'notes', 'pays', 'solde', 'telephone', 'updatedAt', 'ville'] as const
   $columns = FournisseurSchema.$columns
@@ -517,10 +559,12 @@ export class ReglementSchema extends BaseModel {
 }
 
 export class StockMouvementSchema extends BaseModel {
-  static $columns = ['createdAt', 'id', 'motif', 'notes', 'produitId', 'quantite', 'referenceId', 'referenceType', 'stockApres', 'stockAvant', 'type', 'userId'] as const
+  static $columns = ['createdAt', 'depotId', 'id', 'motif', 'notes', 'produitId', 'quantite', 'referenceId', 'referenceType', 'stockApres', 'stockAvant', 'type', 'userId'] as const
   $columns = StockMouvementSchema.$columns
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
+  @column()
+  declare depotId: number | null
   @column({ isPrimary: true })
   declare id: number
   @column()
@@ -645,7 +689,7 @@ export class VenteLigneSchema extends BaseModel {
 }
 
 export class VenteSchema extends BaseModel {
-  static $columns = ['airsiMontant', 'airsiPct', 'apiResponse', 'bonSortieImpressionCount', 'certifiedAt', 'clientId', 'createdAt', 'dateEcheance', 'dateVente', 'devisOrigineId', 'excluded', 'factureImpressionCount', 'factureOrigineId', 'fneInvoiceId', 'id', 'lockExpiresAt', 'lockedAt', 'lockedByUserId', 'marge', 'margePct', 'montantPaye', 'normalise', 'notes', 'numero', 'pointDeVenteId', 'remiseMontant', 'remisePct', 'resteAPayer', 'sousTotal', 'statut', 'statutPaiement', 'testNormalise', 'totalApresAirsi', 'totalHt', 'totalTtc', 'tvaMontant', 'updatedAt', 'userId'] as const
+  static $columns = ['airsiMontant', 'airsiPct', 'apiResponse', 'bonSortieImpressionCount', 'certifiedAt', 'clientId', 'createdAt', 'dateEcheance', 'dateVente', 'depotId', 'devisOrigineId', 'excluded', 'factureImpressionCount', 'factureOrigineId', 'fneInvoiceId', 'id', 'lockExpiresAt', 'lockedAt', 'lockedByUserId', 'marge', 'margePct', 'montantPaye', 'normalise', 'notes', 'numero', 'pointDeVenteId', 'remiseMontant', 'remisePct', 'resteAPayer', 'sousTotal', 'statut', 'statutPaiement', 'testNormalise', 'totalApresAirsi', 'totalHt', 'totalTtc', 'tvaMontant', 'updatedAt', 'userId'] as const
   $columns = VenteSchema.$columns
   @column()
   declare airsiMontant: string
@@ -665,6 +709,8 @@ export class VenteSchema extends BaseModel {
   declare dateEcheance: DateTime | null
   @column.date()
   declare dateVente: DateTime
+  @column()
+  declare depotId: number | null
   @column()
   declare devisOrigineId: number | null
   @column()

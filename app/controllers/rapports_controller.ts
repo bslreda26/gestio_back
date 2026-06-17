@@ -73,6 +73,7 @@ export default class RapportsController {
         stockAlert: payload.stock_alert,
         search: payload.search,
         isActive: payload.is_active,
+        depotId: payload.depot_id,
       })
       return sendSuccess(ctx, data, data.meta)
     } catch (error) {

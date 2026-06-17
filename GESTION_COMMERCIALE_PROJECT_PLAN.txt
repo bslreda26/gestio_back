@@ -7,7 +7,7 @@
            AdonisJS v7 + TypeScript (backend/gestio_backend)
            MySQL 8+
 
-  Modules : Ventes · Achats · Clients · Fournisseurs · Produits · Stock ·
+  Modules : Ventes · Achats · Clients · Fournisseurs · Produits · Stock · Dépôts ·
             TVA · Caisse · Règlements · Dépenses · Rapports · FNE · Administration
 
   Documentation API : API.md (référence complète des endpoints)
@@ -20,6 +20,8 @@
     - Ventes (devis, factures, avoirs)
     - Achats fournisseurs (commande, réception, retour)
     - Stock avec unités gros + détail (sac/kg, carton/pièce…)
+    - Stock multi-dépôt par point de vente (magasin, entrepôt…)
+    - Transferts, inventaire, pertes par dépôt
     - Prix CMUP, dernier prix achat gros, plancher
     - Caisse avec sessions (ouverture / fermeture)
     - Règlements compte client / fournisseur
@@ -32,8 +34,9 @@
     - facturation   : facturation, soldes, paiements fournisseurs
 
   État d'avancement :
-    ☑ Backend API REST /api/v1 (47 migrations MySQL)
+    ☑ Backend API REST /api/v1 (54 migrations MySQL)
     ☑ Multi point de vente (middleware, scoping, numéros préfixés)
+    ☑ Stock multi-dépôt (depots, depot_stocks, transferts, inventaire, perte)
     ☑ RBAC par permissions (config/permissions.ts)
     ☑ Unités gros/détail (vente_unite_service.ts)
     ☑ Sessions caisse
@@ -85,24 +88,24 @@
   app/
     controllers/     auth, users, points_de_vente, clients, fournisseurs,
                      categories, tva_groupes, depense_categories, produits,
-                     ventes, achats, caisse, depenses, stock, rapports,
+                     ventes, achats, caisse, depenses, depots, stock, rapports,
                      reglements, apikeys (fne-config)
     models/          entités Lucid (étendent database/schema.ts)
     services/        pricing, vente, vente_lock, vente_unite, vente_pdf,
                      vente_impression, fne_certification, apikey, achat,
-                     caisse, stock, rapport, reglement, code_generator,
+                     caisse, stock, depot, rapport, reglement, code_generator,
                      permission, point_de_vente
     helpers/         api_response, pagination, produit_serializer,
-                     vente_ligne_serializer, vente_serializer,
+                     depot_stock_serializer, vente_ligne_serializer, vente_serializer,
                      fne_response_parser, qr_code, solde_visibility,
-                     point_de_vente_context
+                     point_de_vente_context, produit_query
     validators/      VineJS par module
     middleware/      auth, role (RBAC), point_de_vente
     constants/       vente_statuts, achat_statuts, fne_tva
 
   start/routes.ts    — toutes les routes
   database/
-    migrations/      49 fichiers (0042–0048 : FNE + AIRSI produit/ligne)
+    migrations/      54 fichiers (0049–0053 : dépôts & stock multi-dépôt)
     seeders/         users, categories, TVA, fournisseurs/clients, produits, caisse
   tests/             functional + unit
 
@@ -112,7 +115,7 @@
 
   src/
     pages/           auth, dashboard, clients, fournisseurs, produits,
-                     ventes, achats, stock, caisse, rapports, admin
+                     ventes, achats, stock, depots, caisse, rapports, admin
     components/      layout, ventes, achats, documents, admin
     services/        api.ts + *Service.ts par module
     hooks/           useAuth, useVentes, useAchats, useProduits…
@@ -125,9 +128,16 @@
 
   MULTI PDV
     point_de_vente_id sur : clients, produits, categories, ventes, achats,
-                            caisses, depenses, reglements
+                            caisses, depots, depenses, reglements
     fournisseurs : partagés
-    codes clients/produits : unique (point_de_vente_id, code)
+    codes clients/produits/dépôts : unique (point_de_vente_id, code)
+
+  DEPOTS (migrations 0049–0053)
+    depots            code, nom, is_default, is_active par PDV
+    depot_stocks      (depot_id, produit_id, quantite) — source de vérité détaillée
+    ventes.depot_id   dépôt de sortie / retour stock
+    achats.depot_id   dépôt de réception
+    stock_mouvements.depot_id
 
   USERS
     role : admin | gerant | caissier | facturation
@@ -139,7 +149,7 @@
     unite_gros      unité gros (SAC, carton…)
     contenance      qty détail par unité gros (ex. 50)
     vente_au_detail boolean
-    stock_actuel    en unité détail
+    stock_actuel    en unité détail (somme depot_stocks, sync auto)
     prix_achat_ht   moyenne achat HT hors frais (stockage interne, unité détail)
     frais           frais TTC par unité (stockage interne)
     dernier_prix_achat_ht  dernier prix en unité gros
@@ -151,6 +161,7 @@
     non_valide   → facture émise, sortie stock, solde client
     valide       → facture validée (stock déjà déduit)
     retour       → avoir client
+    depot_id     → dépôt de sortie / entrée retour (migration 0053)
 
   VENTES — totaux facture (migrations 1740000000040, 1740000000041, 0042, 0048)
     total_ht, tva_montant, total_ttc, sous_total, remise_montant
@@ -199,6 +210,7 @@
     achat        → marchandise reçue
     retour       → avoir fournisseur (numéro AVR)
     annule
+    depot_id     → dépôt de réception (migration 0053, défaut = dépôt PDV)
 
   ACHAT_LIGNES (migration 1740000000037)
     mode_achat      toujours piece (gros)
@@ -238,6 +250,7 @@
     /caisse/*
     /depense-categories         (GET)
     /depenses/*
+    /depots/*                   (CRUD, transfert, inventaire, perte, stocks)
     /stock/*
     /rapports/*                 (balance, relevés, CA, dépenses…)
 
@@ -273,6 +286,50 @@
     gros simple → gros+détail     : stock × contenance
     gros+détail → gros simple     : stock ÷ ancienne contenance
     (ex. 39 sac + 30 kg → retrait contenance 50 → 39,6 sac, pas 1980 sac)
+
+================================================================================
+  8bis. LOGIQUE MÉTIER — STOCK MULTI-DÉPÔT
+================================================================================
+
+  Services : app/services/depot_service.ts, app/services/stock_service.ts
+  Tables   : depots, depot_stocks, stock_mouvements.depot_id
+             ventes.depot_id, achats.depot_id (migrations 0049–0053)
+
+  Modèle :
+    - Source de vérité détaillée : depot_stocks.quantite (unité détail)
+    - produits.stock_actuel = somme des stocks sur dépôts actifs (sync auto)
+    - Un dépôt is_default par PDV (créé avec le point de vente)
+
+  Mouvements stock (tous passent par un dépôt) :
+    vente facture          → sortie sur ventes.depot_id (ou défaut)
+    retour client          → entrée sur depot_id retour (ou facture, ou défaut)
+    réception achat        → entrée sur achats.depot_id (ou défaut)
+    ajustement produit     → entree/sortie sur depot_id (ou défaut)
+    transfert              → sortie source + entrée destination (type transfert)
+    inventaire             → ajuste à quantite_comptee sur un dépôt
+    perte                    → sortie motif perte sur un dépôt
+    désactivation dépôt    → transfererToutStockDepot puis is_active=false
+
+  API dépôts (/depots/*) — permissions stock / stock_write :
+    search, show, create, update, deactivate (+ transfer_to_depot_id)
+    stocks, transfert, inventaire, perte
+
+  Affichage frontend (produits/*, stock/search, rapports/stock-actuel) :
+    stocksParDepot[] : depot_id, depot_code, depot_nom, quantite,
+                       stock_label, stock_status (par dépôt)
+    stockStatus agrégé : alerte si un dépôt OU le total est en alerte
+
+  Ventes :
+    depot_id optionnel sur create / update / retour
+    Vérification stock disponible sur le dépôt choisi (pas le total PDV)
+    Facture : un produit_id unique par facture (pas sur devis)
+
+  Alertes :
+    POST /produits/alertes, /stock/alertes — filtre depot_id optionnel
+    POST /rapports/stock-actuel — filtre depot_id + stocksParDepot
+
+  Tests : tests/functional/depots.spec.ts (CRUD, transfert, vente par dépôt,
+          inventaire, perte, retour avec depot_id, stock/search)
 
 ================================================================================
   9. LOGIQUE MÉTIER — PRIX & PLANCHER
@@ -332,11 +389,13 @@
   Workflow :
     POST create { statut: devis }           → pas de stock
     POST create { statut: non_valide }        → sortie stock + solde client
+    POST create / update { depot_id }         → sortie sur dépôt choisi (défaut si omis)
     POST convertir-facture (devis)            → non_valide + stock
     POST valider (non_valide)                 → valide
     POST delete (non_valide, non payée)       → retour stock
-    POST retour                               → avoir (statut retour)
+    POST retour { depot_id? }                 → avoir (statut retour), entrée stock ciblée
     Retour : hérite remise_pct de la facture d'origine pour totaux + AIRSI (aligné FNE)
+    Facture : un même produit_id interdit en double sur une facture (devis : autorisé)
 
   Lignes : mode_vente piece | detail
   AIRSI : taux sur produit (produits.airsi_pct) → copié sur chaque ligne ;
@@ -495,9 +554,9 @@
 
   Workflow :
     POST create           → statut commande (pas de stock)
-    POST recevoir         → entrée stock (× contenance), CMUP, solde fournisseur
+    POST recevoir { depot_id? } → entrée stock (× contenance), CMUP, solde fournisseur
     POST paiement         → si statut achat (marchandise reçue)
-    POST retour           → avoir fournisseur AVR, sortie stock
+    POST retour           → avoir fournisseur AVR, sortie stock (dépôt de l'achat)
     POST annuler          → annule + retour stock si déjà reçu
 
   Saisie lignes toujours en unité gros (sacs).
@@ -587,14 +646,27 @@
   node ace test --files tests/unit/vente_unite_service.spec.ts
 
   Scénarios couverts : pricing (CMUP, plancher, marge facture), unités stock,
+  stock multi-dépôt (transfert, inventaire, perte, vente/retour par dépôt),
   achat gros, frais ligne achat, vente piece, caisse sessions (blocage si fermée),
   permissions (ventes_ligne_marge, ventes_marge_pct), soldes recalculés,
   relevés client/fournisseur, impression PDF, retours,
   FNE (mapping TVA, parser réponse, certification service)…
 
+  Fichier dédié dépôts : tests/functional/depots.spec.ts (10 tests)
+
 ================================================================================
   17. JOURNAL DES ÉVOLUTIONS RÉCENTES (backend)
 ================================================================================
+
+  Stock multi-dépôt (migrations 0049–0053)
+    - Tables depots, depot_stocks ; depot_id sur stock_mouvements, ventes, achats
+    - Dépôt par défaut auto à la création PDV ; migration stock_actuel → depot_stocks
+    - Routes /depots/* : CRUD, transfert, inventaire, perte, stocks, deactivate+transfert
+    - depot_id sur ventes (create/update), retour client, réception achat, ajustement
+    - stocksParDepot sur produits/search|show, stock/search, rapports/stock-actuel
+    - Alertes et rapport stock-actuel : filtre depot_id, seuils par dépôt
+    - Facture : interdiction doublon produit_id (devis : autorisé)
+    - Tests : tests/functional/depots.spec.ts
 
   Certification FNE (migrations 0042–0048)
     - Champs ventes : normalise, airsi (totaux agrégés), api_response, fne_invoice_id…

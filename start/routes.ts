@@ -31,6 +31,7 @@ const AchatsController = () => import('#controllers/achats_controller')
 const DepensesController = () => import('#controllers/depenses_controller')
 const DepenseCategoriesController = () => import('#controllers/depense_categories_controller')
 const StockController = () => import('#controllers/stock_controller')
+const DepotsController = () => import('#controllers/depots_controller')
 const RapportsController = () => import('#controllers/rapports_controller')
 const UsersController = () => import('#controllers/users_controller')
 const PointsDeVenteController = () => import('#controllers/points_de_vente_controller')
@@ -407,6 +408,28 @@ router
           .as('stock.valorisation')
           .use(middleware.role({ permission: 'stock' }))
         router.post('stock/alertes', [StockController, 'alertes']).as('stock.alertes').use(middleware.role({ permission: 'stock' }))
+        router
+          .post('stock/inventaire', [StockController, 'inventaire'])
+          .as('stock.inventaire')
+          .use(middleware.role({ permission: 'stock_write' }))
+        router
+          .post('stock/perte', [StockController, 'perte'])
+          .as('stock.perte')
+          .use(middleware.role({ permission: 'stock_write' }))
+
+        // Dépôts
+        router
+          .group(() => {
+            router.post('search', [DepotsController, 'search']).as('search').use(middleware.role({ permission: 'stock' }))
+            router.post('show', [DepotsController, 'show']).as('show').use(middleware.role({ permission: 'stock' }))
+            router.post('create', [DepotsController, 'create']).as('create').use(middleware.role({ permission: 'stock_write' }))
+            router.post('update', [DepotsController, 'update']).as('update').use(middleware.role({ permission: 'stock_write' }))
+            router.post('deactivate', [DepotsController, 'deactivate']).as('deactivate').use(middleware.role({ permission: 'stock_write' }))
+            router.post('transfert', [DepotsController, 'transfert']).as('transfert').use(middleware.role({ permission: 'stock_write' }))
+            router.post('stocks', [DepotsController, 'stocks']).as('stocks').use(middleware.role({ permission: 'stock' }))
+          })
+          .prefix('depots')
+          .as('depots')
 
         // Rapports (tous par critères)
         router

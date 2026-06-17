@@ -1,5 +1,34 @@
-import { calcLigneMontants, calculerTotauxVente, type CalculatedLigne } from '#services/vente_service'
+import {
+  assertProduitsUniquesSurFacture,
+  calcLigneMontants,
+  calculerTotauxVente,
+  VenteBusinessError,
+  type CalculatedLigne,
+} from '#services/vente_service'
 import { test } from '@japa/runner'
+
+test.group('assertProduitsUniquesSurFacture', () => {
+  test('accepts distinct products', ({ assert }) => {
+    assert.doesNotThrow(() =>
+      assertProduitsUniquesSurFacture([
+        { produit_id: 1, quantite: 1 },
+        { produit_id: 2, quantite: 1 },
+      ])
+    )
+  })
+
+  test('rejects duplicate product on facture', ({ assert }) => {
+    assert.throws(
+      () =>
+        assertProduitsUniquesSurFacture([
+          { produit_id: 1, quantite: 1 },
+          { produit_id: 1, quantite: 2 },
+        ]),
+      VenteBusinessError,
+      /même article/
+    )
+  })
+})
 
 test.group('calcLigneMontants remise ligne', () => {
   test('applies remise on HT then computes TVA and TTC', ({ assert }) => {

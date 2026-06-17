@@ -15,6 +15,7 @@ import {
   roundMoney,
   updateProduitFromAchatReception,
 } from '#services/pricing_service'
+import { resolveDepotForPointDeVente } from '#services/depot_service'
 import { enregistrerEntree as stockEntree, enregistrerSortie as stockSortie } from '#services/stock_service'
 import {
   assertCaisseOuverte,
@@ -391,7 +392,8 @@ export async function recevoirMarchandise(
   achatId: number,
   lignesRecues: LigneRecueInput[],
   userId: number,
-  dateReception?: DateTime
+  dateReception?: DateTime,
+  depotId?: number
 ) {
   return Achat.transaction(async (trx) => {
     const achat = await Achat.query({ client: trx }).where('id', achatId).forUpdate().firstOrFail()
@@ -399,6 +401,15 @@ export async function recevoirMarchandise(
     if (!canReceiveMarchandise(achat.statut)) {
       throw new AchatBusinessError('Réception impossible sur cet achat')
     }
+
+    const depot = await resolveDepotForPointDeVente(
+      achat.pointDeVenteId,
+      depotId ?? achat.depotId ?? undefined,
+      trx
+    )
+    achat.depotId = depot.id
+    achat.useTransaction(trx)
+    await achat.save()
 
     const lignesAvant = await AchatLigne.query({ client: trx }).where('achat_id', achatId)
     const hasRemaining = lignesAvant.some(
@@ -443,7 +454,9 @@ export async function recevoirMarchandise(
         'achat',
         { referenceId: achatId, referenceType: 'achat' },
         userId,
-        trx
+        trx,
+        null,
+        depot.id
       )
 
       const prixInterne = {
@@ -514,7 +527,8 @@ async function applyStockSortieAchatRetour(
   numero: string,
   lignes: CalculatedAchatLigne[],
   userId: number,
-  trx: TransactionClientContract
+  trx: TransactionClientContract,
+  depotId?: number | null
 ) {
   for (const l of lignes) {
     await stockSortie(
@@ -524,7 +538,8 @@ async function applyStockSortieAchatRetour(
       { referenceId: retourId, referenceType: 'achat_retour' },
       userId,
       trx,
-      `Retour achat ${numero}`
+      `Retour achat ${numero}`,
+      depotId ?? undefined
     )
   }
 }
@@ -654,7 +669,14 @@ export async function creerAchatRetour(
       )
     }
 
-    await applyStockSortieAchatRetour(retour.id, retour.numero, lignesCalculees, userId, trx)
+    await applyStockSortieAchatRetour(
+      retour.id,
+      retour.numero,
+      lignesCalculees,
+      userId,
+      trx,
+      achat.depotId
+    )
 
     const fournisseur = await Fournisseur.query({ client: trx })
       .where('id', achat.fournisseurId)
@@ -702,7 +724,8 @@ export async function annulerAchat(achatId: number, userId: number, notes?: stri
           { referenceId: achatId, referenceType: 'achat' },
           userId,
           trx,
-          `Annulation achat ${achat.numero}`
+          `Annulation achat ${achat.numero}`,
+          achat.depotId ?? undefined
         )
         receivedTtcToReverse += calcReceptionTtc(
           qtyRecue,

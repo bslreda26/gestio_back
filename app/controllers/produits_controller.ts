@@ -9,16 +9,16 @@ import {
   scopeByPointDeVente,
 } from '#helpers/point_de_vente_context'
 import { buildMeta, parsePagination } from '#helpers/pagination'
-import { applyStockAlertFilter } from '#helpers/produit_query'
+import { applyLowStockAlertFilter, applyStockAlertFilter } from '#helpers/produit_query'
 import { serializeProduit } from '#helpers/produit_serializer'
 import { hasUserPermission } from '#services/permission_service'
 import { generateProduitCode } from '#services/code_generator_service'
 import { calcProduitPricing, calcProduitPricingFromVenteTtc, calcCmupHt } from '#services/pricing_service'
 import { ajustementManuel } from '#services/stock_service'
+import { convertDepotStocksWhenEnablingDetailConfig, getStocksParDepotForProduit, getStocksParDepotForProduits } from '#services/depot_service'
 import {
   AjustementQuantiteError,
   convertPricingWhenEnablingDetailConfig,
-  convertStockWhenEnablingDetailConfig,
   fromProduitPrixStockage,
   normalizeProduitUniteFields,
   resolveAjustementQuantite,
@@ -85,6 +85,7 @@ export default class ProduitsController {
 
     const total = await query.clone().count('* as total')
     const produits = await query.offset(offset).limit(limit)
+    const stocksMap = await getStocksParDepotForProduits(produits.map((p) => p.id))
     const tvaIds = [...new Set(produits.map((p) => p.tvaGroupeId).filter(Boolean))]
     const tvaMap = new Map(
       (await TvaGroupe.query().whereIn('id', tvaIds)).map((t) => [t.id, t.serialize()])
@@ -96,7 +97,10 @@ export default class ProduitsController {
         serializeProduit(
           p,
           { tvaGroupe: tvaMap.get(p.tvaGroupeId) ?? null },
-          produitSerializeOptions(ctx)
+          {
+            ...produitSerializeOptions(ctx),
+            stocksParDepot: stocksMap.get(p.id) ?? [],
+          }
         )
       ),
       buildMeta(Number(total[0].$extras.total), page, limit)
@@ -118,6 +122,8 @@ export default class ProduitsController {
       .orderBy('created_at', 'desc')
       .limit(10)
 
+    const stocksParDepot = await getStocksParDepotForProduit(produit!)
+
     return sendSuccess(ctx, {
       produit: serializeProduit(
         produit,
@@ -125,7 +131,7 @@ export default class ProduitsController {
           categorie: categorie?.serialize() ?? null,
           tvaGroupe: tvaGroupe?.serialize() ?? null,
         },
-        produitSerializeOptions(ctx)
+        { ...produitSerializeOptions(ctx), stocksParDepot }
       ),
       mouvements,
     })
@@ -305,8 +311,10 @@ export default class ProduitsController {
     produit.uniteGros = unites.uniteGros
     produit.contenance = String(unites.contenance)
     produit.venteAuDetail = unites.venteAuDetail
-    produit.stockActuel = String(
-      convertStockWhenEnablingDetailConfig(Number(produit.stockActuel), unitesBefore, uniteProduit)
+    await convertDepotStocksWhenEnablingDetailConfig(
+      produit.id,
+      unitesBefore,
+      uniteProduit
     )
 
     const pricingBase = {
@@ -364,13 +372,14 @@ export default class ProduitsController {
     const query = scopeByPointDeVente(
       Produit.query()
         .where('is_active', true)
-        .whereRaw('stock_actuel <= stock_minimum')
         .orderBy('stock_actuel', 'asc'),
       pos.pointDeVenteId
     )
+    applyLowStockAlertFilter(query, payload.depot_id)
 
     const total = await query.clone().count('* as total')
     const produits = await query.offset(offset).limit(limit)
+    const stocksMap = await getStocksParDepotForProduits(produits.map((p) => p.id))
     const tvaIds = [...new Set(produits.map((p) => p.tvaGroupeId).filter(Boolean))]
     const tvaMap = new Map(
       (await TvaGroupe.query().whereIn('id', tvaIds)).map((t) => [t.id, Number(t.taux)])
@@ -382,7 +391,10 @@ export default class ProduitsController {
         serializeProduit(
           p,
           {},
-          { tauxTva: tvaMap.get(p.tvaGroupeId) }
+          {
+            tauxTva: tvaMap.get(p.tvaGroupeId),
+            stocksParDepot: stocksMap.get(p.id) ?? [],
+          }
         )
       ),
       buildMeta(Number(total[0].$extras.total), page, limit)
@@ -405,7 +417,9 @@ export default class ProduitsController {
         quantite,
         payload.type,
         payload.notes ?? null,
-        ctx.auth.getUserOrFail().id
+        ctx.auth.getUserOrFail().id,
+        undefined,
+        payload.depot_id
       )
     } catch (error) {
       if (

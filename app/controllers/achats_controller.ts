@@ -258,7 +258,8 @@ export default class AchatsController {
         payload.id,
         payload.lignes,
         ctx.auth.getUserOrFail().id,
-        payload.date_reception
+        payload.date_reception,
+        payload.depot_id
       )
       const lignes = await AchatLigne.query().where('achat_id', achat.id)
       return sendSuccess(ctx, {

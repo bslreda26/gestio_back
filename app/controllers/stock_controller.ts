@@ -1,22 +1,29 @@
 import Category from '#models/category'
 import Produit from '#models/produit'
 import User from '#models/user'
-import { sendPaginated, sendSuccess } from '#helpers/api_response'
-import { requirePointDeVente, scopeByPointDeVente } from '#helpers/point_de_vente_context'
+import { sendError, sendPaginated, sendSuccess } from '#helpers/api_response'
+import { assertRecordBelongsToPointDeVente, requirePointDeVente, scopeByPointDeVente } from '#helpers/point_de_vente_context'
 import { buildMeta, parsePagination } from '#helpers/pagination'
-import { applyStockAlertFilter } from '#helpers/produit_query'
+import { applyLowStockAlertFilter, applyStockAlertFilter } from '#helpers/produit_query'
 import { serializeProduit } from '#helpers/produit_serializer'
+import { getStocksParDepotForProduits } from '#services/depot_service'
 import { roundMoney } from '#services/pricing_service'
-import { getValorisation, searchMouvements } from '#services/stock_service'
+import { getValorisation, inventaireStock, perteStock, searchMouvements } from '#services/stock_service'
 import {
   stockAlertesValidator,
+  stockInventaireValidator,
   stockMouvementsSearchValidator,
+  stockPerteValidator,
   stockSearchValidator,
 } from '#validators/stock_validator'
 import type { HttpContext } from '@adonisjs/core/http'
 
-function serializeStockProduit(produit: Produit, extras: Record<string, unknown> = {}) {
-  const base = serializeProduit(produit, extras)
+function serializeStockProduit(
+  produit: Produit,
+  extras: Record<string, unknown> = {},
+  options?: Parameters<typeof serializeProduit>[2]
+) {
+  const base = serializeProduit(produit, extras, options)
   const stockActuel = Number(produit.stockActuel)
   const prixAchatHt = Number(produit.prixAchatHt)
   return {
@@ -45,6 +52,7 @@ export default class StockController {
 
     const total = await query.clone().count('* as total')
     const produits = await query.offset(offset).limit(limit)
+    const stocksMap = await getStocksParDepotForProduits(produits.map((p) => p.id))
 
     const categorieIds = [...new Set(produits.map((p) => p.categorieId).filter(Boolean))] as number[]
     const categorieMap = new Map(
@@ -56,9 +64,13 @@ export default class StockController {
     return sendPaginated(
       ctx,
       produits.map((p) =>
-        serializeStockProduit(p, {
-          categorie: p.categorieId ? categorieMap.get(p.categorieId) ?? null : null,
-        })
+        serializeStockProduit(
+          p,
+          {
+            categorie: p.categorieId ? categorieMap.get(p.categorieId) ?? null : null,
+          },
+          { stocksParDepot: stocksMap.get(p.id) ?? [] }
+        )
       ),
       buildMeta(Number(total[0].$extras.total), page, limit)
     )
@@ -71,6 +83,7 @@ export default class StockController {
       page: payload.page,
       limit: payload.limit,
       produitId: payload.produit_id,
+      depotId: payload.depot_id,
       type: payload.type,
       motif: payload.motif,
       dateFrom: payload.date_from,
@@ -122,18 +135,63 @@ export default class StockController {
     const query = scopeByPointDeVente(
       Produit.query()
         .where('is_active', true)
-        .whereRaw('stock_actuel <= stock_minimum')
         .orderBy('stock_actuel', 'asc'),
       pos.pointDeVenteId
     )
+    applyLowStockAlertFilter(query, payload.depot_id)
 
     const total = await query.clone().count('* as total')
     const produits = await query.offset(offset).limit(limit)
+    const stocksMap = await getStocksParDepotForProduits(produits.map((p) => p.id))
 
     return sendPaginated(
       ctx,
-      produits.map((p) => serializeStockProduit(p)),
+      produits.map((p) =>
+        serializeStockProduit(p, {}, { stocksParDepot: stocksMap.get(p.id) ?? [] })
+      ),
       buildMeta(Number(total[0].$extras.total), page, limit)
     )
+  }
+
+  async inventaire(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(stockInventaireValidator)
+    const produit = await Produit.find(payload.produit_id)
+    if (!(await assertRecordBelongsToPointDeVente(ctx, produit, 'Produit'))) return
+
+    const updated = await inventaireStock(
+      payload.produit_id,
+      payload.quantite_comptee,
+      payload.notes ?? null,
+      ctx.auth.getUserOrFail().id
+    )
+
+    return sendSuccess(ctx, {
+      message: 'Inventaire enregistré',
+      produit: serializeProduit(updated),
+    })
+  }
+
+  async perte(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(stockPerteValidator)
+    const produit = await Produit.find(payload.produit_id)
+    if (!(await assertRecordBelongsToPointDeVente(ctx, produit, 'Produit'))) return
+
+    try {
+      const updated = await perteStock(
+        payload.produit_id,
+        payload.quantite,
+        payload.notes ?? null,
+        ctx.auth.getUserOrFail().id
+      )
+      return sendSuccess(ctx, {
+        message: 'Perte enregistrée',
+        produit: serializeProduit(updated),
+      })
+    } catch (error) {
+      if (error instanceof Error && error.name === 'StockInsuffisantError') {
+        return sendError(ctx, error.message, 422)
+      }
+      throw error
+    }
   }
 }

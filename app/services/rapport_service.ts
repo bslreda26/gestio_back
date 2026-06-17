@@ -10,7 +10,9 @@ import Reglement from '#models/reglement'
 import CaisseMouvement from '#models/caisse_mouvement'
 import { buildMeta, parsePagination, type PaginationInput } from '#helpers/pagination'
 import { applyStockAlertFilter, getStockStatus } from '#helpers/produit_query'
+import { aggregateStockStatus } from '#helpers/depot_stock_serializer'
 import { roundMoney } from '#services/pricing_service'
+import { getStocksParDepotForProduits } from '#services/depot_service'
 import { calcReceptionTtc } from '#services/achat_service'
 import { ACHAT_STATUT } from '#constants/achat_statuts'
 import { resolveStockDisplay } from '#services/vente_unite_service'
@@ -171,6 +173,7 @@ export async function rapportStockActuel(filters: {
   stockAlert?: 'rupture' | 'alerte' | 'normal' | 'surstock'
   search?: string
   isActive?: boolean
+  depotId?: number
 }) {
   const { page, limit, offset } = parsePagination(filters)
 
@@ -179,17 +182,22 @@ export async function rapportStockActuel(filters: {
     .orderBy('nom', 'asc')
   if (filters.categorieId) query.where('categorie_id', filters.categorieId)
   if (filters.isActive !== undefined) query.where('is_active', filters.isActive)
-  if (filters.stockAlert) applyStockAlertFilter(query, filters.stockAlert)
+  if (filters.stockAlert && !filters.depotId) applyStockAlertFilter(query, filters.stockAlert)
   if (filters.search) {
     const term = `%${filters.search}%`
     query.where((q) => q.whereILike('nom', term).orWhereILike('code', term))
   }
 
   const total = await query.clone().count('* as total')
-  const produits = await query.offset(offset).limit(limit)
+  let produits = await query.offset(offset).limit(limit)
 
-  const lignes = produits.map((p) => {
+  const stocksMap = await getStocksParDepotForProduits(produits.map((p) => p.id))
+
+  let lignes = produits.map((p) => {
+    const stocksParDepot = stocksMap.get(p.id) ?? []
     const qty = Number(p.stockActuel)
+    const stockMinimum = Number(p.stockMinimum)
+    const stockMaximum = Number(p.stockMaximum)
     const plancher = Number(p.plancher)
     const stockDisplay = resolveStockDisplay(p, qty)
     return {
@@ -202,14 +210,34 @@ export async function rapportStockActuel(filters: {
       stockResteDetail: stockDisplay.stockResteDetail,
       stockLabel: stockDisplay.stockLabel,
       venteAuDetail: stockDisplay.venteAuDetail,
-      stockMinimum: Number(p.stockMinimum),
-      stockMaximum: Number(p.stockMaximum),
+      stockMinimum,
+      stockMaximum,
       plancher,
       valeurPlancher: roundMoney(plancher * qty),
-      stockStatus: getStockStatus(qty, Number(p.stockMinimum), Number(p.stockMaximum)),
+      stockStatus: aggregateStockStatus(stocksParDepot, stockMinimum, stockMaximum, qty),
+      stocksParDepot,
       isActive: p.isActive,
     }
   })
+
+  if (filters.depotId) {
+    lignes = lignes
+      .map((l) => {
+        const depotStock = l.stocksParDepot.find((s) => s.depot_id === filters.depotId)
+        const depotQty = depotStock?.quantite ?? 0
+        return {
+          ...l,
+          stockActuel: depotQty,
+          stockStatus: depotStock?.stock_status ?? getStockStatus(depotQty, l.stockMinimum, l.stockMaximum),
+        }
+      })
+      .filter((l) => {
+        if (!filters.stockAlert) return true
+        return l.stockStatus === filters.stockAlert
+      })
+  } else if (filters.stockAlert) {
+    lignes = lignes.filter((l) => l.stockStatus === filters.stockAlert)
+  }
 
   const valeurTotale = roundMoney(lignes.reduce((s, l) => s + l.valeurPlancher, 0))
 

@@ -12,6 +12,7 @@ export const controllers = {
   Clients: () => import('#controllers/clients_controller'),
   DepenseCategories: () => import('#controllers/depense_categories_controller'),
   Depenses: () => import('#controllers/depenses_controller'),
+  Depots: () => import('#controllers/depots_controller'),
   Fournisseurs: () => import('#controllers/fournisseurs_controller'),
   PointsDeVente: () => import('#controllers/points_de_vente_controller'),
   Produits: () => import('#controllers/produits_controller'),

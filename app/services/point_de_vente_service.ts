@@ -1,5 +1,6 @@
 import Caisse from '#models/caisse'
 import PointDeVente from '#models/point_de_vente'
+import { creerDepotParDefaut } from '#services/depot_service'
 import db from '@adonisjs/lucid/services/db'
 
 export async function generatePointDeVenteCode(): Promise<string> {
@@ -51,6 +52,8 @@ export async function creerPointDeVente(data: {
       },
       { client: trx }
     )
+
+    await creerDepotParDefaut(pos.id, `Dépôt principal — ${data.nom}`, trx)
 
     return pos
   })

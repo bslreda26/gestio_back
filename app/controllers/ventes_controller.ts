@@ -260,6 +260,7 @@ export default class VentesController {
           remise_pct: payload.remise_pct,
           notes: payload.notes ?? null,
           lignes: payload.lignes,
+          depot_id: payload.depot_id,
         },
         ctx.auth.getUserOrFail().id,
         requirePointDeVente(ctx)
@@ -295,6 +296,7 @@ export default class VentesController {
           remise_pct: payload.remise_pct,
           notes: payload.notes,
           lignes: payload.lignes,
+          depot_id: payload.depot_id,
         },
         ctx.auth.getUserOrFail().id,
         pos.pointDeVenteId
@@ -391,7 +393,8 @@ export default class VentesController {
         payload.lignes,
         ctx.auth.getUserOrFail().id,
         requirePointDeVente(ctx),
-        payload.notes ?? null
+        payload.notes ?? null,
+        payload.depot_id
       )
       const lignes = await VenteLigne.query().where('vente_id', retour.id)
       await clearVenteLock(payload.facture_id)

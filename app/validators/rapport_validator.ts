@@ -21,6 +21,7 @@ export const rapportStockActuelValidator = vine.compile(
     stock_alert: vine.enum(stockAlertValues).optional(),
     search: vine.string().trim().optional(),
     is_active: vine.boolean().optional(),
+    depot_id: vine.number().positive().optional(),
   })
 )
 

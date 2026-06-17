@@ -121,6 +121,15 @@ export type ScannedRoutes = {
     'stock.mouvements.search': { paramsTuple?: []; params?: {} }
     'stock.valorisation': { paramsTuple?: []; params?: {} }
     'stock.alertes': { paramsTuple?: []; params?: {} }
+    'stock.inventaire': { paramsTuple?: []; params?: {} }
+    'stock.perte': { paramsTuple?: []; params?: {} }
+    'depots.search': { paramsTuple?: []; params?: {} }
+    'depots.show': { paramsTuple?: []; params?: {} }
+    'depots.create': { paramsTuple?: []; params?: {} }
+    'depots.update': { paramsTuple?: []; params?: {} }
+    'depots.deactivate': { paramsTuple?: []; params?: {} }
+    'depots.transfert': { paramsTuple?: []; params?: {} }
+    'depots.stocks': { paramsTuple?: []; params?: {} }
     'rapports.caisse': { paramsTuple?: []; params?: {} }
     'rapports.stock_actuel': { paramsTuple?: []; params?: {} }
     'rapports.valeur_stock': { paramsTuple?: []; params?: {} }
@@ -260,6 +269,15 @@ export type ScannedRoutes = {
     'stock.search': { paramsTuple?: []; params?: {} }
     'stock.mouvements.search': { paramsTuple?: []; params?: {} }
     'stock.alertes': { paramsTuple?: []; params?: {} }
+    'stock.inventaire': { paramsTuple?: []; params?: {} }
+    'stock.perte': { paramsTuple?: []; params?: {} }
+    'depots.search': { paramsTuple?: []; params?: {} }
+    'depots.show': { paramsTuple?: []; params?: {} }
+    'depots.create': { paramsTuple?: []; params?: {} }
+    'depots.update': { paramsTuple?: []; params?: {} }
+    'depots.deactivate': { paramsTuple?: []; params?: {} }
+    'depots.transfert': { paramsTuple?: []; params?: {} }
+    'depots.stocks': { paramsTuple?: []; params?: {} }
     'rapports.caisse': { paramsTuple?: []; params?: {} }
     'rapports.stock_actuel': { paramsTuple?: []; params?: {} }
     'rapports.valeur_stock': { paramsTuple?: []; params?: {} }

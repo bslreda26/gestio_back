@@ -132,6 +132,48 @@ test.group('API — ventes & stock', (group) => {
     assert.match(body.message.toLowerCase(), /caisse n'est pas ouverte/)
   })
 
+  test('facture rejects duplicate product on same invoice', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    await openCaisse(client, token)
+    const produit = await Produit.findByOrFail('code', 'PRD-0002')
+
+    const response = await authedPos(client, token)
+      .post('/api/v1/ventes/create')
+      .json({
+        statut: 'non_valide',
+        client_id: 1,
+        date_vente: '2026-06-10',
+        lignes: [
+          { produit_id: produit.id, quantite: 1, prix_unitaire: 15000 },
+          { produit_id: produit.id, quantite: 2, prix_unitaire: 15000 },
+        ],
+      })
+
+    response.assertStatus(422)
+    const body = response.body() as { message: string }
+    assert.match(body.message.toLowerCase(), /même article/)
+  })
+
+  test('devis allows duplicate product on same document', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0002')
+
+    const response = await authedPos(client, token)
+      .post('/api/v1/ventes/create')
+      .json({
+        statut: 'devis',
+        client_id: 1,
+        date_vente: '2026-06-10',
+        lignes: [
+          { produit_id: produit.id, quantite: 1 },
+          { produit_id: produit.id, quantite: 2 },
+        ],
+      })
+
+    response.assertStatus(200)
+    assert.equal(response.body().data.lignes.length, 2)
+  })
+
   test('unvalidated facture can be deleted and restores stock', async ({ client, assert }) => {
     const token = await loginAsAdmin(client)
     await openCaisse(client, token)
