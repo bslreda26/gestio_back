@@ -26,7 +26,7 @@ const sampleLigne = (): CalculatedLigne => ({
 
 test.group('calculerTotauxVente AIRSI', () => {
   test('applies AIRSI deduction on total TTC', ({ assert }) => {
-    const totaux = calculerTotauxVente([sampleLigne()], 0, 0, 5)
+    const totaux = calculerTotauxVente([sampleLigne()], 0, 5)
 
     assert.equal(totaux.totalTtc, 1180)
     assert.equal(totaux.airsiMontant, 59)
@@ -42,7 +42,7 @@ test.group('calculerTotauxVente AIRSI', () => {
       montantTtc: 22000,
     }
 
-    const totaux = calculerTotauxVente([ligne], 10, 0)
+    const totaux = calculerTotauxVente([ligne], 10)
 
     assert.equal(totaux.sousTotal, 22000)
     assert.equal(totaux.remiseMontant, 2018.3)
@@ -60,26 +60,12 @@ test.group('calculerTotauxVente AIRSI', () => {
       montantTtc: 250000,
     }
 
-    const totaux = calculerTotauxVente([ligne], 10, 0)
+    const totaux = calculerTotauxVente([ligne], 10)
 
     assert.equal(totaux.sousTotal, 250000)
     assert.equal(totaux.remiseMontant, 25000)
     assert.equal(totaux.totalHt, 225000)
     assert.equal(totaux.totalTtc, 225000)
-  })
-
-  test('does not double-count stored remiseMontant as fixed input', ({ assert }) => {
-    const ligne: CalculatedLigne = {
-      ...sampleLigne(),
-      tvaPct: 0,
-      montantHt: 250000,
-      montantTva: 0,
-      montantTtc: 250000,
-    }
-
-    const totaux = calculerTotauxVente([ligne], 10, 25000)
-
-    assert.equal(totaux.remiseMontant, 50000)
   })
 })
 

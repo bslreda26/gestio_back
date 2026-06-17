@@ -94,15 +94,13 @@ function calcLigneMontants(
 export function calculerTotauxVente(
   lignes: CalculatedLigne[],
   remisePct = 0,
-  remiseMontant = 0,
   airsiPct = 0
 ) {
   const sousTotal = roundMoney(lignes.reduce((s, l) => s + l.montantTtc, 0))
   const totalHtBrut = roundMoney(lignes.reduce((s, l) => s + l.montantHt, 0))
   const tvaBrut = roundMoney(lignes.reduce((s, l) => s + l.montantTva, 0))
 
-  const remiseGlobalePct = roundMoney(totalHtBrut * (remisePct / 100))
-  const totalRemise = roundMoney(Math.min(totalHtBrut, remiseGlobalePct + remiseMontant))
+  const totalRemise = roundMoney(Math.min(totalHtBrut, totalHtBrut * (remisePct / 100)))
   const totalHt = roundMoney(totalHtBrut - totalRemise)
 
   let tvaMontant: number
@@ -328,7 +326,6 @@ export type CreateVenteInput = {
   date_vente: DateTime
   date_echeance?: DateTime | null
   remise_pct?: number
-  remise_montant?: number
   airsi_pct?: number
   notes?: string | null
   lignes: LigneVenteInput[]
@@ -340,7 +337,6 @@ export type UpdateVenteInput = {
   date_vente?: DateTime
   date_echeance?: DateTime | null
   remise_pct?: number
-  remise_montant?: number
   airsi_pct?: number
   notes?: string | null
   lignes?: LigneVenteInput[]
@@ -465,12 +461,7 @@ export async function creerVente(
     }
 
     const airsiPct = data.airsi_pct ?? 0
-    const totaux = calculerTotauxVente(
-      calculated,
-      data.remise_pct ?? 0,
-      data.remise_montant ?? 0,
-      airsiPct
-    )
+    const totaux = calculerTotauxVente(calculated, data.remise_pct ?? 0, airsiPct)
 
     if (isFactureInvalide(data.statut)) {
       await verifierCreditClient(data.client_id, totaux.totalApresAirsi, trx)
@@ -556,7 +547,6 @@ export async function mettreAJourVente(
     const anciennesLignes = await VenteLigne.query({ client: trx }).where('vente_id', vente.id)
 
     const remisePct = data.remise_pct ?? Number(vente.remisePct)
-    const remiseMontantInput = data.remise_montant ?? 0
     const airsiPct = data.airsi_pct ?? Number(vente.airsiPct)
 
     let calculated: CalculatedLigne[]
@@ -586,7 +576,7 @@ export async function mettreAJourVente(
       calculated = anciennesLignes.map(venteLigneToCalculated)
     }
 
-    const totaux = calculerTotauxVente(calculated, remisePct, remiseMontantInput, airsiPct)
+    const totaux = calculerTotauxVente(calculated, remisePct, airsiPct)
     const nouveauClientId = data.client_id ?? vente.clientId
 
     if (isFacture) {
@@ -667,7 +657,6 @@ export async function convertirDevisEnFacture(
     const totaux = calculerTotauxVente(
       calculated,
       Number(vente.remisePct),
-      0,
       Number(vente.airsiPct)
     )
 
