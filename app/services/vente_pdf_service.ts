@@ -391,9 +391,12 @@ function drawTotals(doc: PdfDoc, ctx: VenteImpressionContext, y: number) {
 
   if (ctx.type === 'facture') {
     if (airsiMontant > 0) {
-      rows.push([`AIRSI (${formatPct(airsiPct)})`, `- ${formatMoney(airsiMontant)}`, false])
+      rows.push(['Total TTC', formatMoney(totalTtc), false])
+      rows.push([`AIRSI (${formatPct(airsiPct)})`, formatMoney(airsiMontant), false])
+      rows.push(['Total a payer', formatMoney(finalTtc), true])
+    } else {
+      rows.push(['Total TTC', formatMoney(totalTtc), true])
     }
-    rows.push(['Total TTC', formatMoney(finalTtc), true])
   } else {
     rows[rows.length - 1] = [rows[rows.length - 1][0], rows[rows.length - 1][1], true]
   }

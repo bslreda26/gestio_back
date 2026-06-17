@@ -25,12 +25,12 @@ const sampleLigne = (): CalculatedLigne => ({
 })
 
 test.group('calculerTotauxVente AIRSI', () => {
-  test('applies AIRSI deduction on total TTC', ({ assert }) => {
+  test('adds AIRSI on top of total TTC', ({ assert }) => {
     const totaux = calculerTotauxVente([sampleLigne()], 0, 5)
 
     assert.equal(totaux.totalTtc, 1180)
     assert.equal(totaux.airsiMontant, 59)
-    assert.equal(totaux.totalApresAirsi, 1121)
+    assert.equal(totaux.totalApresAirsi, 1239)
   })
 
   test('computes global remise from percentage on HT and recalculates TVA', ({ assert }) => {
@@ -74,8 +74,11 @@ test.group('buildFneInvoicePayload', () => {
     const vente = {
       numero: '01-FAC-2026-0001',
       dateVente: DateTime.fromISO('2026-01-15'),
+      sousTotal: '1180.00',
       totalTtc: '1180.00',
-      totalApresAirsi: '1121.00',
+      totalApresAirsi: '1239.00',
+      airsiPct: '5.00',
+      airsiMontant: '59.00',
       tvaMontant: '180.00',
       remisePct: '0.00',
       notes: 'Merci',
@@ -98,12 +101,14 @@ test.group('buildFneInvoicePayload', () => {
 
     const lignes = [
       {
+        id: 1,
         produitId: 1,
         designation: 'Produit test',
         quantite: '2',
         remisePct: '0',
         tvaPct: '18',
         montantHt: '1000.00',
+        montantTtc: '1180.00',
       },
     ] as any[]
 
@@ -126,12 +131,90 @@ test.group('buildFneInvoicePayload', () => {
       paymentMethod: 'deferred',
     })
 
-    assert.equal(payload.amount, 1121)
+    assert.equal(payload.amount, 1239)
     assert.equal(payload.template, 'B2B')
     assert.equal(payload.clientNcc, '123456789')
     assert.equal(payload.items[0].taxes[0], 'TVA')
     assert.equal(payload.items[0].amount, 500)
+    assert.deepEqual(payload.items[0].customTaxes, [{ name: 'AIRSI', amount: 5 }])
     assert.equal(payload.commercialMessage, 'ref: 01-FAC-2026-0001 Merci')
+  })
+
+  test('sends AIRSI rate in customTaxes amount, not the FCFA montant', ({ assert }) => {
+    const vente = {
+      numero: '01-FAC-2026-0003',
+      dateVente: DateTime.fromISO('2026-01-15'),
+      sousTotal: '30000.00',
+      totalTtc: '30000.00',
+      totalApresAirsi: '31500.00',
+      airsiPct: '5.00',
+      airsiMontant: '1500.00',
+      tvaMontant: '4580.00',
+      remisePct: '0.00',
+      notes: null,
+    } as any
+
+    const payload = buildFneInvoicePayload({
+      vente,
+      client: { nom: 'Client', type: 'B2C' } as any,
+      pointDeVente: { nom: 'PDV', pointOfSale: 'pdv', establishment: 'etab' } as any,
+      lignes: [
+        {
+          id: 1,
+          produitId: 1,
+          designation: 'Produit',
+          quantite: '1',
+          remisePct: '0',
+          tvaPct: '18',
+          montantHt: '25423.73',
+          montantTtc: '30000.00',
+        },
+      ] as any[],
+      produitsById: new Map([[1, { id: 1, code: 'PRD-1' } as Produit]]),
+      paymentMethod: 'cash',
+    })
+
+    assert.deepEqual(payload.items[0].customTaxes, [{ name: 'AIRSI', amount: 5 }])
+    assert.notEqual(payload.items[0].customTaxes[0].amount, 1500)
+    assert.equal(payload.amount, 31500)
+  })
+
+  test('omits AIRSI customTaxes when rate is zero', ({ assert }) => {
+    const vente = {
+      numero: '01-FAC-2026-0002',
+      dateVente: DateTime.fromISO('2026-01-15'),
+      sousTotal: '1180.00',
+      totalTtc: '1180.00',
+      totalApresAirsi: '1180.00',
+      airsiPct: '0.00',
+      airsiMontant: '0.00',
+      tvaMontant: '180.00',
+      remisePct: '0.00',
+      notes: null,
+    } as any
+
+    const payload = buildFneInvoicePayload({
+      vente,
+      client: { nom: 'Client', type: 'B2C' } as any,
+      pointDeVente: { nom: 'PDV', pointOfSale: 'pdv', establishment: 'etab' } as any,
+      lignes: [
+        {
+          id: 1,
+          produitId: 1,
+          designation: 'Produit',
+          quantite: '1',
+          remisePct: '0',
+          tvaPct: '18',
+          montantHt: '1000.00',
+          montantTtc: '1180.00',
+        },
+      ] as any[],
+      produitsById: new Map([[1, { id: 1, code: 'PRD-1' } as Produit]]),
+      paymentMethod: 'cash',
+    })
+
+    assert.equal(payload.amount, 1180)
+    assert.deepEqual(payload.items[0].customTaxes, [])
   })
 })
 

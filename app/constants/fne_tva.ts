@@ -26,6 +26,6 @@ export function fneNomTvaFromTaux(taux: number): FneNomTva {
 
 export function calcAirsi(totalTtc: number, airsiPct: number) {
   const montant = Math.round(totalTtc * (airsiPct / 100) * 100) / 100
-  const totalApresAirsi = Math.round((totalTtc - montant) * 100) / 100
+  const totalApresAirsi = Math.round((totalTtc + montant) * 100) / 100
   return { airsiMontant: montant, totalApresAirsi }
 }

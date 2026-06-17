@@ -81,6 +81,25 @@ function buildCommercialMessage(numero: string, notes: string | null): string {
   return `${base} ${notes.trim()}`
 }
 
+function ligneReference(ligne: VenteLigne, produitsById: Map<number, Produit>): string {
+  const produit = produitsById.get(ligne.produitId)
+  return produit?.code ?? `PROD-${ligne.produitId}`
+}
+
+function isTimbreLigne(
+  ligne: VenteLigne,
+  produitsById: Map<number, Produit>,
+  timbreRef: string | null
+): boolean {
+  return Boolean(timbreRef && ligneReference(ligne, produitsById) === timbreRef)
+}
+
+function ligneCustomTaxes(airsiPct: number): { name: string; amount: number }[] {
+  if (airsiPct <= 0) return []
+  // FNE customTaxes.amount = taux (%) — pas le montant en FCFA
+  return [{ name: 'AIRSI', amount: airsiPct }]
+}
+
 export function buildFneInvoicePayload(input: {
   vente: Vente
   client: Client
@@ -92,16 +111,16 @@ export function buildFneInvoicePayload(input: {
 }): FneInvoicePayload {
   const { vente, client, pointDeVente, lignes, produitsById, paymentMethod } = input
   const timbreRef = pointDeVente.timbreReference?.trim() || null
+  const airsiPct = Number(vente.airsiPct)
 
   const items: FneInvoiceItemPayload[] = []
 
   for (const ligne of lignes) {
-    const produit = produitsById.get(ligne.produitId)
-    const reference = produit?.code ?? `PROD-${ligne.produitId}`
-
-    if (timbreRef && reference === timbreRef) {
+    if (isTimbreLigne(ligne, produitsById, timbreRef)) {
       continue
     }
+
+    const reference = ligneReference(ligne, produitsById)
 
     items.push({
       quantity: Number(ligne.quantite),
@@ -110,7 +129,7 @@ export function buildFneInvoicePayload(input: {
       discount: Number(ligne.remisePct),
       amount: lignePrixUnitaireHt(ligne),
       taxes: [fneNomTvaFromTaux(Number(ligne.tvaPct))],
-      customTaxes: [],
+      customTaxes: ligneCustomTaxes(airsiPct),
     })
   }
 
@@ -119,10 +138,10 @@ export function buildFneInvoicePayload(input: {
   }
 
   const template = client.type === 'B2B' ? 'B2B' : 'B2C'
-  const amount = Number(vente.totalApresAirsi) > 0 ? Number(vente.totalApresAirsi) : Number(vente.totalTtc)
 
   return {
-    amount,
+    amount:
+      airsiPct > 0 ? Number(vente.totalApresAirsi) : Number(vente.totalTtc),
     clientCompanyName: client.nom,
     clientEmail: client.email,
     clientNcc: client.ncc,

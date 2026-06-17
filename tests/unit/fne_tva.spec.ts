@@ -12,9 +12,9 @@ test.group('FNE TVA', () => {
     assert.throws(() => fneNomTvaFromTaux(5), /non supporté/)
   })
 
-  test('calculates AIRSI as deduction after total TTC', ({ assert }) => {
+  test('adds AIRSI on top of total TTC', ({ assert }) => {
     const result = calcAirsi(20_000, 5)
     assert.equal(result.airsiMontant, 1_000)
-    assert.equal(result.totalApresAirsi, 19_000)
+    assert.equal(result.totalApresAirsi, 21_000)
   })
 })
