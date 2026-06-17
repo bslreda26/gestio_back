@@ -102,7 +102,7 @@
 
   start/routes.ts    — toutes les routes
   database/
-    migrations/      47 fichiers (0042–0047 : FNE)
+    migrations/      49 fichiers (0042–0048 : FNE + AIRSI produit/ligne)
     seeders/         users, categories, TVA, fournisseurs/clients, produits, caisse
   tests/             functional + unit
 
@@ -144,6 +144,7 @@
     frais           frais TTC par unité (stockage interne)
     dernier_prix_achat_ht  dernier prix en unité gros
     plancher        CMUP TTC (voir section 9)
+    airsi_pct       taux AIRSI (%) — appliqué sur chaque vente de ce produit (migration 0048)
 
   VENTES — statuts (migration 1740000000034)
     devis        → pas de stock, pas de solde client
@@ -151,13 +152,15 @@
     valide       → facture validée (stock déjà déduit)
     retour       → avoir client
 
-  VENTES — totaux facture (migrations 1740000000040, 1740000000041, 0042)
+  VENTES — totaux facture (migrations 1740000000040, 1740000000041, 0042, 0048)
     total_ht, tva_montant, total_ttc, sous_total, remise_montant
     marge          somme marges lignes (ajustée remise globale)
     marge_pct      marge / total_ttc × 100
-    airsi_pct, airsi_montant, total_apres_airsi  (déduction après TTC)
-    reste_a_payer  basé sur total_apres_airsi − montant_paye
-    facture_impression_count, bon_sortie_impression_count
+    airsi_pct      taux moyen pondéré (affichage facture)
+    airsi_montant  Σ ligne.airsi_montant
+    total_apres_airsi  Σ ligne.montant_apres_airsi (= TTC + AIRSI, total à payer)
+    reste_a_payer  total_apres_airsi − montant_paye
+    facture_impression_count, bon_sortie_impression_count (migration 0039)
 
   VENTES — certification FNE (migrations 0042, 0043)
     normalise, test_normalise, excluded, api_response
@@ -180,6 +183,9 @@
     mode_vente      piece | detail
     quantite_stock  quantité déduite du stock (unité détail)
     plancher_ligne, marge (unitaire = prix_unitaire − plancher_ligne)
+    airsi_pct, airsi_montant, montant_apres_airsi  (copiés depuis produit ; migration 0048)
+    fne_item_id     UUID ligne FNE (certification)
+    ligne_origine_id  lien vers ligne facture d'origine (avoir)
 
   SOLDES COMPTE (clients / fournisseurs)
     Affichage API (search, show) = solde RECALCULÉ par PDV (rapport_service)
@@ -309,6 +315,16 @@
     ventes_marge_pct     → marge_pct facture (défaut admin/gérant, assignable)
     ventes_ligne_plancher → plancher ligne
 
+  AIRSI (app/constants/fne_tva.ts — calcLigneAirsi, calcAirsi) :
+    Source : produits.airsi_pct (migration 0048)
+    Ordre : remise globale vente d'abord (HT/TVA/TTC), puis AIRSI sur TTC final par ligne
+    Par ligne : airsi_montant = montant_ttc_après_remise × airsi_pct / 100
+                montant_apres_airsi = montant_ttc_après_remise + airsi_montant
+    Facture : airsi_montant = Σ lignes ; total_apres_airsi = Σ montant_apres_airsi
+              airsi_pct affiché = airsi_montant / total_ttc × 100 (moyenne pondérée)
+    Retours : héritent airsi_pct de la ligne d'origine
+    FNE : items[].customTaxes [{ name: "AIRSI", amount: <taux_%> }] ; amount facture = totalApresAirsi si AIRSI
+
 ================================================================================
   10. LOGIQUE MÉTIER — VENTES
 ================================================================================
@@ -320,9 +336,13 @@
     POST valider (non_valide)                 → valide
     POST delete (non_valide, non payée)       → retour stock
     POST retour                               → avoir (statut retour)
+    Retour : hérite remise_pct de la facture d'origine pour totaux + AIRSI (aligné FNE)
 
   Lignes : mode_vente piece | detail
-  AIRSI : airsi_pct optionnel (create/update) — montant dû = totalApresAirsi
+  AIRSI : taux sur produit (produits.airsi_pct) → copié sur chaque ligne ;
+          airsi_montant = montant_ttc × airsi_pct / 100 ;
+          montant_apres_airsi = montant_ttc + airsi_montant (ajouté au TTC) ;
+          totaux facture = somme des lignes ; montant dû = totalApresAirsi
   Verrou édition : lock / lock-renew / unlock
   Impression : POST /ventes/imprimer (PDF facture ou bon de sortie)
   Document JSON : POST /ventes/document (aperçu + totaux + certification)
@@ -345,8 +365,11 @@
 
   Certification facture :
     POST /ventes/certify { "id": 123 } ou { "numero": "01-FAC-..." }
-    Statuts acceptés : non_valide, valide
+    Statuts acceptés : valide uniquement (non_valide refusé — POST /ventes/valider d'abord)
     Appel FNE : POST {prod_url}/external/invoices/sign
+    Payload : amount = totalApresAirsi si AIRSI, sinon totalTtc ;
+              items[].customTaxes = [{ name: "AIRSI", amount: <taux_%> }] par ligne
+              (amount FNE = pourcentage, pas FCFA)
     Persiste : normalise, api_response, fne_invoice_id, certified_at,
                fne_item_id sur chaque ligne
 
@@ -354,6 +377,8 @@
     Facture d'origine doit être normalise=true avec fne_invoice_id
     Lignes retour liées (ligne_origine_id) ; origine doit avoir fne_item_id
     Appel FNE : POST .../invoices/{fneInvoiceId}/refund
+    Corps : { items: [{ id: fneItemId, quantity }] }
+    Succès : reference + token (parser fne_response_parser)
 
   Affichage frontend :
     - Badge « Certifiée FNE » si vente.normalise
@@ -380,6 +405,10 @@
 
   VenteLigne :
     fneItemId, ligneOrigineId
+    airsiPct, airsiMontant, montantApresAirsi
+
+  Produit :
+    airsiPct  (saisie create/update produit, pas sur facture)
 
   Client :
     ncc
@@ -399,13 +428,17 @@
   3. Fiche client
      - Champ ncc (requis avant certification B2B)
 
+  3bis. Fiche produit
+     - Champ airsi_pct (0–100, défaut 0) sur create/update produit
+
   4. Facture — création / édition
-     - Champ airsi_pct (optionnel)
+     - Pas de champ airsi_pct sur la vente (hérité du produit par ligne)
      - Afficher totalApresAirsi comme montant dû (pas seulement totalTtc)
+     - Ligne-info : airsi_pct, airsi_montant, montant_apres_airsi par ligne
      - Désactiver édition si normalise === true
 
   5. Facture — détail
-     - Bouton « Certifier FNE » si ventes_certify && !normalise && !excluded
+     - Bouton « Certifier FNE » si ventes_certify && statut === valide && !normalise && !excluded
      - Après certify : badge + QR (lib qrcode ou img depuis token URL)
      - Erreurs 422 : afficher message métier
 
@@ -437,7 +470,10 @@
     solde = total_débit − total_crédit
 
   Note : reste à payer sur facture = total_apres_airsi − montant_paye
-  (AIRSI déduit après TTC). Afficher totalApresAirsi comme montant dû sur la fiche facture.
+  (AIRSI ajouté au TTC : total_apres_airsi = total_ttc + airsi_montant).
+  Solde client (opérations vente) : incrémenté de totalApresAirsi.
+  Relevé client (débit) : somme total_ttc des factures (sans AIRSI dans le débit relevé).
+  Afficher totalApresAirsi comme montant dû sur la fiche facture.
 
   FOURNISSEUR (par PDV) :
     Débit  : réceptions achat (TTC lignes reçues)
@@ -560,13 +596,15 @@
   17. JOURNAL DES ÉVOLUTIONS RÉCENTES (backend)
 ================================================================================
 
-  Certification FNE (migrations 0042–0047)
-    - Champs ventes : normalise, airsi, api_response, fne_invoice_id…
+  Certification FNE (migrations 0042–0048)
+    - Champs ventes : normalise, airsi (totaux agrégés), api_response, fne_invoice_id…
+    - Migration 0048 : airsi_pct sur produits ; airsi sur vente_lignes
     - vente_lignes.fne_item_id pour avoirs certifiés
     - clients.ncc, PDV point_of_sale / establishment
     - Table apikeys + routes /fne-config/*
-    - POST /ventes/certify (facture + avoir)
-    - PDF : bandeau FNE, QR, AIRSI dans totaux
+    - POST /ventes/certify (facture + avoir ; refund { items: [...] })
+    - FNE customTaxes : amount = taux % AIRSI par ligne
+    - PDF : bandeau FNE, QR, colonne Taxes TVA+AIRSI, Total a payer
     - Permissions ventes_certify, fne_admin
     - Mapping TVA 18/9/0 % → codes FNE (TVA, TVAB, TVAC)
 

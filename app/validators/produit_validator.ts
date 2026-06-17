@@ -19,6 +19,7 @@ const produitFields = {
   vente_au_detail: vine.boolean().optional(),
   stock_minimum: vine.number().min(0).optional(),
   stock_maximum: vine.number().min(0).optional(),
+  airsi_pct: vine.number().min(0).max(100).optional(),
 }
 
 export const produitSearchValidator = vine.compile(
@@ -61,6 +62,7 @@ export const produitUpdateValidator = vine.compile(
     stock_minimum: vine.number().min(0).optional(),
     stock_maximum: vine.number().min(0).optional(),
     is_active: vine.boolean().optional(),
+    airsi_pct: vine.number().min(0).max(100).optional(),
   })
 )
 

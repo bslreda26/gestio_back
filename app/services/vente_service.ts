@@ -38,7 +38,7 @@ import {
   generateVenteNumero,
 } from '#services/code_generator_service'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { calcAirsi } from '#constants/fne_tva'
+import { calcLigneAirsi } from '#constants/fne_tva'
 import { DateTime } from 'luxon'
 
 export type LigneVenteInput = {
@@ -68,6 +68,9 @@ export type CalculatedLigne = {
   montantHt: number
   montantTva: number
   montantTtc: number
+  airsiPct: number
+  airsiMontant: number
+  montantApresAirsi: number
 }
 
 export class VenteBusinessError extends Error {
@@ -91,11 +94,7 @@ function calcLigneMontants(
   return { montantHt, montantTva, montantTtc }
 }
 
-export function calculerTotauxVente(
-  lignes: CalculatedLigne[],
-  remisePct = 0,
-  airsiPct = 0
-) {
+export function calculerTotauxVente(lignes: CalculatedLigne[], remisePct = 0) {
   const sousTotal = roundMoney(lignes.reduce((s, l) => s + l.montantTtc, 0))
   const totalHtBrut = roundMoney(lignes.reduce((s, l) => s + l.montantHt, 0))
   const tvaBrut = roundMoney(lignes.reduce((s, l) => s + l.montantTva, 0))
@@ -114,8 +113,20 @@ export function calculerTotauxVente(
   }
 
   const totalTtc = roundMoney(totalHt + tvaMontant)
+  const ttcFactor = sousTotal > 0 ? totalTtc / sousTotal : 1
+
+  let airsiMontant = 0
+  for (const ligne of lignes) {
+    const ligneTtcApresRemise = roundMoney(ligne.montantTtc * ttcFactor)
+    const airsi = calcLigneAirsi(ligneTtcApresRemise, ligne.airsiPct)
+    ligne.airsiMontant = airsi.airsiMontant
+    ligne.montantApresAirsi = airsi.montantApresAirsi
+    airsiMontant = roundMoney(airsiMontant + airsi.airsiMontant)
+  }
+
+  const totalApresAirsi = roundMoney(totalTtc + airsiMontant)
+  const airsiPct = totalTtc > 0 ? roundMoney((airsiMontant / totalTtc) * 100) : 0
   const { marge, margePct } = calculerMargeFacture(lignes, sousTotal, totalTtc)
-  const { airsiMontant, totalApresAirsi } = calcAirsi(totalTtc, airsiPct)
   return {
     sousTotal,
     remiseMontant: totalRemise,
@@ -165,6 +176,8 @@ export async function buildLignesFromPayload(
       tvaPct,
       remisePct
     )
+    const airsiPct = Number(produit.airsiPct ?? 0)
+    const airsi = calcLigneAirsi(montantTtc, airsiPct)
 
     result.push({
       produitId: produit.id,
@@ -180,6 +193,9 @@ export async function buildLignesFromPayload(
       montantHt,
       montantTva,
       montantTtc,
+      airsiPct: airsi.airsiPct,
+      airsiMontant: airsi.airsiMontant,
+      montantApresAirsi: airsi.montantApresAirsi,
     })
   }
 
@@ -221,6 +237,9 @@ export async function getLigneVenteInfo(
     montant_ht: ligne.montantHt,
     montant_tva: ligne.montantTva,
     montant_ttc: ligne.montantTtc,
+    airsi_pct: ligne.airsiPct,
+    airsi_montant: ligne.airsiMontant,
+    montant_apres_airsi: ligne.montantApresAirsi,
     stock_actuel: stockDisplay.stockDetail,
     stock_pieces: stockDisplay.stockPieces,
     stock_reste_detail: stockDisplay.stockResteDetail,
@@ -271,6 +290,9 @@ async function persistLignes(
         montantHt: l.montantHt,
         montantTva: l.montantTva,
         montantTtc: l.montantTtc,
+        airsiPct: l.airsiPct,
+        airsiMontant: l.airsiMontant,
+        montantApresAirsi: l.montantApresAirsi,
         quantiteRetournee: 0,
         ligneOrigineId: extra?.ligneOrigineId ?? null,
       },
@@ -326,7 +348,6 @@ export type CreateVenteInput = {
   date_vente: DateTime
   date_echeance?: DateTime | null
   remise_pct?: number
-  airsi_pct?: number
   notes?: string | null
   lignes: LigneVenteInput[]
 }
@@ -337,7 +358,6 @@ export type UpdateVenteInput = {
   date_vente?: DateTime
   date_echeance?: DateTime | null
   remise_pct?: number
-  airsi_pct?: number
   notes?: string | null
   lignes?: LigneVenteInput[]
 }
@@ -363,6 +383,9 @@ function venteLigneToCalculated(ligne: VenteLigne): CalculatedLigne {
     montantHt: Number(ligne.montantHt),
     montantTva: Number(ligne.montantTva),
     montantTtc: Number(ligne.montantTtc),
+    airsiPct: Number(ligne.airsiPct),
+    airsiMontant: Number(ligne.airsiMontant),
+    montantApresAirsi: Number(ligne.montantApresAirsi),
   }
 }
 
@@ -460,8 +483,7 @@ export async function creerVente(
       }
     }
 
-    const airsiPct = data.airsi_pct ?? 0
-    const totaux = calculerTotauxVente(calculated, data.remise_pct ?? 0, airsiPct)
+    const totaux = calculerTotauxVente(calculated, data.remise_pct ?? 0)
 
     if (isFactureInvalide(data.statut)) {
       await verifierCreditClient(data.client_id, totaux.totalApresAirsi, trx)
@@ -547,7 +569,6 @@ export async function mettreAJourVente(
     const anciennesLignes = await VenteLigne.query({ client: trx }).where('vente_id', vente.id)
 
     const remisePct = data.remise_pct ?? Number(vente.remisePct)
-    const airsiPct = data.airsi_pct ?? Number(vente.airsiPct)
 
     let calculated: CalculatedLigne[]
 
@@ -576,7 +597,7 @@ export async function mettreAJourVente(
       calculated = anciennesLignes.map(venteLigneToCalculated)
     }
 
-    const totaux = calculerTotauxVente(calculated, remisePct, airsiPct)
+    const totaux = calculerTotauxVente(calculated, remisePct)
     const nouveauClientId = data.client_id ?? vente.clientId
 
     if (isFacture) {
@@ -654,11 +675,7 @@ export async function convertirDevisEnFacture(
       }
     }
 
-    const totaux = calculerTotauxVente(
-      calculated,
-      Number(vente.remisePct),
-      Number(vente.airsiPct)
-    )
+    const totaux = calculerTotauxVente(calculated, Number(vente.remisePct))
 
     await verifierCreditClient(vente.clientId, totaux.totalApresAirsi, trx)
 
@@ -670,6 +687,7 @@ export async function convertirDevisEnFacture(
       totalHt: totaux.totalHt,
       tvaMontant: totaux.tvaMontant,
       totalTtc: totaux.totalTtc,
+      airsiPct: totaux.airsiPct,
       airsiMontant: totaux.airsiMontant,
       totalApresAirsi: totaux.totalApresAirsi,
       marge: totaux.marge,
@@ -821,6 +839,8 @@ export async function creerFactureRetour(
         Number(ligneOrigine.tvaPct),
         Number(ligneOrigine.remisePct)
       )
+      const airsiPct = Number(ligneOrigine.airsiPct)
+      const airsi = calcLigneAirsi(montantTtc, airsiPct)
 
       const mode = (ligneOrigine.modeVente as ModeVente) || 'piece'
       const produit = await Produit.query({ client: trx })
@@ -842,6 +862,9 @@ export async function creerFactureRetour(
         montantHt,
         montantTva,
         montantTtc,
+        airsiPct: airsi.airsiPct,
+        airsiMontant: airsi.airsiMontant,
+        montantApresAirsi: airsi.montantApresAirsi,
       })
 
       ligneOrigine.quantiteRetournee = roundMoney(dejaRetourne + item.quantite)
@@ -849,7 +872,7 @@ export async function creerFactureRetour(
       await ligneOrigine.save()
     }
 
-    const totaux = calculerTotauxVente(calculated)
+    const totaux = calculerTotauxVente(calculated, Number(facture.remisePct))
 
     const retour = await Vente.create(
       {
@@ -864,18 +887,18 @@ export async function creerFactureRetour(
         statut: VENTE_STATUT.RETOUR,
         statutPaiement: 'non_paye',
         sousTotal: totaux.sousTotal,
-        remisePct: 0,
-        remiseMontant: 0,
+        remisePct: Number(facture.remisePct),
+        remiseMontant: totaux.remiseMontant,
         totalHt: totaux.totalHt,
         tvaMontant: totaux.tvaMontant,
         totalTtc: totaux.totalTtc,
-        airsiPct: 0,
-        airsiMontant: 0,
-        totalApresAirsi: totaux.totalTtc,
+        airsiPct: totaux.airsiPct,
+        airsiMontant: totaux.airsiMontant,
+        totalApresAirsi: totaux.totalApresAirsi,
         marge: totaux.marge,
         margePct: totaux.margePct,
         montantPaye: 0,
-        resteAPayer: totaux.totalTtc,
+        resteAPayer: totaux.totalApresAirsi,
         notes: notes ?? `Retour sur facture ${facture.numero}`,
       },
       { client: trx }
@@ -900,6 +923,9 @@ export async function creerFactureRetour(
           montantHt: l.montantHt,
           montantTva: l.montantTva,
           montantTtc: l.montantTtc,
+          airsiPct: l.airsiPct,
+          airsiMontant: l.airsiMontant,
+          montantApresAirsi: l.montantApresAirsi,
           quantiteRetournee: 0,
           ligneOrigineId: origine.ligne_id,
         },
@@ -910,8 +936,10 @@ export async function creerFactureRetour(
     await applyStockEntreeRetour(retour.id, calculated, userId, trx)
 
     const client = await Client.query({ client: trx }).where('id', facture.clientId).firstOrFail()
-    client.solde = roundMoney(Math.max(0, Number(client.solde) - totaux.totalTtc))
-    facture.resteAPayer = roundMoney(Math.max(0, Number(facture.resteAPayer) - totaux.totalTtc))
+    client.solde = roundMoney(Math.max(0, Number(client.solde) - totaux.totalApresAirsi))
+    facture.resteAPayer = roundMoney(
+      Math.max(0, Number(facture.resteAPayer) - totaux.totalApresAirsi)
+    )
     client.useTransaction(trx)
     facture.useTransaction(trx)
     await client.save()

@@ -1,8 +1,9 @@
 import { fneNomTvaFromTaux } from '#constants/fne_tva'
 import {
   isDevis,
-  isFacture,
+  isFactureInvalide,
   isFactureRetour,
+  isFactureValide,
 } from '#constants/vente_statuts'
 import { isFneCertificationSuccessful, formatFneErrorMessage, resolveFneStoredInvoiceId } from '#helpers/fne_response_parser'
 import Apikey from '#models/apikey'
@@ -99,9 +100,10 @@ function isTimbreLigne(
 }
 
 function ligneCustomTaxes(airsiPct: number): { name: string; amount: number }[] {
-  if (airsiPct <= 0) return []
+  const rate = Number(airsiPct)
+  if (!Number.isFinite(rate) || rate <= 0) return []
   // FNE customTaxes.amount = taux (%) — pas le montant en FCFA
-  return [{ name: 'AIRSI', amount: airsiPct }]
+  return [{ name: 'AIRSI', amount: rate }]
 }
 
 export function buildFneInvoicePayload(input: {
@@ -115,7 +117,7 @@ export function buildFneInvoicePayload(input: {
 }): FneInvoicePayload {
   const { vente, client, pointDeVente, lignes, produitsById, paymentMethod } = input
   const timbreRef = pointDeVente.timbreReference?.trim() || null
-  const airsiPct = Number(vente.airsiPct)
+  const hasAirsi = lignes.some((ligne) => Number(ligne.airsiPct) > 0)
 
   const items: FneInvoiceItemPayload[] = []
 
@@ -133,7 +135,7 @@ export function buildFneInvoicePayload(input: {
       discount: Number(ligne.remisePct),
       amount: lignePrixUnitaireHt(ligne),
       taxes: [fneNomTvaFromTaux(Number(ligne.tvaPct))],
-      customTaxes: ligneCustomTaxes(airsiPct),
+      customTaxes: ligneCustomTaxes(Number(ligne.airsiPct)),
     })
   }
 
@@ -144,8 +146,7 @@ export function buildFneInvoicePayload(input: {
   const template = client.type === 'B2B' ? 'B2B' : 'B2C'
 
   return {
-    amount:
-      airsiPct > 0 ? Number(vente.totalApresAirsi) : Number(vente.totalTtc),
+    amount: hasAirsi ? Number(vente.totalApresAirsi) : Number(vente.totalTtc),
     clientCompanyName: client.nom,
     clientEmail: client.email,
     clientNcc: client.ncc,
@@ -369,7 +370,7 @@ function assertCommonCertifiable(
   }
 }
 
-function assertVenteCertifiable(
+export function assertVenteCertifiable(
   vente: Vente,
   client: Client,
   lignes: VenteLigne[],
@@ -385,8 +386,11 @@ function assertVenteCertifiable(
       'Utilisez la certification avoir — ce document est un retour'
     )
   }
-  if (!isFacture(vente.statut)) {
-    throw new FneCertificationError('Seule une facture peut être certifiée')
+  if (isFactureInvalide(vente.statut)) {
+    throw new FneCertificationError('La facture doit être validée avant la certification FNE')
+  }
+  if (!isFactureValide(vente.statut)) {
+    throw new FneCertificationError('Seule une facture validée peut être certifiée')
   }
 }
 

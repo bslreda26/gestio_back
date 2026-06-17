@@ -1,9 +1,15 @@
+import { VENTE_STATUT } from '#constants/vente_statuts'
+import Client from '#models/client'
+import PointDeVente from '#models/point_de_vente'
 import {
+  assertVenteCertifiable,
   buildFneInvoicePayload,
   buildFneRefundItems,
   buildFneRefundPayload,
+  FneCertificationError,
 } from '#services/fne_certification_service'
 import Produit from '#models/produit'
+import Vente from '#models/vente'
 import VenteLigne from '#models/vente_ligne'
 import { calculerTotauxVente, type CalculatedLigne } from '#services/vente_service'
 import { test } from '@japa/runner'
@@ -23,11 +29,14 @@ const sampleLigne = (): CalculatedLigne => ({
   montantHt: 1000,
   montantTva: 180,
   montantTtc: 1180,
+  airsiPct: 5,
+  airsiMontant: 59,
+  montantApresAirsi: 1239,
 })
 
 test.group('calculerTotauxVente AIRSI', () => {
   test('adds AIRSI on top of total TTC', ({ assert }) => {
-    const totaux = calculerTotauxVente([sampleLigne()], 0, 5)
+    const totaux = calculerTotauxVente([sampleLigne()], 0)
 
     assert.equal(totaux.totalTtc, 1180)
     assert.equal(totaux.airsiMontant, 59)
@@ -67,6 +76,83 @@ test.group('calculerTotauxVente AIRSI', () => {
     assert.equal(totaux.remiseMontant, 25000)
     assert.equal(totaux.totalHt, 225000)
     assert.equal(totaux.totalTtc, 225000)
+  })
+
+  test('recalculates AIRSI on TTC after global remise (alignement FNE)', ({ assert }) => {
+    const ligne: CalculatedLigne = {
+      ...sampleLigne(),
+      designation: 'TOMATE',
+      quantite: 1,
+      prixUnitaire: 30000,
+      remisePct: 0,
+      tvaPct: 18,
+      montantHt: 25424,
+      montantTva: 4576,
+      montantTtc: 30000,
+      airsiPct: 5,
+      airsiMontant: 1500,
+      montantApresAirsi: 31500,
+    }
+
+    const totaux = calculerTotauxVente([ligne], 5)
+
+    assert.equal(totaux.remiseMontant, 1271.2)
+    assert.equal(totaux.totalHt, 24152.8)
+    assert.equal(totaux.totalTtc, 28500.3)
+    assert.equal(totaux.airsiMontant, 1425.02)
+    assert.equal(totaux.totalApresAirsi, 29925.32)
+    assert.equal(ligne.airsiMontant, 1425.02)
+    assert.equal(ligne.montantApresAirsi, 29925.32)
+    assert.notEqual(totaux.airsiMontant, 1500)
+    assert.notEqual(totaux.totalApresAirsi, 31500)
+  })
+
+  test('retour full line uses facture global remise for totaux (alignement FNE)', ({ assert }) => {
+    const ligne: CalculatedLigne = {
+      ...sampleLigne(),
+      quantite: 1,
+      prixUnitaire: 30000,
+      tvaPct: 18,
+      montantHt: 25424,
+      montantTva: 4576,
+      montantTtc: 30000,
+      airsiPct: 5,
+      airsiMontant: 1500,
+      montantApresAirsi: 31500,
+    }
+
+    const factureRemisePct = 5
+    const totaux = calculerTotauxVente([ligne], factureRemisePct)
+
+    assert.equal(totaux.totalTtc, 28500.3)
+    assert.equal(totaux.airsiMontant, 1425.02)
+    assert.equal(totaux.totalApresAirsi, 29925.32)
+  })
+})
+
+test.group('assertVenteCertifiable', () => {
+  const baseContext = () => ({
+    client: { type: 'B2C', ncc: null } as Client,
+    lignes: [{ id: 1 }] as VenteLigne[],
+    pointDeVente: { nom: 'PDV', pointOfSale: 'pdv' } as PointDeVente,
+  })
+
+  test('rejects non_valide facture', ({ assert }) => {
+    const vente = { statut: VENTE_STATUT.NON_VALIDE, excluded: false, normalise: false } as Vente
+    const { client, lignes, pointDeVente } = baseContext()
+
+    assert.throws(
+      () => assertVenteCertifiable(vente, client, lignes, pointDeVente),
+      FneCertificationError,
+      /doit être validée/
+    )
+  })
+
+  test('accepts valide facture', ({ assert }) => {
+    const vente = { statut: VENTE_STATUT.VALIDE, excluded: false, normalise: false } as Vente
+    const { client, lignes, pointDeVente } = baseContext()
+
+    assert.doesNotThrow(() => assertVenteCertifiable(vente, client, lignes, pointDeVente))
   })
 })
 
@@ -110,6 +196,9 @@ test.group('buildFneInvoicePayload', () => {
         tvaPct: '18',
         montantHt: '1000.00',
         montantTtc: '1180.00',
+        airsiPct: '5.00',
+        airsiMontant: '59.00',
+        montantApresAirsi: '1239.00',
       },
     ] as any[]
 
@@ -169,6 +258,9 @@ test.group('buildFneInvoicePayload', () => {
           tvaPct: '18',
           montantHt: '25423.73',
           montantTtc: '30000.00',
+          airsiPct: '5.00',
+          airsiMontant: '1500.00',
+          montantApresAirsi: '31500.00',
         },
       ] as any[],
       produitsById: new Map([[1, { id: 1, code: 'PRD-1' } as Produit]]),
@@ -208,6 +300,9 @@ test.group('buildFneInvoicePayload', () => {
           tvaPct: '18',
           montantHt: '1000.00',
           montantTtc: '1180.00',
+          airsiPct: '0.00',
+          airsiMontant: '0.00',
+          montantApresAirsi: '1180.00',
         },
       ] as any[],
       produitsById: new Map([[1, { id: 1, code: 'PRD-1' } as Produit]]),

@@ -416,8 +416,10 @@ export class PointsDeVenteSchema extends BaseModel {
 }
 
 export class ProduitSchema extends BaseModel {
-  static $columns = ['categorieId', 'code', 'contenance', 'createdAt', 'dernierPrixAchatHt', 'description', 'frais', 'id', 'isActive', 'nom', 'plancher', 'pointDeVenteId', 'prixAchatHt', 'prixAchatTtc', 'prixVenteHt', 'prixVenteTtc', 'stockActuel', 'stockMaximum', 'stockMinimum', 'tvaGroupeId', 'unite', 'uniteGros', 'updatedAt', 'venteAuDetail'] as const
+  static $columns = ['airsiPct', 'categorieId', 'code', 'contenance', 'createdAt', 'dernierPrixAchatHt', 'description', 'frais', 'id', 'isActive', 'nom', 'plancher', 'pointDeVenteId', 'prixAchatHt', 'prixAchatTtc', 'prixVenteHt', 'prixVenteTtc', 'stockActuel', 'stockMaximum', 'stockMinimum', 'tvaGroupeId', 'unite', 'uniteGros', 'updatedAt', 'venteAuDetail'] as const
   $columns = ProduitSchema.$columns
+  @column()
+  declare airsiPct: string
   @column()
   declare categorieId: number | null
   @column()
@@ -592,8 +594,12 @@ export class UserSchema extends BaseModel {
 }
 
 export class VenteLigneSchema extends BaseModel {
-  static $columns = ['createdAt', 'designation', 'fneItemId', 'id', 'ligneOrigineId', 'marge', 'modeVente', 'montantHt', 'montantTtc', 'montantTva', 'plancherLigne', 'prixUnitaire', 'produitId', 'quantite', 'quantiteRetournee', 'quantiteStock', 'remisePct', 'tvaPct', 'updatedAt', 'venteId'] as const
+  static $columns = ['airsiMontant', 'airsiPct', 'createdAt', 'designation', 'fneItemId', 'id', 'ligneOrigineId', 'marge', 'modeVente', 'montantApresAirsi', 'montantHt', 'montantTtc', 'montantTva', 'plancherLigne', 'prixUnitaire', 'produitId', 'quantite', 'quantiteRetournee', 'quantiteStock', 'remisePct', 'tvaPct', 'updatedAt', 'venteId'] as const
   $columns = VenteLigneSchema.$columns
+  @column()
+  declare airsiMontant: string
+  @column()
+  declare airsiPct: string
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
   @column()
@@ -608,6 +614,8 @@ export class VenteLigneSchema extends BaseModel {
   declare marge: string
   @column()
   declare modeVente: string
+  @column()
+  declare montantApresAirsi: string
   @column()
   declare montantHt: string
   @column()

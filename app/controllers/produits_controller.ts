@@ -178,6 +178,7 @@ export default class ProduitsController {
       stockMinimum: payload.stock_minimum ?? 0,
       stockMaximum: payload.stock_maximum ?? 0,
       isActive: true,
+      airsiPct: payload.airsi_pct ?? 0,
     })
 
     return sendSuccess(ctx, serializeProduit(produit, {}, {
@@ -297,6 +298,7 @@ export default class ProduitsController {
       stockMinimum: payload.stock_minimum ?? produit.stockMinimum,
       stockMaximum: payload.stock_maximum ?? produit.stockMaximum,
       isActive: payload.is_active ?? produit.isActive,
+      airsiPct: payload.airsi_pct ?? produit.airsiPct,
     })
 
     produit.unite = unites.unite

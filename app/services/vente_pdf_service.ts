@@ -322,14 +322,22 @@ function drawTable(
   return y + 14
 }
 
+function formatLigneTaxes(ligne: VenteImpressionContext['lignes'][number]): string {
+  const parts = [`TVA ${ligne.tvaPct}%`]
+  if (ligne.airsiPct > 0) {
+    parts.push(`AIRSI ${ligne.airsiPct}%`)
+  }
+  return parts.join(', ')
+}
+
 function drawFactureLines(doc: PdfDoc, ctx: VenteImpressionContext, startY: number) {
   const columns: TableColumn[] = [
-    { header: 'Code', width: 48 },
-    { header: 'Designation', width: 197 },
-    { header: 'Qte', width: 38, align: 'right' },
-    { header: 'P.U.', width: 62, align: 'right' },
-    { header: 'Rem.%', width: 38, align: 'right' },
-    { header: 'TVA%', width: 38, align: 'right' },
+    { header: 'Code', width: 44 },
+    { header: 'Designation', width: 155 },
+    { header: 'Qte', width: 34, align: 'right' },
+    { header: 'P.U.', width: 56, align: 'right' },
+    { header: 'Rem.%', width: 34, align: 'right' },
+    { header: 'Taxes', width: 72, align: 'right' },
     { header: 'Montant TTC', width: 78, align: 'right' },
   ]
 
@@ -339,8 +347,8 @@ function drawFactureLines(doc: PdfDoc, ctx: VenteImpressionContext, startY: numb
     formatQty(ligne.quantite),
     formatMoney(ligne.prixUnitaire),
     `${ligne.remisePct}%`,
-    `${ligne.tvaPct}%`,
-    formatMoney(ligne.montantTtc),
+    ascii(formatLigneTaxes(ligne)),
+    formatMoney(ligne.airsiMontant > 0 ? ligne.montantApresAirsi : ligne.montantTtc),
   ])
 
   return drawTable(doc, columns, rows, startY)

@@ -29,3 +29,12 @@ export function calcAirsi(totalTtc: number, airsiPct: number) {
   const totalApresAirsi = Math.round((totalTtc + montant) * 100) / 100
   return { airsiMontant: montant, totalApresAirsi }
 }
+
+export function calcLigneAirsi(montantTtc: number, airsiPct: number) {
+  const { airsiMontant, totalApresAirsi } = calcAirsi(montantTtc, airsiPct)
+  return {
+    airsiPct,
+    airsiMontant,
+    montantApresAirsi: totalApresAirsi,
+  }
+}

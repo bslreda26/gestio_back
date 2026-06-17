@@ -502,9 +502,14 @@ Seuls ces 3 taux sont acceptés pour la certification. Assigner le bon `tva_grou
   "vente_au_detail": true,
   "prix_vente_ttc": 25000,
   "frais": 50,
+  "airsi_pct": 5,
   "stock_minimum": 0
 }
 ```
+
+| Champ | Description |
+|-------|-------------|
+| `airsi_pct` | Taux AIRSI (%) appliqué sur chaque vente de ce produit (0–100, défaut `0`) |
 
 Champs prix optionnels à la création. Stock initial = 0 (ajustement ou achat).
 
@@ -518,6 +523,7 @@ Champs prix optionnels à la création. Stock initial = 0 (ajustement ou achat).
 | `dernierPrixAchatHt` | Dernier prix en **unité gros** (sac…) |
 | `prixVenteTtc` | Prix vente TTC catalogue (par gros) |
 | `plancher` | **CMUP TTC** = CMUP HT + TVA (recalculé à la réception) |
+| `airsiPct` | Taux AIRSI (%) du produit — copié sur chaque ligne de vente |
 
 **Formules** (service `pricing_service`) :
 
@@ -595,7 +601,6 @@ Création directe facture : `POST /ventes/create` avec `"statut": "non_valide"`.
   "statut": "non_valide",
   "client_id": 1,
   "date_vente": "2026-06-15",
-  "airsi_pct": 5,
   "lignes": [
     {
       "produit_id": 3,
@@ -610,14 +615,13 @@ Création directe facture : `POST /ventes/create` avec `"statut": "non_valide"`.
 `statut` à la création : `devis` \| `non_valide`  
 `mode_vente` : `piece` (gros) \| `detail` (unité détail, si `venteAuDetail`)  
 `prix_unitaire` : optionnel (TTC, selon mode)  
-`airsi_pct` : optionnel (0–100). Déduction **après** le total TTC (ex. 20 000 TTC − 5 % = 19 000 net).
+**AIRSI** : défini sur le **produit** (`produits.airsi_pct`), copié automatiquement sur chaque ligne — pas de champ `airsi_pct` sur la vente.
 
 ### Update
 
 ```json
 {
   "id": 123,
-  "airsi_pct": 3,
   "remise_pct": 0,
   "lignes": [ ... ]
 }
@@ -627,18 +631,39 @@ Refusé si `normalise = true` (422).
 
 ### Champs vente — totaux & AIRSI
 
+L'AIRSI est **par produit** (catalogue) puis **par ligne** ; les totaux facture sont la **somme des lignes**.
+
 | Champ | Description |
 |-------|-------------|
-| `totalTtc` | Total TTC brut (lignes − remises) |
-| `airsiPct` | Taux AIRSI (%) |
-| `airsiMontant` | Montant déduit (`totalTtc × airsiPct / 100`) |
-| `totalApresAirsi` | **Montant net client** (= `totalTtc − airsiMontant`) |
-| `resteAPayer` | Basé sur `totalApresAirsi` − `montantPaye` |
+| `totalTtc` | Total TTC brut (Σ lignes après remises) |
+| `airsiPct` | Taux moyen pondéré affiché (`airsiMontant / totalTtc × 100`) |
+| `airsiMontant` | Σ `ligne.airsiMontant` |
+| `totalApresAirsi` | **Total à payer** (= Σ `ligne.montantApresAirsi`) |
+| `resteAPayer` | `totalApresAirsi − montantPaye` |
 
-`airsi_pct` modifiable via `POST /ventes/create` et `POST /ventes/update`.  
+**Formules par ligne** (`calcLigneAirsi` dans `fne_tva.ts`) :
+
+- `airsi_montant` = `montant_ttc_ligne_après_remise_globale × airsi_pct / 100`
+- `montant_apres_airsi` = `montant_ttc_ligne_après_remise_globale + airsi_montant`
+
+La **remise globale** (`remise_pct` sur la vente) est appliquée d'abord sur HT/TVA/TTC ; l'AIRSI est calculé sur le **TTC final** (comme la FNE), pas sur le TTC brut des lignes.
+
+**Exemple** : HT 25 424 + TVA 18 % → TTC 30 000 ; AIRSI 5 % → +1 500 → **total à payer 31 500**.
+
+**Solde client** (création / mise à jour facture) : incrémenté de `totalApresAirsi`.  
+**Relevé client** (`rapport_service`) : somme `total_ttc` des factures (hors AIRSI dans le débit relevé).
+
 Une facture **déjà certifiée FNE** (`normalise = true`) ne peut plus être modifiée.
 
-### Champs vente — certification FNE
+### Champs vente_lignes — AIRSI & FNE
+
+| Champ | Description |
+|-------|-------------|
+| `airsiPct` | Taux copié depuis `produit.airsiPct` à la création de la ligne |
+| `airsiMontant` | Montant AIRSI de la ligne (FCFA) |
+| `montantApresAirsi` | `montantTtc + airsiMontant` |
+| `fneItemId` | UUID ligne FNE (rempli après certification ; requis pour certifier un avoir) |
+| `ligneOrigineId` | Ligne facture d'origine (sur les avoirs ; hérite `airsiPct` de l'origine) |
 
 | Champ | Type | Description |
 |-------|------|-------------|
@@ -649,13 +674,6 @@ Une facture **déjà certifiée FNE** (`normalise = true`) ne peut plus être mo
 | `fneInvoiceId` | string | UUID facture/avoir FNE |
 | `certifiedAt` | datetime | Date certification |
 | `factureOrigineId` | number | Facture source (avoir / retour) |
-
-### Champs vente_lignes — FNE
-
-| Champ | Description |
-|-------|-------------|
-| `fneItemId` | UUID ligne FNE (rempli après certification ; requis pour certifier un avoir) |
-| `ligneOrigineId` | Ligne facture d'origine (sur les avoirs) |
 
 ### Certification FNE
 
@@ -669,10 +687,22 @@ Permission: `ventes_certify`
 { "numero": "01-FAC-2026-0001" }
 ```
 
-**Facture** (`non_valide` ou `valide`) → envoi à la FNE (`invoiceType: sale`).  
-**Avoir** (`retour`) → envoi à la FNE (`POST .../invoices/{fneInvoiceId}/refund`) avec les `fneItemId` des lignes d'origine.
+**Facture** (`valide` uniquement) → envoi à la FNE (`POST .../external/invoices/sign`, `invoiceType: sale`).  
+Les factures `non_valide` doivent d'abord être validées (`POST /ventes/valider`).  
+**Avoir** (`retour`) → envoi à la FNE (`POST .../invoices/{fneInvoiceId}/refund`) avec corps `{ "items": [{ "id": "<fneItemId>", "quantity": N }] }`.
+
+**Payload FNE facture** (extrait) :
+
+- `amount` : `totalApresAirsi` si au moins une ligne a AIRSI, sinon `totalTtc`
+- `items[]` : par ligne (hors timbre) — `quantity`, `reference`, `description`, `discount`, `amount` (PU HT), `taxes` (code TVA FNE), `customTaxes`
+- `customTaxes` : `[{ "name": "AIRSI", "amount": <taux_pct> }]` — **`amount` = pourcentage**, pas montant FCFA (ex. 5 pour 5 %)
+- Mapping TVA : 18 % → `TVA`, 9 % → `TVAB`, 0 % → `TVAC`
+
+**Payload FNE avoir** : `{ "items": [{ "id": "<fneItemId ligne origine>", "quantity": <qty retour> }] }`  
+Réponse succès avoir : `reference` + `token` (pas `invoice.id` comme sur une facture).
 
 Prérequis facture :
+- Statut **`valide`** (`non_valide` refusé — valider d'abord via `POST /ventes/valider`)
 - Config FNE active (`/fne-config/upsert`)
 - PDV : `point_of_sale`, `establishment`
 - Client B2B : `ncc` renseigné
@@ -713,10 +743,11 @@ Erreur métier → HTTP **422** avec `message` en français.
 ### Workflow certification (frontend)
 
 ```
-1. Créer facture (non_valide ou valide)
-2. POST /ventes/certify { id }
-3. Si normalise === true → afficher badge + QR (parser fne.token)
-4. POST /ventes/imprimer → PDF avec QR intégré
+1. Créer facture (non_valide)
+2. POST /ventes/valider { id }
+3. POST /ventes/certify { id }
+4. Si normalise === true → afficher badge + QR (parser fne.token)
+5. POST /ventes/imprimer → PDF avec QR intégré
 
 Avoir :
 1. Facture origine certifiée
@@ -724,6 +755,21 @@ Avoir :
 3. POST /ventes/certify { id: retour_id }
 4. Imprimer PDF avoir certifié
 ```
+
+### Retour (avoir client)
+
+`POST /ventes/retour` — permission `ventes_retour`
+
+```json
+{
+  "facture_id": 123,
+  "lignes": [{ "ligne_id": 10, "quantite": 1 }],
+  "notes": "Retour marchandise"
+}
+```
+
+Les totaux de l'avoir **reprennent la `remise_pct` de la facture d'origine** (remise globale + AIRSI sur TTC après remise), pour rester alignés avec la FNE.  
+Montant crédité client / `reste_a_payer` facture : `totalApresAirsi` de l'avoir.
 
 ---
 
@@ -734,7 +780,7 @@ Avoir :
 { "produit_id": 3, "quantite": 1, "mode_vente": "piece", "remise_pct": 0 }
 ```
 
-Retourne `prix_unitaire`, `quantite_stock`, `stock_label`, `plancher`, `marge` (si permissions), `contenance`, `unite`, `unite_gros`, `vente_au_detail`.
+Retourne `prix_unitaire`, montants ligne (`montant_ht`, `montant_tva`, `montant_ttc`), **AIRSI ligne** (`airsi_pct`, `airsi_montant`, `montant_apres_airsi`), `quantite_stock`, `stock_label`, `plancher`, `marge` (si permissions), `contenance`, `unite`, `unite_gros`, `vente_au_detail`.
 
 Caisse **ouverte** requise pour créer/modifier une facture (`non_valide`).
 
@@ -766,7 +812,7 @@ Sans permission, le champ est **omis** de la réponse (`show`, `create`, `update
 
 `POST /ventes/document` — aperçu structuré pour impression frontend.
 
-Retourne `vente`, `lignes`, `totaux`, `client`, `type`, `statut_label`, `certification`, `facture_origine` (si avoir).
+Retourne `vente`, `lignes` (avec `airsiPct`, `airsiMontant`, `montantApresAirsi` par ligne), `totaux`, `client`, `type`, `statut_label`, `certification`, `facture_origine` (si avoir).
 
 ```json
 {
@@ -779,8 +825,8 @@ Retourne `vente`, `lignes`, `totaux`, `client`, `type`, `statut_label`, `certifi
       "total_ttc": 1180,
       "airsi_pct": 5,
       "airsi_montant": 59,
-      "total_apres_airsi": 1121,
-      "reste_a_payer": 1121
+      "total_apres_airsi": 1239,
+      "reste_a_payer": 1239
     },
     "certification": {
       "normalise": true,
@@ -826,7 +872,8 @@ Compteurs : `facture_impression_count`, `bon_sortie_impression_count` sur `vente
 
 **PDF facture certifiée** (`normalise = true`) :
 - Bandeau « FACTURE CERTIFIEE FNE » ou « AVOIR CERTIFIE FNE »
-- Bloc totaux : Total HT, TVA, Marge (si permission), Total TTC, **AIRSI** (si > 0), **Total net**
+- Colonne **Taxes** : `TVA X%` et `AIRSI Y%` par ligne si applicable ; montant ligne = `montantApresAirsi` si AIRSI > 0
+- Bloc totaux : Total HT, TVA, Marge (si permission), Total TTC, **AIRSI** (si > 0), **Total a payer**
 - Bloc vérification : QR code (depuis `fne.token`), référence FNE, ID facture
 - Métadonnées : Ref. FNE, ID FNE, date certification
 

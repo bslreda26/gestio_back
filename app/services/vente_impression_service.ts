@@ -30,6 +30,9 @@ export type VenteImpressionLigne = {
   montantHt: number
   montantTva: number
   montantTtc: number
+  airsiPct: number
+  airsiMontant: number
+  montantApresAirsi: number
 }
 
 export type VenteImpressionContext = {
@@ -134,6 +137,9 @@ export async function loadVenteImpressionContext(
     montantHt: Number(ligne.montantHt),
     montantTva: Number(ligne.montantTva),
     montantTtc: Number(ligne.montantTtc),
+    airsiPct: Number(ligne.airsiPct),
+    airsiMontant: Number(ligne.airsiMontant),
+    montantApresAirsi: Number(ligne.montantApresAirsi),
   }))
 
   const fne = vente.normalise ? parseFneApiResponse(vente.apiResponse) : null
