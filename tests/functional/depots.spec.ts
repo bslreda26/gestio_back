@@ -400,4 +400,230 @@ test.group('API — dépôts & stock multi-dépôt', (group) => {
     const byDepot = new Map(row!.stocksParDepot.map((s) => [s.depot_id, s.quantite]))
     assert.equal(byDepot.get(secondaryId), 6)
   })
+
+  test('stock search filters by depot_id in payload', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0002')
+    const defaultDepot = await Depot.query().where('is_default', true).firstOrFail()
+
+    const createDepot = await authedPos(client, token).post('/api/v1/depots/create').json({
+      code: 'FLT',
+      nom: 'Dépôt filtre',
+    })
+    const secondaryId = createDepot.body().data.id
+
+    await authedPos(client, token).post('/api/v1/depots/transfert').json({
+      produit_id: produit.id,
+      quantite: 4,
+      depot_source_id: defaultDepot.id,
+      depot_dest_id: secondaryId,
+    })
+
+    const search = await authedPos(client, token).post('/api/v1/stock/search').json({
+      page: 1,
+      limit: 50,
+      search: produit.code,
+      depot_id: secondaryId,
+    })
+    search.assertStatus(200)
+
+    const row = search.body().data.find((p: { code: string }) => p.code === produit.code)
+    assert.exists(row)
+    assert.equal(row.stockActuel, 4)
+    assert.equal(row.valeurStock, Number((4 * Number(produit.prixAchatHt)).toFixed(2)))
+  })
+
+  test('rapport valeur-stock supports depot_id and par_depot', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0002')
+    const defaultDepot = await Depot.query().where('is_default', true).firstOrFail()
+    const plancher = Number(produit.plancher)
+
+    const createDepot = await authedPos(client, token).post('/api/v1/depots/create').json({
+      code: 'VAL',
+      nom: 'Dépôt valorisation',
+    })
+    const secondaryId = createDepot.body().data.id
+
+    await produit.refresh()
+    const transferQty = Math.min(5, Number(produit.stockActuel))
+    assert.isAtLeast(transferQty, 1)
+
+    const transfert = await authedPos(client, token).post('/api/v1/depots/transfert').json({
+      produit_id: produit.id,
+      quantite: transferQty,
+      depot_source_id: defaultDepot.id,
+      depot_dest_id: secondaryId,
+    })
+    transfert.assertStatus(200)
+
+    const reportPayload = {
+      depot_id: secondaryId,
+      search: produit.code,
+      page: 1,
+      limit: 100,
+    }
+
+    const byDepot = await authedPos(client, token)
+      .post('/api/v1/rapports/valeur-stock')
+      .json(reportPayload)
+    byDepot.assertStatus(200)
+
+    const lignesDepot = byDepot.body().data.lignes as Array<{
+      designation: string
+      quantiteStock: number
+      valeurGlobale: number
+    }>
+    const ligneDepot = lignesDepot.find((l) => l.quantiteStock === transferQty)
+    assert.exists(ligneDepot)
+    assert.equal(ligneDepot!.valeurGlobale, roundMoney(plancher * transferQty))
+    assert.equal(byDepot.body().data.depot_id, secondaryId)
+    assert.equal(byDepot.body().data.totaux.quantiteTotale, transferQty)
+
+    const parDepot = await authedPos(client, token)
+      .post('/api/v1/rapports/valeur-stock')
+      .json({
+        par_depot: true,
+        search: produit.code,
+        page: 1,
+        limit: 100,
+      })
+    parDepot.assertStatus(200)
+    assert.isTrue(parDepot.body().data.par_depot)
+    assert.isArray(parDepot.body().data.totaux.valeursParDepot)
+    assert.isAtLeast(parDepot.body().data.totaux.valeursParDepot.length, 2)
+
+    const ligneParDepot = parDepot.body().data.lignes.find(
+      (l: {
+        valeursParDepot?: Array<{ depot_id: number; quantite: number }>
+      }) => l.valeursParDepot?.some((v) => v.depot_id === secondaryId && v.quantite === transferQty)
+    )
+    assert.exists(ligneParDepot?.valeursParDepot)
+    const depotBreakdown = new Map(
+      ligneParDepot.valeursParDepot.map((v: { depot_id: number; quantite: number }) => [
+        v.depot_id,
+        v.quantite,
+      ])
+    )
+    assert.equal(depotBreakdown.get(secondaryId), transferQty)
+  })
+
+  test('stock mouvements search filters by date_debut and date_fin', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0002')
+    const defaultDepot = await Depot.query().where('is_default', true).firstOrFail()
+
+    const createDepot = await authedPos(client, token).post('/api/v1/depots/create').json({
+      code: 'MVT',
+      nom: 'Dépôt mouvements',
+    })
+    const secondaryId = createDepot.body().data.id
+
+    await produit.refresh()
+    const transferQty = Math.min(3, Number(produit.stockActuel))
+    assert.isAtLeast(transferQty, 1)
+
+    const transfert = await authedPos(client, token).post('/api/v1/depots/transfert').json({
+      produit_id: produit.id,
+      quantite: transferQty,
+      depot_source_id: defaultDepot.id,
+      depot_dest_id: secondaryId,
+    })
+    transfert.assertStatus(200)
+
+    const today = new Date().toISOString().slice(0, 10)
+
+    const inRange = await authedPos(client, token).post('/api/v1/stock/mouvements/search').json({
+      produit_id: produit.id,
+      type: 'transfert',
+      date_debut: today,
+      date_fin: today,
+      page: 1,
+      limit: 50,
+    })
+    inRange.assertStatus(200)
+    assert.isAtLeast(inRange.body().data.mouvements.length, 1)
+
+    const outOfRange = await authedPos(client, token).post('/api/v1/stock/mouvements/search').json({
+      produit_id: produit.id,
+      type: 'transfert',
+      date_debut: '2020-01-01',
+      date_fin: '2020-01-02',
+      page: 1,
+      limit: 50,
+    })
+    outOfRange.assertStatus(200)
+    assert.equal(outOfRange.body().data.mouvements.length, 0)
+
+    const invalidRange = await authedPos(client, token).post('/api/v1/stock/mouvements/search').json({
+      date_debut: '2026-06-18',
+      date_fin: '2026-06-01',
+    })
+    invalidRange.assertStatus(422)
+  })
+
+  test('rapport mouvements-stock shows initial entries exits and final stock', async ({
+    client,
+    assert,
+  }) => {
+    const token = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0002')
+    const defaultDepot = await Depot.query().where('is_default', true).firstOrFail()
+    const today = new Date().toISOString().slice(0, 10)
+
+    await produit.refresh()
+    const stockBefore = Number(produit.stockActuel)
+
+    const createDepot = await authedPos(client, token).post('/api/v1/depots/create').json({
+      code: 'RPT',
+      nom: 'Dépôt rapport',
+    })
+    const secondaryId = createDepot.body().data.id
+
+    const transferQty = Math.min(4, stockBefore)
+    assert.isAtLeast(transferQty, 1)
+
+    const transfert = await authedPos(client, token).post('/api/v1/depots/transfert').json({
+      produit_id: produit.id,
+      quantite: transferQty,
+      depot_source_id: defaultDepot.id,
+      depot_dest_id: secondaryId,
+    })
+    transfert.assertStatus(200)
+
+    const rapport = await authedPos(client, token).post('/api/v1/rapports/mouvements-stock').json({
+      date_debut: today,
+      date_fin: today,
+      produit_id: produit.id,
+      page: 1,
+      limit: 10,
+    })
+    rapport.assertStatus(200)
+
+    const ligne = rapport.body().data.lignes[0]
+    assert.exists(ligne)
+    assert.equal(ligne.code, produit.code)
+    assert.equal(ligne.stockFinal, stockBefore)
+    assert.equal(ligne.stockInitial + ligne.totalEntree - ligne.totalSortie, ligne.stockFinal)
+
+    const rapportDepot = await authedPos(client, token)
+      .post('/api/v1/rapports/mouvements-stock')
+      .json({
+        date_debut: today,
+        date_fin: today,
+        produit_id: produit.id,
+        depot_id: secondaryId,
+        page: 1,
+        limit: 10,
+      })
+    rapportDepot.assertStatus(200)
+
+    const ligneDepot = rapportDepot.body().data.lignes[0]
+    assert.equal(ligneDepot.totalEntree, transferQty)
+    assert.equal(ligneDepot.stockFinal, transferQty)
+  })
 })
+
+function roundMoney(value: number) {
+  return Number(value.toFixed(2))
+}

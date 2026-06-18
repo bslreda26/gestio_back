@@ -23,6 +23,54 @@ export function applyStockAlertFilter(
   }
 }
 
+export function applyStockAlertFilterForDepot(
+  query: ModelQueryBuilderContract<typeof Produit>,
+  stockAlert: StockAlertFilter,
+  depotId: number
+) {
+  switch (stockAlert) {
+    case 'rupture':
+      query.whereNotIn('id', (sub) => {
+        sub
+          .from('depot_stocks')
+          .select('produit_id')
+          .where('depot_id', depotId)
+          .where('quantite', '>', 0)
+      })
+      break
+    case 'alerte':
+      query.whereIn('id', (sub) => {
+        sub
+          .from('depot_stocks as ds')
+          .join('produits as p', 'p.id', 'ds.produit_id')
+          .select('ds.produit_id')
+          .where('ds.depot_id', depotId)
+          .whereRaw('ds.quantite > 0 AND ds.quantite <= p.stock_minimum')
+      })
+      break
+    case 'normal':
+      query.whereIn('id', (sub) => {
+        sub
+          .from('depot_stocks as ds')
+          .join('produits as p', 'p.id', 'ds.produit_id')
+          .select('ds.produit_id')
+          .where('ds.depot_id', depotId)
+          .whereRaw('ds.quantite > p.stock_minimum AND ds.quantite < p.stock_maximum')
+      })
+      break
+    case 'surstock':
+      query.whereIn('id', (sub) => {
+        sub
+          .from('depot_stocks as ds')
+          .join('produits as p', 'p.id', 'ds.produit_id')
+          .select('ds.produit_id')
+          .where('ds.depot_id', depotId)
+          .whereRaw('p.stock_maximum > 0 AND ds.quantite >= p.stock_maximum')
+      })
+      break
+  }
+}
+
 export function applyLowStockAlertFilter(
   query: ModelQueryBuilderContract<typeof Produit>,
   depotId?: number

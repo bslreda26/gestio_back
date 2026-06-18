@@ -2,6 +2,7 @@ import Client from '#models/client'
 import Achat from '#models/achat'
 import AchatLigne from '#models/achat_ligne'
 import DepenseCategory from '#models/depense_category'
+import Category from '#models/category'
 import Fournisseur from '#models/fournisseur'
 import Produit from '#models/produit'
 import Vente from '#models/vente'
@@ -251,41 +252,546 @@ export async function rapportStockActuel(filters: {
   }
 }
 
-export async function rapportValeurStock(
-  pointDeVenteId: number,
-  categorieId?: number,
-  pagination: PaginationInput = {}
-) {
-  const { page, limit, offset } = parsePagination(pagination)
+type MouvementStockAgg = {
+  totalEntree: number
+  totalSortie: number
+  netDepuisDebut: number
+  netApresFin: number
+}
 
-  const baseFilter = (query: ReturnType<typeof db.from>) => {
-    query.where('point_de_vente_id', pointDeVenteId).where('is_active', true)
-    if (categorieId) query.where('categorie_id', categorieId)
-    return query
+function roundStockQty(value: number) {
+  return Number(value.toFixed(3))
+}
+
+async function aggregateMouvementsStockParProduit(
+  produitIds: number[],
+  dateDebut: DateTime,
+  dateFin: DateTime,
+  depotId?: number
+): Promise<Map<number, MouvementStockAgg>> {
+  const map = new Map<number, MouvementStockAgg>()
+  if (produitIds.length === 0) return map
+
+  const debutSql = dateDebut.startOf('day').toSQL()!
+  const finSql = dateFin.endOf('day').toSQL()!
+  const scope = depotId ? 'depot' : 'total'
+
+  const entreeExpr =
+    scope === 'depot'
+      ? `CASE WHEN sm.type = 'entree' OR (sm.type = 'transfert' AND sm.reference_type = 'transfert_entree') THEN sm.quantite ELSE 0 END`
+      : `CASE WHEN sm.type = 'entree' THEN sm.quantite ELSE 0 END`
+
+  const sortieExpr =
+    scope === 'depot'
+      ? `CASE WHEN sm.type = 'sortie' OR (sm.type = 'transfert' AND sm.reference_type = 'transfert_sortie') THEN sm.quantite ELSE 0 END`
+      : `CASE WHEN sm.type = 'sortie' THEN sm.quantite ELSE 0 END`
+
+  const signedExpr =
+    scope === 'depot'
+      ? `CASE
+          WHEN sm.type = 'entree' OR (sm.type = 'transfert' AND sm.reference_type = 'transfert_entree') THEN sm.quantite
+          WHEN sm.type = 'sortie' OR (sm.type = 'transfert' AND sm.reference_type = 'transfert_sortie') THEN -sm.quantite
+          ELSE 0
+        END`
+      : `CASE
+          WHEN sm.type = 'entree' THEN sm.quantite
+          WHEN sm.type = 'sortie' THEN -sm.quantite
+          ELSE 0
+        END`
+
+  let query = db
+    .from('stock_mouvements as sm')
+    .whereIn('sm.produit_id', produitIds)
+    .select('sm.produit_id')
+    .select(
+      db.raw(
+        `COALESCE(SUM(CASE WHEN sm.created_at >= ? AND sm.created_at <= ? THEN ${entreeExpr} ELSE 0 END), 0) as total_entree`,
+        [debutSql, finSql]
+      )
+    )
+    .select(
+      db.raw(
+        `COALESCE(SUM(CASE WHEN sm.created_at >= ? AND sm.created_at <= ? THEN ${sortieExpr} ELSE 0 END), 0) as total_sortie`,
+        [debutSql, finSql]
+      )
+    )
+    .select(
+      db.raw(
+        `COALESCE(SUM(CASE WHEN sm.created_at >= ? THEN ${signedExpr} ELSE 0 END), 0) as net_depuis_debut`,
+        [debutSql]
+      )
+    )
+    .select(
+      db.raw(
+        `COALESCE(SUM(CASE WHEN sm.created_at > ? THEN ${signedExpr} ELSE 0 END), 0) as net_apres_fin`,
+        [finSql]
+      )
+    )
+    .groupBy('sm.produit_id')
+
+  if (depotId) {
+    query = query.where('sm.depot_id', depotId)
   }
+
+  const rows = await query
+  for (const row of rows) {
+    map.set(Number(row.produit_id), {
+      totalEntree: Number(row.total_entree),
+      totalSortie: Number(row.total_sortie),
+      netDepuisDebut: Number(row.net_depuis_debut),
+      netApresFin: Number(row.net_apres_fin),
+    })
+  }
+
+  return map
+}
+
+async function getCurrentStockParProduit(
+  produitIds: number[],
+  depotId?: number
+): Promise<Map<number, number>> {
+  const map = new Map<number, number>()
+  if (produitIds.length === 0) return map
+
+  if (depotId) {
+    const rows = await db
+      .from('depot_stocks')
+      .whereIn('produit_id', produitIds)
+      .where('depot_id', depotId)
+      .select('produit_id', 'quantite')
+
+    for (const row of rows) {
+      map.set(Number(row.produit_id), Number(row.quantite))
+    }
+    return map
+  }
+
+  const produits = await Produit.query().whereIn('id', produitIds).select('id', 'stock_actuel')
+  for (const produit of produits) {
+    map.set(produit.id, Number(produit.stockActuel))
+  }
+  return map
+}
+
+function buildLigneMouvementStock(
+  produit: Produit,
+  currentStock: number,
+  agg: MouvementStockAgg | undefined,
+  categorieNom: string | null
+) {
+  const totalEntree = roundStockQty(agg?.totalEntree ?? 0)
+  const totalSortie = roundStockQty(agg?.totalSortie ?? 0)
+  const netDepuisDebut = agg?.netDepuisDebut ?? 0
+  const netApresFin = agg?.netApresFin ?? 0
+  const stockFinal = roundStockQty(currentStock - netApresFin)
+  const stockInitial = roundStockQty(currentStock - netDepuisDebut)
+  const initialDisplay = resolveStockDisplay(produit, stockInitial)
+  const finalDisplay = resolveStockDisplay(produit, stockFinal)
+
+  return {
+    id: produit.id,
+    code: produit.code,
+    nom: produit.nom,
+    categorieId: produit.categorieId,
+    categorieNom,
+    stockInitial,
+    stockInitialLabel: initialDisplay.stockLabel,
+    totalEntree,
+    totalSortie,
+    stockFinal,
+    stockFinalLabel: finalDisplay.stockLabel,
+  }
+}
+
+export async function rapportMouvementsStock(filters: {
+  pointDeVenteId: number
+  dateDebut: DateTime
+  dateFin: DateTime
+  categorieId?: number
+  produitId?: number
+  depotId?: number
+  search?: string
+  page?: number
+  limit?: number
+}) {
+  if (filters.dateDebut > filters.dateFin) {
+    throw new RapportBusinessError('date_debut doit être antérieure ou égale à date_fin')
+  }
+
+  const { page, limit, offset } = parsePagination(filters)
+  const { pointDeVenteId, dateDebut, dateFin, categorieId, produitId, depotId, search } = filters
 
   const produitQuery = Produit.query()
     .where('point_de_vente_id', pointDeVenteId)
     .where('is_active', true)
     .orderBy('nom', 'asc')
-  if (categorieId) produitQuery.where('categorie_id', categorieId)
 
-  const [countRow, totalsRow, produits] = await Promise.all([
+  if (categorieId) produitQuery.where('categorie_id', categorieId)
+  if (produitId) produitQuery.where('id', produitId)
+  if (search) {
+    const term = `%${search}%`
+    produitQuery.where((q) => {
+      q.whereILike('nom', term).orWhereILike('code', term)
+    })
+  }
+
+  const [countRow, allProduitIds, produits] = await Promise.all([
     produitQuery.clone().count('* as total'),
-    baseFilter(db.from('produits'))
-      .select(db.raw('COALESCE(SUM(plancher * stock_actuel), 0) as valeur_globale'))
-      .first(),
+    produitQuery.clone().select('id'),
     produitQuery.offset(offset).limit(limit),
   ])
+
+  const ids = allProduitIds.map((p) => p.id)
+  const pageIds = produits.map((p) => p.id)
+
+  const [allAggMap, pageAggMap, allStockMap, pageStockMap] = await Promise.all([
+    aggregateMouvementsStockParProduit(ids, dateDebut, dateFin, depotId),
+    aggregateMouvementsStockParProduit(pageIds, dateDebut, dateFin, depotId),
+    getCurrentStockParProduit(ids, depotId),
+    getCurrentStockParProduit(pageIds, depotId),
+  ])
+
+  const categorieIds = [
+    ...new Set(produits.map((p) => p.categorieId).filter(Boolean)),
+  ] as number[]
+  const categorieMap = new Map(
+    categorieIds.length > 0
+      ? (await Category.query().whereIn('id', categorieIds)).map((c) => [c.id, c.nom])
+      : []
+  )
+
+  const lignes = produits.map((produit) =>
+    buildLigneMouvementStock(
+      produit,
+      pageStockMap.get(produit.id) ?? 0,
+      pageAggMap.get(produit.id),
+      produit.categorieId ? categorieMap.get(produit.categorieId) ?? null : null
+    )
+  )
+
+  const totaux = ids.reduce(
+    (acc, id) => {
+      const agg = allAggMap.get(id)
+      const current = allStockMap.get(id) ?? 0
+      const netDepuisDebut = agg?.netDepuisDebut ?? 0
+      const netApresFin = agg?.netApresFin ?? 0
+      acc.stockInitial += roundStockQty(current - netDepuisDebut)
+      acc.totalEntree += roundStockQty(agg?.totalEntree ?? 0)
+      acc.totalSortie += roundStockQty(agg?.totalSortie ?? 0)
+      acc.stockFinal += roundStockQty(current - netApresFin)
+      return acc
+    },
+    { stockInitial: 0, totalEntree: 0, totalSortie: 0, stockFinal: 0 }
+  )
+
+  totaux.stockInitial = roundStockQty(totaux.stockInitial)
+  totaux.totalEntree = roundStockQty(totaux.totalEntree)
+  totaux.totalSortie = roundStockQty(totaux.totalSortie)
+  totaux.stockFinal = roundStockQty(totaux.stockFinal)
+
+  return {
+    periode: { date_debut: toSqlDate(dateDebut), date_fin: toSqlDate(dateFin) },
+    depot_id: depotId ?? null,
+    totaux: {
+      ...totaux,
+      nombreArticles: Number(countRow[0].$extras.total),
+    },
+    lignes,
+    meta: buildMeta(Number(countRow[0].$extras.total), page, limit),
+  }
+}
+
+type MargeVenteAgg = {
+  chiffreAffaires: number
+  margeMontant: number
+}
+
+async function aggregateMargeVentesParProduit(
+  pointDeVenteId: number,
+  dateDebut: DateTime,
+  dateFin: DateTime,
+  produitIds?: number[]
+): Promise<Map<number, MargeVenteAgg>> {
+  const map = new Map<number, MargeVenteAgg>()
+
+  let query = db
+    .from('vente_lignes as vl')
+    .join('ventes as v', 'v.id', 'vl.vente_id')
+    .where('v.point_de_vente_id', pointDeVenteId)
+    .whereIn('v.statut', ['valide', 'retour'])
+    .where('v.date_vente', '>=', toSqlDate(dateDebut))
+    .where('v.date_vente', '<=', toSqlDate(dateFin))
+    .select('vl.produit_id')
+    .select(
+      db.raw(`
+        COALESCE(SUM(
+          CASE
+            WHEN v.statut = 'valide' THEN CAST(vl.montant_ttc AS DECIMAL(18,4))
+            WHEN v.statut = 'retour' THEN -CAST(vl.montant_ttc AS DECIMAL(18,4))
+            ELSE 0
+          END
+        ), 0) as chiffre_affaires
+      `)
+    )
+    .select(
+      db.raw(`
+        COALESCE(SUM(
+          CASE
+            WHEN v.sous_total > 0 THEN
+              (CASE WHEN v.statut = 'valide' THEN 1 WHEN v.statut = 'retour' THEN -1 ELSE 0 END)
+              * CAST(vl.marge AS DECIMAL(18,4))
+              * CAST(vl.quantite AS DECIMAL(18,4))
+              * (1 - CAST(vl.remise_pct AS DECIMAL(18,4)) / 100)
+              * (CAST(v.total_ttc AS DECIMAL(18,4)) / CAST(v.sous_total AS DECIMAL(18,4)))
+            ELSE 0
+          END
+        ), 0) as marge_montant
+      `)
+    )
+    .groupBy('vl.produit_id')
+
+  if (produitIds && produitIds.length > 0) {
+    query = query.whereIn('vl.produit_id', produitIds)
+  }
+
+  const rows = await query
+  for (const row of rows) {
+    map.set(Number(row.produit_id), {
+      chiffreAffaires: Number(row.chiffre_affaires),
+      margeMontant: Number(row.marge_montant),
+    })
+  }
+
+  return map
+}
+
+function buildLigneMarge(
+  produit: Produit,
+  agg: MargeVenteAgg | undefined,
+  categorieNom: string | null
+) {
+  const plancher = roundMoney(Number(produit.plancher))
+  const chiffreAffaires = roundMoney(agg?.chiffreAffaires ?? 0)
+  const margeMontant = roundMoney(agg?.margeMontant ?? 0)
+  const margePct = chiffreAffaires > 0 ? roundMoney((margeMontant / chiffreAffaires) * 100) : 0
+
+  return {
+    id: produit.id,
+    code: produit.code,
+    nom: produit.nom,
+    categorieId: produit.categorieId,
+    categorieNom,
+    plancher,
+    chiffreAffaires,
+    margeMontant,
+    margePct,
+  }
+}
+
+export async function rapportMarge(filters: {
+  pointDeVenteId: number
+  dateDebut: DateTime
+  dateFin: DateTime
+  categorieId?: number
+  produitId?: number
+  produitIds?: number[]
+  search?: string
+  page?: number
+  limit?: number
+}) {
+  if (filters.dateDebut > filters.dateFin) {
+    throw new RapportBusinessError('date_debut doit être antérieure ou égale à date_fin')
+  }
+
+  const { page, limit, offset } = parsePagination(filters)
+  const { pointDeVenteId, dateDebut, dateFin, categorieId, produitId, produitIds, search } =
+    filters
+
+  const produitQuery = Produit.query()
+    .where('point_de_vente_id', pointDeVenteId)
+    .where('is_active', true)
+    .orderBy('nom', 'asc')
+
+  if (categorieId) produitQuery.where('categorie_id', categorieId)
+  if (produitId) produitQuery.where('id', produitId)
+  if (produitIds?.length) produitQuery.whereIn('id', produitIds)
+  if (search) {
+    const term = `%${search}%`
+    produitQuery.where((q) => {
+      q.whereILike('nom', term).orWhereILike('code', term)
+    })
+  }
+
+  const [countRow, allProduitIds, produits] = await Promise.all([
+    produitQuery.clone().count('* as total'),
+    produitQuery.clone().select('id'),
+    produitQuery.offset(offset).limit(limit),
+  ])
+
+  const ids = allProduitIds.map((p) => p.id)
+  const pageIds = produits.map((p) => p.id)
+
+  const [allAggMap, pageAggMap] = await Promise.all([
+    aggregateMargeVentesParProduit(pointDeVenteId, dateDebut, dateFin, ids),
+    aggregateMargeVentesParProduit(pointDeVenteId, dateDebut, dateFin, pageIds),
+  ])
+
+  const categorieIds = [
+    ...new Set(produits.map((p) => p.categorieId).filter(Boolean)),
+  ] as number[]
+  const categorieMap = new Map(
+    categorieIds.length > 0
+      ? (await Category.query().whereIn('id', categorieIds)).map((c) => [c.id, c.nom])
+      : []
+  )
+
+  const lignes = produits.map((produit) =>
+    buildLigneMarge(
+      produit,
+      pageAggMap.get(produit.id),
+      produit.categorieId ? categorieMap.get(produit.categorieId) ?? null : null
+    )
+  )
+
+  const totauxBruts = ids.reduce(
+    (acc, id) => {
+      const agg = allAggMap.get(id)
+      acc.chiffreAffaires += agg?.chiffreAffaires ?? 0
+      acc.margeMontant += agg?.margeMontant ?? 0
+      return acc
+    },
+    { chiffreAffaires: 0, margeMontant: 0 }
+  )
+
+  const chiffreAffaires = roundMoney(totauxBruts.chiffreAffaires)
+  const margeMontant = roundMoney(totauxBruts.margeMontant)
+  const margePct = chiffreAffaires > 0 ? roundMoney((margeMontant / chiffreAffaires) * 100) : 0
+
+  return {
+    periode: { date_debut: toSqlDate(dateDebut), date_fin: toSqlDate(dateFin) },
+    totaux: {
+      nombreArticles: Number(countRow[0].$extras.total),
+      chiffreAffaires,
+      margeMontant,
+      margePct,
+    },
+    lignes,
+    meta: buildMeta(Number(countRow[0].$extras.total), page, limit),
+  }
+}
+
+export async function rapportValeurStock(filters: {
+  pointDeVenteId: number
+  categorieId?: number
+  depotId?: number
+  parDepot?: boolean
+  search?: string
+  page?: number
+  limit?: number
+}) {
+  const { page, limit, offset } = parsePagination(filters)
+  const { pointDeVenteId, categorieId, depotId, parDepot, search } = filters
+  const includeParDepot = Boolean(parDepot && !depotId)
+
+  const applyProduitFilters = (
+    query: ReturnType<typeof Produit.query> | ReturnType<typeof db.from>
+  ) => {
+    if ('where' in query && typeof query.where === 'function') {
+      const q = query as ReturnType<typeof Produit.query>
+      q.where('point_de_vente_id', pointDeVenteId).where('is_active', true)
+      if (categorieId) q.where('categorie_id', categorieId)
+      if (search) {
+        const term = `%${search}%`
+        q.where((sub) => {
+          sub.whereILike('nom', term).orWhereILike('code', term)
+        })
+      }
+      return q
+    }
+
+    const q = query as ReturnType<typeof db.from>
+    q.where('point_de_vente_id', pointDeVenteId).where('is_active', true)
+    if (categorieId) q.where('categorie_id', categorieId)
+    if (search) {
+      const term = `%${search}%`
+      q.where((sub) => {
+        sub.whereILike('nom', term).orWhereILike('code', term)
+      })
+    }
+    return q
+  }
+
+  const produitQuery = applyProduitFilters(Produit.query()).orderBy('nom', 'asc')
+
+  let totalsQuery = depotId
+    ? db
+        .from('depot_stocks as ds')
+        .join('produits as p', 'p.id', 'ds.produit_id')
+        .where('ds.depot_id', depotId)
+    : applyProduitFilters(db.from('produits'))
+
+  if (depotId) {
+    totalsQuery = totalsQuery
+      .where('p.point_de_vente_id', pointDeVenteId)
+      .where('p.is_active', true)
+    if (categorieId) totalsQuery = totalsQuery.where('p.categorie_id', categorieId)
+    if (search) {
+      const term = `%${search}%`
+      totalsQuery = totalsQuery.where((sub) => {
+        sub.whereILike('p.nom', term).orWhereILike('p.code', term)
+      })
+    }
+  }
+
+  totalsQuery = totalsQuery.select(
+    db.raw(
+      depotId
+        ? 'COALESCE(SUM(p.plancher * ds.quantite), 0) as valeur_globale, COALESCE(SUM(ds.quantite), 0) as quantite_totale'
+        : 'COALESCE(SUM(plancher * stock_actuel), 0) as valeur_globale, COALESCE(SUM(stock_actuel), 0) as quantite_totale'
+    )
+  )
+
+  const [countRow, totalsRow, produits, valeursParDepotTotaux] = await Promise.all([
+    produitQuery.clone().count('* as total'),
+    totalsQuery.first(),
+    produitQuery.offset(offset).limit(limit),
+    includeParDepot
+      ? computeValeurStockParDepot(pointDeVenteId, categorieId, search)
+      : Promise.resolve(null),
+  ])
+
+  const stocksMap =
+    depotId || includeParDepot
+      ? await getStocksParDepotForProduits(produits.map((p) => p.id))
+      : null
 
   const totalArticles = Number(countRow[0].$extras.total)
   const meta = buildMeta(totalArticles, page, limit)
 
   const lignes = produits.map((p) => {
     const plancher = Number(p.plancher)
-    const quantiteStock = Number(p.stockActuel)
+    const stocksParDepot = stocksMap?.get(p.id) ?? []
+    const depotStock = depotId ? stocksParDepot.find((s) => s.depot_id === depotId) : undefined
+    const quantiteStock = depotId ? (depotStock?.quantite ?? 0) : Number(p.stockActuel)
     const stockDisplay = resolveStockDisplay(p, quantiteStock)
-    return {
+
+    const ligne: {
+      designation: string
+      plancher: number
+      quantite: string
+      quantiteStock: number
+      stockPieces: number | null
+      stockResteDetail: number | null
+      valeurGlobale: number
+      valeursParDepot?: Array<{
+        depot_id: number
+        depot_code: string
+        depot_nom: string
+        quantite: number
+        quantiteLabel: string
+        valeurGlobale: number
+      }>
+    } = {
       designation: p.nom,
       plancher,
       quantite: stockDisplay.stockLabel,
@@ -294,17 +800,79 @@ export async function rapportValeurStock(
       stockResteDetail: stockDisplay.stockResteDetail,
       valeurGlobale: roundMoney(plancher * quantiteStock),
     }
+
+    if (includeParDepot) {
+      ligne.valeursParDepot = stocksParDepot.map((s) => {
+        const depotDisplay = resolveStockDisplay(p, s.quantite)
+        return {
+          depot_id: s.depot_id,
+          depot_code: s.depot_code,
+          depot_nom: s.depot_nom,
+          quantite: s.quantite,
+          quantiteLabel: depotDisplay.stockLabel,
+          valeurGlobale: roundMoney(plancher * s.quantite),
+        }
+      })
+    }
+
+    return ligne
   })
 
+  const formule = depotId
+    ? 'valeur globale = plancher × quantité (stock du dépôt sélectionné)'
+    : 'valeur globale = plancher × quantité (stock interne)'
+
   return {
-    formule: 'valeur globale = plancher × quantité (stock interne)',
+    formule,
+    depot_id: depotId ?? null,
+    par_depot: includeParDepot,
     totaux: {
       nombreArticles: totalArticles,
+      quantiteTotale: roundStockQty(Number(totalsRow?.quantite_totale ?? 0)),
       valeurGlobale: roundMoney(Number(totalsRow?.valeur_globale ?? 0)),
+      ...(valeursParDepotTotaux ? { valeursParDepot: valeursParDepotTotaux } : {}),
     },
     lignes,
     meta,
   }
+}
+
+async function computeValeurStockParDepot(
+  pointDeVenteId: number,
+  categorieId?: number,
+  search?: string
+) {
+  const query = db
+    .from('depots as d')
+    .join('depot_stocks as ds', 'ds.depot_id', 'd.id')
+    .join('produits as p', (join) => {
+      join.on('p.id', 'ds.produit_id').andOn('p.point_de_vente_id', 'd.point_de_vente_id')
+    })
+    .where('d.point_de_vente_id', pointDeVenteId)
+    .where('d.is_active', true)
+    .where('p.is_active', true)
+    .select('d.id as depot_id', 'd.code as depot_code', 'd.nom as depot_nom')
+    .select(db.raw('COALESCE(SUM(p.plancher * ds.quantite), 0) as valeur_globale'))
+    .select(db.raw('COALESCE(SUM(ds.quantite), 0) as quantite_totale'))
+    .groupBy('d.id', 'd.code', 'd.nom')
+    .orderBy('d.code', 'asc')
+
+  if (categorieId) query.where('p.categorie_id', categorieId)
+  if (search) {
+    const term = `%${search}%`
+    query.where((sub) => {
+      sub.whereILike('p.nom', term).orWhereILike('p.code', term)
+    })
+  }
+
+  const rows = await query
+  return rows.map((row) => ({
+    depot_id: Number(row.depot_id),
+    depot_code: String(row.depot_code),
+    depot_nom: String(row.depot_nom),
+    quantiteTotale: roundStockQty(Number(row.quantite_totale)),
+    valeurGlobale: roundMoney(Number(row.valeur_globale)),
+  }))
 }
 
 function clientReportQuery(filters: {

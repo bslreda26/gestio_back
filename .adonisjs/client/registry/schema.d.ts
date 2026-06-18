@@ -1543,6 +1543,30 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['stockActuel']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'rapports.mouvements_stock': {
+    methods: ["POST"]
+    pattern: '/api/v1/rapports/mouvements-stock'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/rapport_validator').rapportMouvementsStockValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/rapport_validator').rapportMouvementsStockValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['mouvementsStock']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['mouvementsStock']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'rapports.marge': {
+    methods: ["POST"]
+    pattern: '/api/v1/rapports/marge'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/rapport_validator').rapportMargeValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/rapport_validator').rapportMargeValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['marge']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['marge']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'rapports.valeur_stock': {
     methods: ["POST"]
     pattern: '/api/v1/rapports/valeur-stock'

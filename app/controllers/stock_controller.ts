@@ -1,14 +1,16 @@
 import Category from '#models/category'
+import Depot from '#models/depot'
 import Produit from '#models/produit'
 import User from '#models/user'
 import { sendError, sendPaginated, sendSuccess } from '#helpers/api_response'
 import { assertRecordBelongsToPointDeVente, requirePointDeVente, scopeByPointDeVente } from '#helpers/point_de_vente_context'
 import { buildMeta, parsePagination } from '#helpers/pagination'
-import { applyLowStockAlertFilter, applyStockAlertFilter } from '#helpers/produit_query'
+import { applyLowStockAlertFilter, applyStockAlertFilter, applyStockAlertFilterForDepot, getStockStatus } from '#helpers/produit_query'
 import { serializeProduit } from '#helpers/produit_serializer'
 import { getStocksParDepotForProduits } from '#services/depot_service'
 import { roundMoney } from '#services/pricing_service'
 import { getValorisation, inventaireStock, perteStock, searchMouvements } from '#services/stock_service'
+import { resolveStockDisplay } from '#services/vente_unite_service'
 import {
   stockAlertesValidator,
   stockInventaireValidator,
@@ -21,14 +23,36 @@ import type { HttpContext } from '@adonisjs/core/http'
 function serializeStockProduit(
   produit: Produit,
   extras: Record<string, unknown> = {},
-  options?: Parameters<typeof serializeProduit>[2]
+  options?: Parameters<typeof serializeProduit>[2] & { depotId?: number }
 ) {
+  const stocksParDepot = options?.stocksParDepot ?? []
   const base = serializeProduit(produit, extras, options)
   const stockActuel = Number(produit.stockActuel)
   const prixAchatHt = Number(produit.prixAchatHt)
+
+  if (!options?.depotId) {
+    return {
+      ...base,
+      valeurStock: roundMoney(stockActuel * prixAchatHt),
+    }
+  }
+
+  const depotStock = stocksParDepot.find((s) => s.depot_id === options.depotId)
+  const depotQty = depotStock?.quantite ?? 0
+  const stockDisplay = resolveStockDisplay(produit, depotQty)
+  const stockMinimum = Number(produit.stockMinimum)
+  const stockMaximum = Number(produit.stockMaximum)
+
   return {
     ...base,
-    valeurStock: roundMoney(stockActuel * prixAchatHt),
+    stockActuel: depotQty,
+    stockDetail: stockDisplay.stockDetail,
+    stockPieces: stockDisplay.stockPieces,
+    stockResteDetail: stockDisplay.stockResteDetail,
+    stockLabel: stockDisplay.stockLabel,
+    stockStatus:
+      depotStock?.stock_status ?? getStockStatus(depotQty, stockMinimum, stockMaximum),
+    valeurStock: roundMoney(depotQty * prixAchatHt),
   }
 }
 
@@ -38,11 +62,23 @@ export default class StockController {
     const { page, limit, offset } = parsePagination(payload)
 
     const pos = requirePointDeVente(ctx)
+
+    if (payload.depot_id) {
+      const depot = await Depot.find(payload.depot_id)
+      if (!(await assertRecordBelongsToPointDeVente(ctx, depot, 'Dépôt'))) return
+    }
+
     const query = scopeByPointDeVente(Produit.query().orderBy('nom', 'asc'), pos.pointDeVenteId)
 
     if (payload.categorie_id) query.where('categorie_id', payload.categorie_id)
     if (payload.is_active !== undefined) query.where('is_active', payload.is_active)
-    if (payload.stock_alert) applyStockAlertFilter(query, payload.stock_alert)
+    if (payload.stock_alert) {
+      if (payload.depot_id) {
+        applyStockAlertFilterForDepot(query, payload.stock_alert, payload.depot_id)
+      } else {
+        applyStockAlertFilter(query, payload.stock_alert)
+      }
+    }
     if (payload.search) {
       const term = `%${payload.search}%`
       query.where((q) => {
@@ -69,7 +105,7 @@ export default class StockController {
           {
             categorie: p.categorieId ? categorieMap.get(p.categorieId) ?? null : null,
           },
-          { stocksParDepot: stocksMap.get(p.id) ?? [] }
+          { stocksParDepot: stocksMap.get(p.id) ?? [], depotId: payload.depot_id }
         )
       ),
       buildMeta(Number(total[0].$extras.total), page, limit)
@@ -78,6 +114,13 @@ export default class StockController {
 
   async mouvementsSearch(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(stockMouvementsSearchValidator)
+    const dateFrom = payload.date_debut ?? payload.date_from
+    const dateTo = payload.date_fin ?? payload.date_to
+
+    if (dateFrom && dateTo && dateFrom > dateTo) {
+      return sendError(ctx, 'date_debut doit être antérieure ou égale à date_fin', 422)
+    }
+
     const pos = requirePointDeVente(ctx)
     const result = await searchMouvements(pos.pointDeVenteId, {
       page: payload.page,
@@ -86,8 +129,8 @@ export default class StockController {
       depotId: payload.depot_id,
       type: payload.type,
       motif: payload.motif,
-      dateFrom: payload.date_from,
-      dateTo: payload.date_to,
+      dateFrom,
+      dateTo,
     })
 
     const produitIds = [...new Set(result.data.map((m) => m.produitId))]

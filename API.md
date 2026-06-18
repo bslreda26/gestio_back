@@ -123,6 +123,9 @@ Permissions notables :
 | `tva_admin` | CRUD groupes TVA (`/admin/tva-groupes`) |
 | `categories_admin` | CRUD catégories admin (`/admin/categories`) |
 | `depense_categories_admin` | CRUD catégories dépenses (`/admin/depense-categories`) |
+| `depots` | Consulter les dépôts (`/depots/search`, `show`, `stocks`) |
+| `depots_write` | Créer / modifier / désactiver un dépôt |
+| `depots_transfert` | Transfert de stock entre dépôts |
 
 ---
 
@@ -1078,17 +1081,17 @@ Tant qu'aucune session n'est ouverte (`statut: fermee`), les opérations caisse 
 
 ## Dépôts
 
-Permission : `stock` (lecture), `stock_write` (écriture). Header PDV requis.
+Permission : `depots` (consultation), `depots_write` (CRUD), `depots_transfert` (transfert). Header PDV requis.
 
 | Method | Path | Permission | Description |
 |--------|------|------------|-------------|
-| POST | `/depots/search` | `stock` | Liste / recherche dépôts |
-| POST | `/depots/show` | `stock` | Détail dépôt |
-| POST | `/depots/create` | `stock_write` | Créer un dépôt |
-| POST | `/depots/update` | `stock_write` | Modifier (nom, code, défaut…) |
-| POST | `/depots/deactivate` | `stock_write` | Désactiver (transfert optionnel) |
-| POST | `/depots/stocks` | `stock` | Produits en stock dans un dépôt |
-| POST | `/depots/transfert` | `stock_write` | Transfert inter-dépôts |
+| POST | `/depots/search` | `depots` | Liste / recherche dépôts |
+| POST | `/depots/show` | `depots` | Détail dépôt |
+| POST | `/depots/create` | `depots_write` | Créer un dépôt |
+| POST | `/depots/update` | `depots_write` | Modifier (nom, code, défaut…) |
+| POST | `/depots/deactivate` | `depots_write` | Désactiver (transfert optionnel) |
+| POST | `/depots/stocks` | `depots` | Produits en stock dans un dépôt |
+| POST | `/depots/transfert` | `depots_transfert` | Transfert inter-dépôts |
 
 ### Create
 
@@ -1176,11 +1179,24 @@ Ajuste le stock total du produit à `quantite_comptee` (entrée ou sortie selon 
 
 Sortie stock (`motif: perte`) sur le stock total. 422 si stock insuffisant.
 
-`stock/search` : mêmes filtres que `produits/search` + `valeurStock` par ligne + **`stocksParDepot`**.
+`stock/search` : mêmes filtres que `produits/search` + `depot_id` (optionnel, stock et valorisation par dépôt) + `valeurStock` par ligne + **`stocksParDepot`**.
 
 `stock/alertes` : produits en alerte/rupture ; filtre optionnel `depot_id` (alerte par dépôt).
 
-`stock/mouvements/search` : filtres `produit_id`, `depot_id`, `type` (`entree` \| `sortie` \| `ajustement` \| `transfert`), `motif`, `date_from`, `date_to`.
+`stock/mouvements/search` : filtres `produit_id`, `depot_id`, `type` (`entree` \| `sortie` \| `ajustement` \| `transfert`), `motif`, `date_debut`, `date_fin` (ou `date_from`, `date_to`).
+
+```json
+// POST /stock/mouvements/search
+{
+  "page": 1,
+  "limit": 50,
+  "produit_id": 3,
+  "depot_id": 1,
+  "type": "transfert",
+  "date_debut": "2026-06-01",
+  "date_fin": "2026-06-18"
+}
+```
 
 ---
 
@@ -1192,7 +1208,9 @@ Permission: `rapports`. Header PDV requis.
 |--------|------|-------------|
 | POST | `/rapports/caisse` | Mouvements caisse sur période |
 | POST | `/rapports/stock-actuel` | Stock actuel par produit (+ `stocksParDepot`, filtre `depot_id`) |
-| POST | `/rapports/valeur-stock` | Valorisation stock (plancher × quantité) |
+| POST | `/rapports/mouvements-stock` | Mouvements de stock sur période (stock initial, entrées, sorties, stock final) |
+| POST | `/rapports/marge` | Marge par article (plancher, CA, marge montant et %) |
+| POST | `/rapports/valeur-stock` | Valorisation stock (plancher × quantité) ; option `depot_id` ou `par_depot` |
 | POST | `/rapports/balance-clients` | Liste clients + solde PDV recalculé |
 | POST | `/rapports/releve-client` | Relevé compte client (période) |
 | POST | `/rapports/balance-fournisseurs` | Liste fournisseurs + solde PDV recalculé |
@@ -1201,6 +1219,108 @@ Permission: `rapports`. Header PDV requis.
 | POST | `/rapports/chiffre-affaires` | Chiffre d'affaires sur période |
 | POST | `/rapports/reglement-clients` | Règlements clients sur période |
 | POST | `/rapports/reglement-fournisseurs` | Règlements fournisseurs sur période |
+
+### Marge par article
+
+```json
+// POST /rapports/marge
+{
+  "date_debut": "2026-06-01",
+  "date_fin": "2026-06-18",
+  "categorie_id": 1,
+  "produit_id": 3,
+  "produit_ids": [1, 2, 3],
+  "search": "Riz",
+  "page": 1,
+  "limit": 50
+}
+```
+
+Par ligne : `plancher` (catalogue), `chiffreAffaires`, `margeMontant`, `margePct`.  
+CA et marge = factures validées − avoirs retour sur la période (`date_vente`).  
+`totaux` : agrégats sur tous les articles filtrés.
+
+---
+
+### Mouvements de stock
+
+```json
+// POST /rapports/mouvements-stock
+{
+  "date_debut": "2026-06-01",
+  "date_fin": "2026-06-18",
+  "categorie_id": 1,
+  "produit_id": 3,
+  "depot_id": 1,
+  "search": "Riz",
+  "page": 1,
+  "limit": 50
+}
+```
+
+Par ligne : `stockInitial`, `totalEntree`, `totalSortie`, `stockFinal` (unité détail + `stockLabel`).  
+Formule : `stockFinal = stockInitial + totalEntree - totalSortie` (transferts exclus du total global ; inclus si `depot_id`).
+
+---
+
+### Valeur stock
+
+```json
+// POST /rapports/valeur-stock — global (comportement par défaut)
+{
+  "page": 1,
+  "limit": 50,
+  "categorie_id": 1,
+  "search": "Riz"
+}
+
+// Valorisation pour un dépôt précis
+{
+  "depot_id": 2,
+  "page": 1,
+  "limit": 50
+}
+
+// Détail par dépôt sur chaque ligne + totaux par dépôt
+{
+  "par_depot": true,
+  "page": 1,
+  "limit": 50
+}
+```
+
+Réponse (extrait avec `par_depot: true`) :
+
+```json
+{
+  "formule": "valeur globale = plancher × quantité (stock interne)",
+  "depot_id": null,
+  "par_depot": true,
+  "totaux": {
+    "nombreArticles": 120,
+    "quantiteTotale": 1850,
+    "valeurGlobale": 4500000,
+    "valeursParDepot": [
+      { "depot_id": 1, "depot_code": "01", "depot_nom": "Magasin", "quantiteTotale": 1200, "valeurGlobale": 3200000 },
+      { "depot_id": 2, "depot_code": "ENT", "depot_nom": "Entrepôt", "quantiteTotale": 650, "valeurGlobale": 1300000 }
+    ]
+  },
+  "lignes": [
+    {
+      "designation": "Riz 50kg",
+      "plancher": 1000,
+      "quantiteStock": 150,
+      "valeurGlobale": 150000,
+      "valeursParDepot": [
+        { "depot_id": 1, "depot_code": "01", "depot_nom": "Magasin", "quantite": 100, "valeurGlobale": 100000 },
+        { "depot_id": 2, "depot_code": "ENT", "depot_nom": "Entrepôt", "quantite": 50, "valeurGlobale": 50000 }
+      ]
+    }
+  ]
+}
+```
+
+---
 
 ### Relevé client / fournisseur
 
@@ -1430,6 +1550,8 @@ Chèque, virement, mobile money, carte : **pas d'impact caisse**, mais l'enregis
 | POST | `/api/v1/stock/perte` |
 | POST | `/api/v1/rapports/caisse` |
 | POST | `/api/v1/rapports/stock-actuel` |
+| POST | `/api/v1/rapports/mouvements-stock` |
+| POST | `/api/v1/rapports/marge` |
 | POST | `/api/v1/rapports/valeur-stock` |
 | POST | `/api/v1/rapports/balance-clients` |
 | POST | `/api/v1/rapports/releve-client` |

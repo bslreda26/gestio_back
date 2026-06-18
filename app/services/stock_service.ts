@@ -484,7 +484,7 @@ export async function searchMouvements(
   if (filters.depotId) query.where('depot_id', filters.depotId)
   if (filters.type) query.where('type', filters.type)
   if (filters.motif) query.where('motif', filters.motif)
-  if (filters.dateFrom) query.where('created_at', '>=', filters.dateFrom.toSQL()!)
+  if (filters.dateFrom) query.where('created_at', '>=', filters.dateFrom.startOf('day').toSQL()!)
   if (filters.dateTo) query.where('created_at', '<=', filters.dateTo.endOf('day').toSQL()!)
 
   const total = await query.clone().count('* as total')

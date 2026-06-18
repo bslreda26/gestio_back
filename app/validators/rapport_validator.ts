@@ -28,6 +28,35 @@ export const rapportStockActuelValidator = vine.compile(
 export const rapportValeurStockValidator = vine.compile(
   vine.object({
     categorie_id: vine.number().positive().optional(),
+    depot_id: vine.number().positive().optional(),
+    par_depot: vine.boolean().optional(),
+    search: vine.string().trim().optional(),
+    page: vine.number().min(1).optional(),
+    limit: vine.number().min(1).max(100).optional(),
+  })
+)
+
+export const rapportMouvementsStockValidator = vine.compile(
+  vine.object({
+    date_debut: vine.date({ formats: ['iso8601'] }),
+    date_fin: vine.date({ formats: ['iso8601'] }),
+    categorie_id: vine.number().positive().optional(),
+    produit_id: vine.number().positive().optional(),
+    depot_id: vine.number().positive().optional(),
+    search: vine.string().trim().optional(),
+    page: vine.number().min(1).optional(),
+    limit: vine.number().min(1).max(100).optional(),
+  })
+)
+
+export const rapportMargeValidator = vine.compile(
+  vine.object({
+    date_debut: vine.date({ formats: ['iso8601'] }),
+    date_fin: vine.date({ formats: ['iso8601'] }),
+    categorie_id: vine.number().positive().optional(),
+    produit_id: vine.number().positive().optional(),
+    produit_ids: vine.array(vine.number().positive()).minLength(1).optional(),
+    search: vine.string().trim().optional(),
     page: vine.number().min(1).optional(),
     limit: vine.number().min(1).max(100).optional(),
   })

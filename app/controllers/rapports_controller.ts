@@ -1,5 +1,5 @@
 import { sendError, sendSuccess } from '#helpers/api_response'
-import { requirePointDeVente } from '#helpers/point_de_vente_context'
+import { assertRecordBelongsToPointDeVente, requirePointDeVente } from '#helpers/point_de_vente_context'
 import {
   RapportBusinessError,
   rapportBalanceClients,
@@ -11,6 +11,8 @@ import {
   rapportReleveFournisseur,
   rapportReglementClients,
   rapportReglementFournisseurs,
+  rapportMarge,
+  rapportMouvementsStock,
   rapportStockActuel,
   rapportValeurStock,
 } from '#services/rapport_service'
@@ -24,10 +26,14 @@ import {
   rapportReleveFournisseurValidator,
   rapportReglementClientsValidator,
   rapportReglementFournisseursValidator,
+  rapportMargeValidator,
+  rapportMouvementsStockValidator,
   rapportStockActuelValidator,
   rapportValeurStockValidator,
 } from '#validators/rapport_validator'
 import type { HttpContext } from '@adonisjs/core/http'
+import Depot from '#models/depot'
+import Produit from '#models/produit'
 
 function handleRapportError(ctx: HttpContext, error: unknown) {
   if (error instanceof RapportBusinessError) {
@@ -82,13 +88,90 @@ export default class RapportsController {
   }
 
   /**
+   * Mouvements de stock — stock initial, entrées, sorties, stock final sur une période
+   */
+  async mouvementsStock(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(rapportMouvementsStockValidator)
+    try {
+      const pos = requirePointDeVente(ctx)
+
+      if (payload.depot_id) {
+        const depot = await Depot.find(payload.depot_id)
+        if (!(await assertRecordBelongsToPointDeVente(ctx, depot, 'Dépôt'))) return
+      }
+
+      if (payload.produit_id) {
+        const produit = await Produit.find(payload.produit_id)
+        if (!(await assertRecordBelongsToPointDeVente(ctx, produit, 'Produit'))) return
+      }
+
+      const data = await rapportMouvementsStock({
+        pointDeVenteId: pos.pointDeVenteId,
+        dateDebut: payload.date_debut,
+        dateFin: payload.date_fin,
+        categorieId: payload.categorie_id,
+        produitId: payload.produit_id,
+        depotId: payload.depot_id,
+        search: payload.search,
+        page: payload.page,
+        limit: payload.limit,
+      })
+      return sendSuccess(ctx, data, data.meta)
+    } catch (error) {
+      return handleRapportError(ctx, error)
+    }
+  }
+
+  /**
+   * Rapport marge — plancher, CA, marge montant et % par article sur une période
+   */
+  async marge(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(rapportMargeValidator)
+    try {
+      const pos = requirePointDeVente(ctx)
+
+      if (payload.produit_id) {
+        const produit = await Produit.find(payload.produit_id)
+        if (!(await assertRecordBelongsToPointDeVente(ctx, produit, 'Produit'))) return
+      }
+
+      const data = await rapportMarge({
+        pointDeVenteId: pos.pointDeVenteId,
+        dateDebut: payload.date_debut,
+        dateFin: payload.date_fin,
+        categorieId: payload.categorie_id,
+        produitId: payload.produit_id,
+        produitIds: payload.produit_ids,
+        search: payload.search,
+        page: payload.page,
+        limit: payload.limit,
+      })
+      return sendSuccess(ctx, data, data.meta)
+    } catch (error) {
+      return handleRapportError(ctx, error)
+    }
+  }
+
+  /**
    * Valeur stock globale — designation, plancher, quantité, valeur globale (plancher × quantité)
+   * Option `depot_id` : valorisation pour un dépôt ; `par_depot` : détail par dépôt sur chaque ligne
    */
   async valeurStock(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(rapportValeurStockValidator)
     try {
       const pos = requirePointDeVente(ctx)
-      const data = await rapportValeurStock(pos.pointDeVenteId, payload.categorie_id, {
+
+      if (payload.depot_id) {
+        const depot = await Depot.find(payload.depot_id)
+        if (!(await assertRecordBelongsToPointDeVente(ctx, depot, 'Dépôt'))) return
+      }
+
+      const data = await rapportValeurStock({
+        pointDeVenteId: pos.pointDeVenteId,
+        categorieId: payload.categorie_id,
+        depotId: payload.depot_id,
+        parDepot: payload.par_depot,
+        search: payload.search,
         page: payload.page,
         limit: payload.limit,
       })

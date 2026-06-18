@@ -282,6 +282,43 @@ test.group('API — ventes & stock', (group) => {
     assert.equal(Number(produit.stockActuel), stockBefore - 1)
   })
 
+  test('rapport marge aggregates sales per product on period', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    await openCaisse(client, token)
+    const produit = await Produit.findByOrFail('code', 'PRD-0002')
+
+    const create = await authedPos(client, token).post('/api/v1/ventes/create').json({
+      statut: 'non_valide',
+      client_id: 1,
+      date_vente: '2026-06-15',
+      lignes: [{ produit_id: produit.id, quantite: 2, prix_unitaire: 15000 }],
+    })
+    create.assertStatus(200)
+    const factureId = create.body().data.vente.id
+
+    await authedPos(client, token).post('/api/v1/ventes/lock').json({ id: factureId })
+    const valider = await authedPos(client, token).post('/api/v1/ventes/valider').json({ id: factureId })
+    valider.assertStatus(200)
+
+    const rapport = await authedPos(client, token).post('/api/v1/rapports/marge').json({
+      date_debut: '2026-06-01',
+      date_fin: '2026-06-30',
+      produit_id: produit.id,
+      page: 1,
+      limit: 10,
+    })
+    rapport.assertStatus(200)
+
+    const ligne = rapport.body().data.lignes[0]
+    assert.exists(ligne)
+    assert.equal(ligne.code, produit.code)
+    assert.isAbove(ligne.chiffreAffaires, 0)
+    assert.isAbove(ligne.margeMontant, 0)
+    assert.isAbove(ligne.margePct, 0)
+    assert.equal(ligne.plancher, Number(Number(produit.plancher).toFixed(2)))
+    assert.equal(rapport.body().data.totaux.chiffreAffaires, ligne.chiffreAffaires)
+  })
+
   test('vente au detail decrements stock in detail units', async ({ client, assert }) => {
     const token = await loginAsAdmin(client)
     await openCaisse(client, token)

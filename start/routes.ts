@@ -420,13 +420,13 @@ router
         // Dépôts
         router
           .group(() => {
-            router.post('search', [DepotsController, 'search']).as('search').use(middleware.role({ permission: 'stock' }))
-            router.post('show', [DepotsController, 'show']).as('show').use(middleware.role({ permission: 'stock' }))
-            router.post('create', [DepotsController, 'create']).as('create').use(middleware.role({ permission: 'stock_write' }))
-            router.post('update', [DepotsController, 'update']).as('update').use(middleware.role({ permission: 'stock_write' }))
-            router.post('deactivate', [DepotsController, 'deactivate']).as('deactivate').use(middleware.role({ permission: 'stock_write' }))
-            router.post('transfert', [DepotsController, 'transfert']).as('transfert').use(middleware.role({ permission: 'stock_write' }))
-            router.post('stocks', [DepotsController, 'stocks']).as('stocks').use(middleware.role({ permission: 'stock' }))
+            router.post('search', [DepotsController, 'search']).as('search').use(middleware.role({ permission: 'depots' }))
+            router.post('show', [DepotsController, 'show']).as('show').use(middleware.role({ permission: 'depots' }))
+            router.post('create', [DepotsController, 'create']).as('create').use(middleware.role({ permission: 'depots_write' }))
+            router.post('update', [DepotsController, 'update']).as('update').use(middleware.role({ permission: 'depots_write' }))
+            router.post('deactivate', [DepotsController, 'deactivate']).as('deactivate').use(middleware.role({ permission: 'depots_write' }))
+            router.post('transfert', [DepotsController, 'transfert']).as('transfert').use(middleware.role({ permission: 'depots_transfert' }))
+            router.post('stocks', [DepotsController, 'stocks']).as('stocks').use(middleware.role({ permission: 'depots' }))
           })
           .prefix('depots')
           .as('depots')
@@ -441,6 +441,14 @@ router
             router
               .post('stock-actuel', [RapportsController, 'stockActuel'])
               .as('stock_actuel')
+              .use(middleware.role({ permission: 'rapports' }))
+            router
+              .post('mouvements-stock', [RapportsController, 'mouvementsStock'])
+              .as('mouvements_stock')
+              .use(middleware.role({ permission: 'rapports' }))
+            router
+              .post('marge', [RapportsController, 'marge'])
+              .as('marge')
               .use(middleware.role({ permission: 'rapports' }))
             router
               .post('valeur-stock', [RapportsController, 'valeurStock'])

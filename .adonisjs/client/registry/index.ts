@@ -774,6 +774,18 @@ const routes = {
     tokens: [{"old":"/api/v1/rapports/stock-actuel","type":0,"val":"api","end":""},{"old":"/api/v1/rapports/stock-actuel","type":0,"val":"v1","end":""},{"old":"/api/v1/rapports/stock-actuel","type":0,"val":"rapports","end":""},{"old":"/api/v1/rapports/stock-actuel","type":0,"val":"stock-actuel","end":""}],
     types: placeholder as Registry['rapports.stock_actuel']['types'],
   },
+  'rapports.mouvements_stock': {
+    methods: ["POST"],
+    pattern: '/api/v1/rapports/mouvements-stock',
+    tokens: [{"old":"/api/v1/rapports/mouvements-stock","type":0,"val":"api","end":""},{"old":"/api/v1/rapports/mouvements-stock","type":0,"val":"v1","end":""},{"old":"/api/v1/rapports/mouvements-stock","type":0,"val":"rapports","end":""},{"old":"/api/v1/rapports/mouvements-stock","type":0,"val":"mouvements-stock","end":""}],
+    types: placeholder as Registry['rapports.mouvements_stock']['types'],
+  },
+  'rapports.marge': {
+    methods: ["POST"],
+    pattern: '/api/v1/rapports/marge',
+    tokens: [{"old":"/api/v1/rapports/marge","type":0,"val":"api","end":""},{"old":"/api/v1/rapports/marge","type":0,"val":"v1","end":""},{"old":"/api/v1/rapports/marge","type":0,"val":"rapports","end":""},{"old":"/api/v1/rapports/marge","type":0,"val":"marge","end":""}],
+    types: placeholder as Registry['rapports.marge']['types'],
+  },
   'rapports.valeur_stock': {
     methods: ["POST"],
     pattern: '/api/v1/rapports/valeur-stock',
