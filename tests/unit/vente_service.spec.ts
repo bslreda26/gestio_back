@@ -74,6 +74,7 @@ test.group('calculerTotauxVente remise ligne + remise facture', () => {
       marge: 0,
       remisePct: 10,
       tvaPct,
+      depotId: 1,
       ...ligneMontants,
       airsiPct: 0,
       airsiMontant: 0,

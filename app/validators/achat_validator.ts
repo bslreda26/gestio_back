@@ -5,6 +5,7 @@ const ligneAchatSchema = vine.object({
   quantite: vine.number().positive(),
   prix_unitaire_ht: vine.number().min(0).optional(),
   frais: vine.number().min(0).optional(),
+  remise_pct: vine.number().min(0).max(100).optional(),
 })
 
 const ligneRecueSchema = vine.object({
@@ -55,6 +56,7 @@ export const achatLigneInfoValidator = vine.compile(
     quantite: vine.number().positive().optional(),
     prix_unitaire_ht: vine.number().min(0).optional(),
     frais: vine.number().min(0).optional(),
+    remise_pct: vine.number().min(0).max(100).optional(),
   })
 )
 

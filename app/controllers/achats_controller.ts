@@ -143,7 +143,8 @@ export default class AchatsController {
         payload.produit_id,
         payload.quantite ?? 1,
         payload.prix_unitaire_ht,
-        payload.frais
+        payload.frais,
+        payload.remise_pct ?? 0
       )
       return sendSuccess(ctx, info)
     } catch (error) {
@@ -203,6 +204,7 @@ export default class AchatsController {
             quantiteRecue: 0,
             prixUnitaireHt: l.prixUnitaireHt,
             frais: l.frais,
+            remisePct: l.remisePct,
             tvaPct: l.tvaPct,
             montantHt: l.montantHt,
             montantTva: l.montantTva,

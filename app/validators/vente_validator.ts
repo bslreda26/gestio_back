@@ -3,18 +3,29 @@ import vine from '@vinejs/vine'
 
 const ligneVenteSchema = vine.object({
   produit_id: vine.number().positive(),
+  produitId: vine.number().positive().optional(),
   quantite: vine.number().positive(),
   mode_vente: vine.enum(['piece', 'detail'] as const).optional(),
+  modeVente: vine.enum(['piece', 'detail'] as const).optional(),
   prix_unitaire: vine.number().min(0).optional(),
+  prixUnitaire: vine.number().min(0).optional(),
   remise_pct: vine.number().min(0).max(100).optional(),
+  remisePct: vine.number().min(0).max(100).optional(),
+  depot_id: vine.number().positive().optional(),
+  depotId: vine.number().positive().optional(),
 })
 
 export const venteLigneInfoValidator = vine.compile(
   vine.object({
     produit_id: vine.number().positive(),
+    produitId: vine.number().positive().optional(),
     quantite: vine.number().positive().optional(),
     mode_vente: vine.enum(['piece', 'detail'] as const).optional(),
+    modeVente: vine.enum(['piece', 'detail'] as const).optional(),
     remise_pct: vine.number().min(0).max(100).optional(),
+    remisePct: vine.number().min(0).max(100).optional(),
+    depot_id: vine.number().positive().optional(),
+    depotId: vine.number().positive().optional(),
   })
 )
 
@@ -65,6 +76,7 @@ export const venteCreateValidator = vine.compile(
     remise_pct: vine.number().min(0).max(100).optional(),
     notes: vine.string().trim().optional(),
     depot_id: vine.number().positive().optional(),
+    depotId: vine.number().positive().optional(),
     lignes: vine.array(ligneVenteSchema).minLength(1),
   })
 )
@@ -78,6 +90,7 @@ export const venteUpdateValidator = vine.compile(
     remise_pct: vine.number().min(0).max(100).optional(),
     notes: vine.string().trim().optional(),
     depot_id: vine.number().positive().optional(),
+    depotId: vine.number().positive().optional(),
     lignes: vine.array(ligneVenteSchema).minLength(1).optional(),
   })
 )

@@ -8,7 +8,7 @@ import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
 export class AchatLigneSchema extends BaseModel {
-  static $columns = ['achatId', 'createdAt', 'designation', 'frais', 'id', 'ligneOrigineId', 'modeAchat', 'montantHt', 'montantTtc', 'montantTva', 'prixUnitaireHt', 'produitId', 'quantite', 'quantiteRecue', 'quantiteRetournee', 'quantiteStock', 'tvaPct', 'updatedAt'] as const
+  static $columns = ['achatId', 'createdAt', 'designation', 'frais', 'id', 'ligneOrigineId', 'modeAchat', 'montantHt', 'montantTtc', 'montantTva', 'prixUnitaireHt', 'produitId', 'quantite', 'quantiteRecue', 'quantiteRetournee', 'quantiteStock', 'remisePct', 'tvaPct', 'updatedAt'] as const
   $columns = AchatLigneSchema.$columns
   @column()
   declare achatId: number
@@ -42,6 +42,8 @@ export class AchatLigneSchema extends BaseModel {
   declare quantiteRetournee: string
   @column()
   declare quantiteStock: string | null
+  @column()
+  declare remisePct: string
   @column()
   declare tvaPct: string
   @column.dateTime({ autoCreate: true, autoUpdate: true })
@@ -638,7 +640,7 @@ export class UserSchema extends BaseModel {
 }
 
 export class VenteLigneSchema extends BaseModel {
-  static $columns = ['airsiMontant', 'airsiPct', 'createdAt', 'designation', 'fneItemId', 'id', 'ligneOrigineId', 'marge', 'modeVente', 'montantApresAirsi', 'montantHt', 'montantTtc', 'montantTva', 'plancherLigne', 'prixUnitaire', 'produitId', 'quantite', 'quantiteRetournee', 'quantiteStock', 'remisePct', 'tvaPct', 'updatedAt', 'venteId'] as const
+  static $columns = ['airsiMontant', 'airsiPct', 'createdAt', 'depotId', 'designation', 'fneItemId', 'id', 'ligneOrigineId', 'marge', 'modeVente', 'montantApresAirsi', 'montantHt', 'montantTtc', 'montantTva', 'plancherLigne', 'prixUnitaire', 'produitId', 'quantite', 'quantiteRetournee', 'quantiteStock', 'remisePct', 'tvaPct', 'updatedAt', 'venteId'] as const
   $columns = VenteLigneSchema.$columns
   @column()
   declare airsiMontant: string
@@ -646,6 +648,8 @@ export class VenteLigneSchema extends BaseModel {
   declare airsiPct: string
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
+  @column()
+  declare depotId: number | null
   @column()
   declare designation: string
   @column()

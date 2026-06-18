@@ -64,6 +64,7 @@ export function serializeVenteLigne(ligne: VenteLigne, options?: VenteLigneSeria
     montantApresAirsi: Number(ligne.montantApresAirsi),
     quantiteRetournee: Number(ligne.quantiteRetournee),
     ligneOrigineId: ligne.ligneOrigineId,
+    depotId: ligne.depotId,
     createdAt: ligne.createdAt,
     updatedAt: ligne.updatedAt,
   }

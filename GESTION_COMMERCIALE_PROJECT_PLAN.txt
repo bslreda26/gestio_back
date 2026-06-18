@@ -135,7 +135,8 @@
   DEPOTS (migrations 0049–0053)
     depots            code, nom, is_default, is_active par PDV
     depot_stocks      (depot_id, produit_id, quantite) — source de vérité détaillée
-    ventes.depot_id   dépôt de sortie / retour stock
+    ventes.depot_id   dépôt de sortie par défaut (migration 0053)
+    vente_lignes.depot_id  dépôt de sortie par ligne (migration 0054 ; défaut = ventes.depot_id)
     achats.depot_id   dépôt de réception
     stock_mouvements.depot_id
 
@@ -161,7 +162,8 @@
     non_valide   → facture émise, sortie stock, solde client
     valide       → facture validée (stock déjà déduit)
     retour       → avoir client
-    depot_id     → dépôt de sortie / entrée retour (migration 0053)
+    depot_id     → dépôt de sortie par défaut (migration 0053)
+    remise_pct   → remise globale facture en % (sur HT après remises ligne)
 
   VENTES — totaux facture (migrations 1740000000040, 1740000000041, 0042, 0048)
     total_ht, tva_montant, total_ttc, sous_total, remise_montant
@@ -193,6 +195,8 @@
   VENTE_LIGNES
     mode_vente      piece | detail
     quantite_stock  quantité déduite du stock (unité détail)
+    remise_pct      remise ligne en % sur le HT (0–100)
+    depot_id        dépôt de sortie stock (migration 0054 ; défaut = ventes.depot_id)
     plancher_ligne, marge (unitaire = prix_unitaire − plancher_ligne)
     airsi_pct, airsi_montant, montant_apres_airsi  (copiés depuis produit ; migration 0048)
     fne_item_id     UUID ligne FNE (certification)
@@ -212,10 +216,19 @@
     annule
     depot_id     → dépôt de réception (migration 0053, défaut = dépôt PDV)
 
-  ACHAT_LIGNES (migration 1740000000037)
+  ACHAT_LIGNES (migrations 1740000000037, 0055)
     mode_achat      toujours piece (gros)
     quantite_stock  qty en unité détail (quantite × contenance)
-    frais           frais par unité gros
+    prix_unitaire_ht  prix HT gros (avant remise)
+    frais           frais TTC par unité gros
+    remise_pct      remise ligne en % sur le HT (migration 0055)
+    montant_ht      HT ligne après remise ligne
+
+  ACHATS — en-tête
+    remise_montant  remise facture en FCFA (déduite du total TTC ; n'affecte pas le CMUP)
+    sous_total      Σ montant_ttc lignes
+    total_ttc       sous_total − remise_montant
+    depot_id        dépôt de réception (migration 0053, défaut = dépôt PDV)
 
   CAISSE
     caisses, caisse_mouvements, caisse_sessions
@@ -301,8 +314,10 @@
     - Un dépôt is_default par PDV (créé avec le point de vente)
 
   Mouvements stock (tous passent par un dépôt) :
-    vente facture          → sortie sur ventes.depot_id (ou défaut)
-    retour client          → entrée sur depot_id retour (ou facture, ou défaut)
+    vente facture          → sortie par ligne sur vente_lignes.depot_id
+                              (défaut : ventes.depot_id, puis dépôt PDV)
+    retour client          → entrée sur depot_id retour, ou ligne_origine.depot_id,
+                              ou ventes.depot_id facture, ou défaut
     réception achat        → entrée sur achats.depot_id (ou défaut)
     ajustement produit     → entree/sortie sur depot_id (ou défaut)
     transfert              → sortie source + entrée destination (type transfert)
@@ -320,8 +335,11 @@
     stockStatus agrégé : alerte si un dépôt OU le total est en alerte
 
   Ventes :
-    depot_id optionnel sur create / update / retour
-    Vérification stock disponible sur le dépôt choisi (pas le total PDV)
+    depot_id optionnel sur create / update vente (défaut ligne)
+    depot_id optionnel sur chaque ligne vente (surcharge)
+    depot_id optionnel sur retour client
+    depot_id optionnel sur réception achat
+    Vérification stock disponible **par ligne** sur le dépôt de la ligne (ou défaut vente)
     Facture : un produit_id unique par facture (pas sur devis)
 
   Alertes :
@@ -352,10 +370,22 @@
     frais            → frais TTC catalogue (unité gros)
 
   Réception achat (CMUP pondéré) :
-    prixAchatHt = moyenne pondérée du prix HT (stockage interne)
-    frais       = moyenne pondérée du frais TTC
-    plancher    = recalculé (CMUP TTC)
-    dernierPrixAchatHt = prix de la ligne en unité gros
+    prix_ht_cmup = prix_unitaire_ht × (1 − remise_pct_ligne / 100)
+    cmup_ht      = prix_ht_cmup + frais_ht
+    prixAchatHt  = moyenne pondérée du prix HT cmup (stockage interne)
+    frais        = moyenne pondérée du frais TTC
+    plancher     = recalculé (CMUP TTC)
+    dernierPrixAchatHt = prix catalogue ligne en unité gros (hors remise)
+    remise_montant facture : n'affecte pas le CMUP (réduction commerciale TTC)
+
+  Remise achat (achat_service) :
+    Ligne  : remise_pct sur HT → montant_ht, montant_tva, montant_ttc
+    Facture: remise_montant en FCFA sur total TTC (calculerTotauxAchat)
+    Réception / solde fournisseur : TTC ligne après remise ligne
+
+  Remise vente (vente_service) :
+    Ligne  : remise_pct sur HT → montant_ht, montant_tva, montant_ttc
+    Facture: remise_pct sur HT total (après remises ligne) → recalcule TVA/TTC/AIRSI
 
   Validation vente : prix_unitaire (TTC) >= plancher_ligne
 
@@ -389,15 +419,20 @@
   Workflow :
     POST create { statut: devis }           → pas de stock
     POST create { statut: non_valide }        → sortie stock + solde client
-    POST create / update { depot_id }         → sortie sur dépôt choisi (défaut si omis)
+    POST create / update { depot_id }         → dépôt par défaut pour toutes les lignes
+    POST create / update lignes { depot_id }  → dépôt par ligne (surcharge)
+    POST /ventes/ligne-info { depot_id }      → stock affiché sur ce dépôt
     POST convertir-facture (devis)            → non_valide + stock
     POST valider (non_valide)                 → valide
-    POST delete (non_valide, non payée)       → retour stock
+    POST delete (non_valide, non payée)       → retour stock (par depot_id ligne)
     POST retour { depot_id? }                 → avoir (statut retour), entrée stock ciblée
     Retour : hérite remise_pct de la facture d'origine pour totaux + AIRSI (aligné FNE)
+    Retour stock : depot_id retour, ou depot_id ligne origine, ou depot facture
     Facture : un même produit_id interdit en double sur une facture (devis : autorisé)
 
   Lignes : mode_vente piece | detail
+  Remises : remise_pct par ligne + remise_pct globale sur la vente
+  Dépôts  : depot_id vente (défaut) + depot_id optionnel par ligne
   AIRSI : taux sur produit (produits.airsi_pct) → copié sur chaque ligne ;
           airsi_montant = montant_ttc × airsi_pct / 100 ;
           montant_apres_airsi = montant_ttc + airsi_montant (ajouté au TTC) ;
@@ -560,7 +595,11 @@
     POST annuler          → annule + retour stock si déjà reçu
 
   Saisie lignes toujours en unité gros (sacs).
-  POST /achats/ligne-info pour prévisualiser quantite_stock, stock_label, frais…
+  POST /achats/ligne-info pour prévisualiser quantite_stock, stock_label, frais, remise_pct…
+
+  Remises achat :
+    Ligne   : remise_pct (%) sur HT → montants ligne + base CMUP (prix_ht_après_remise + frais_ht)
+    Facture : remise_montant (FCFA) sur total TTC — n'affecte pas le CMUP stock
 
   Frais ligne achat (achat_service.resolveFraisAchatLigneGros) :
     1. frais saisi sur la ligne (si fourni)
@@ -646,8 +685,10 @@
   node ace test --files tests/unit/vente_unite_service.spec.ts
 
   Scénarios couverts : pricing (CMUP, plancher, marge facture), unités stock,
-  stock multi-dépôt (transfert, inventaire, perte, vente/retour par dépôt),
-  achat gros, frais ligne achat, vente piece, caisse sessions (blocage si fermée),
+  stock multi-dépôt (transfert, inventaire, perte, vente/retour par dépôt et par ligne),
+  achat gros, frais ligne achat, remise ligne/facture achat (tests/unit/achat_service.spec.ts),
+  vente piece, remise ligne/facture vente, depot_id par ligne vente,
+  caisse sessions (blocage si fermée),
   permissions (ventes_ligne_marge, ventes_marge_pct), soldes recalculés,
   relevés client/fournisseur, impression PDF, retours,
   FNE (mapping TVA, parser réponse, certification service)…
@@ -658,11 +699,23 @@
   17. JOURNAL DES ÉVOLUTIONS RÉCENTES (backend)
 ================================================================================
 
+  Dépôt par ligne vente + remise ligne achat (migrations 0054–0055)
+    - vente_lignes.depot_id : dépôt de sortie par article (défaut = ventes.depot_id)
+    - Stock vérifié et déduit par ligne sur le dépôt choisi
+    - POST /ventes/ligne-info accepte depot_id (stock affiché par dépôt)
+    - Retour client : entrée stock sur depot ligne origine si non surchargé
+    - achat_lignes.remise_pct : remise % sur HT par ligne
+    - CMUP à la réception : prix HT après remise ligne + frais HT
+    - remise_montant facture achat : réduction TTC commerciale (hors CMUP)
+    - POST /achats/ligne-info : remise_pct, prix_ht_apres_remise, moyenne_achat_ht_apres
+    - Tests : tests/unit/achat_service.spec.ts
+
   Stock multi-dépôt (migrations 0049–0053)
     - Tables depots, depot_stocks ; depot_id sur stock_mouvements, ventes, achats
     - Dépôt par défaut auto à la création PDV ; migration stock_actuel → depot_stocks
     - Routes /depots/* : CRUD, transfert, inventaire, perte, stocks, deactivate+transfert
     - depot_id sur ventes (create/update), retour client, réception achat, ajustement
+    - depot_id par ligne vente (migration 0054)
     - stocksParDepot sur produits/search|show, stock/search, rapports/stock-actuel
     - Alertes et rapport stock-actuel : filtre depot_id, seuils par dépôt
     - Facture : interdiction doublon produit_id (devis : autorisé)

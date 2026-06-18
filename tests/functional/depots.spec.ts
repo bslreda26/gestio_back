@@ -156,6 +156,71 @@ test.group('API — dépôts & stock multi-dépôt', (group) => {
     assert.equal(salesAfter, salesBefore - 3)
   })
 
+  test('facture deducts stock from ligne depot when it overrides header depot', async ({
+    client,
+    assert,
+  }) => {
+    const token = await loginAsAdmin(client)
+    await openCaisse(client, token)
+
+    const produit = await Produit.findByOrFail('code', 'PRD-0002')
+    const defaultDepot = await Depot.query().where('is_default', true).firstOrFail()
+
+    const createDepot = await authedPos(client, token).post('/api/v1/depots/create').json({
+      code: 'L2',
+      nom: 'Ligne depot override',
+    })
+    createDepot.assertStatus(200)
+    const ligneDepotId = createDepot.body().data.id
+
+    await authedPos(client, token).post('/api/v1/depots/transfert').json({
+      produit_id: produit.id,
+      quantite: 6,
+      depot_source_id: defaultDepot.id,
+      depot_dest_id: ligneDepotId,
+    })
+
+    const defaultBefore = Number(
+      (
+        await DepotStock.query()
+          .where('depot_id', defaultDepot.id)
+          .where('produit_id', produit.id)
+          .firstOrFail()
+      ).quantite
+    )
+    const ligneDepotBefore = 6
+
+    const facture = await authedPos(client, token).post('/api/v1/ventes/create').json({
+      statut: 'non_valide',
+      client_id: 1,
+      date_vente: '2026-06-10',
+      depot_id: defaultDepot.id,
+      lignes: [{ produit_id: produit.id, quantite: 2, prix_unitaire: 15000, depotId: ligneDepotId }],
+    })
+    facture.assertStatus(200)
+
+    const defaultAfter = Number(
+      (
+        await DepotStock.query()
+          .where('depot_id', defaultDepot.id)
+          .where('produit_id', produit.id)
+          .firstOrFail()
+      ).quantite
+    )
+    const ligneDepotAfter = Number(
+      (
+        await DepotStock.query()
+          .where('depot_id', ligneDepotId)
+          .where('produit_id', produit.id)
+          .firstOrFail()
+      ).quantite
+    )
+
+    assert.equal(defaultAfter, defaultBefore)
+    assert.equal(ligneDepotAfter, ligneDepotBefore - 2)
+    assert.equal(facture.body().data.lignes[0].depotId, ligneDepotId)
+  })
+
   test('facture rejects sale when chosen depot has insufficient stock', async ({
     client,
     assert,

@@ -44,10 +44,31 @@ import { DateTime } from 'luxon'
 
 export type LigneVenteInput = {
   produit_id: number
+  produitId?: number
   quantite: number
   mode_vente?: ModeVente
+  modeVente?: ModeVente
   prix_unitaire?: number
+  prixUnitaire?: number
   remise_pct?: number
+  remisePct?: number
+  depot_id?: number
+  depotId?: number
+}
+
+export function normalizeLigneVenteInput(ligne: LigneVenteInput): LigneVenteInput {
+  return {
+    ...ligne,
+    produit_id: ligne.produit_id ?? ligne.produitId!,
+    mode_vente: ligne.mode_vente ?? ligne.modeVente,
+    prix_unitaire: ligne.prix_unitaire ?? ligne.prixUnitaire,
+    remise_pct: ligne.remise_pct ?? ligne.remisePct,
+    depot_id: ligne.depot_id ?? ligne.depotId,
+  }
+}
+
+export function normalizeLignesVenteInput(lignes: LigneVenteInput[]): LigneVenteInput[] {
+  return lignes.map(normalizeLigneVenteInput)
 }
 
 export type LigneRetourInput = {
@@ -72,6 +93,7 @@ export type CalculatedLigne = {
   airsiPct: number
   airsiMontant: number
   montantApresAirsi: number
+  depotId: number
 }
 
 export class VenteBusinessError extends Error {
@@ -161,8 +183,8 @@ export async function buildLignesFromPayload(
   lignes: LigneVenteInput[],
   checkPlancher: boolean,
   trx?: TransactionClientContract
-): Promise<CalculatedLigne[]> {
-  const result: CalculatedLigne[] = []
+): Promise<Omit<CalculatedLigne, 'depotId'>[]> {
+  const result: Omit<CalculatedLigne, 'depotId'>[] = []
 
   for (const ligne of lignes) {
     const query = trx ? Produit.query({ client: trx }) : Produit.query()
@@ -218,12 +240,36 @@ export async function buildLignesFromPayload(
   return result
 }
 
+async function withLigneDepots(
+  calculated: Omit<CalculatedLigne, 'depotId'>[],
+  lignesInput: LigneVenteInput[],
+  pointDeVenteId: number,
+  venteDepotId: number,
+  trx?: TransactionClientContract
+): Promise<CalculatedLigne[]> {
+  const result: CalculatedLigne[] = []
+
+  for (let i = 0; i < calculated.length; i++) {
+    const ligneInput = normalizeLigneVenteInput(lignesInput[i])
+    const depot = await resolveDepotForPointDeVente(
+      pointDeVenteId,
+      ligneInput.depot_id ?? venteDepotId,
+      trx
+    )
+    result.push({ ...calculated[i], depotId: depot.id })
+  }
+
+  return result
+}
+
 export async function getLigneVenteInfo(
   produitId: number,
   quantite = 1,
   remisePct = 0,
   checkPlancher = false,
-  modeVente: ModeVente = 'piece'
+  modeVente: ModeVente = 'piece',
+  depotId?: number,
+  pointDeVenteId?: number
 ) {
   const [ligne] = await buildLignesFromPayload(
     [{ produit_id: produitId, quantite, remise_pct: remisePct, mode_vente: modeVente }],
@@ -231,7 +277,18 @@ export async function getLigneVenteInfo(
   )
 
   const produit = await Produit.findOrFail(produitId)
-  const stockDetail = Number(produit.stockActuel)
+  let stockDetail: number
+  let resolvedDepotId: number | undefined
+
+  if (depotId && pointDeVenteId) {
+    const depot = await resolveDepotForPointDeVente(pointDeVenteId, depotId)
+    const { quantite: depotStock } = await getStockDisponible(produitId, depot.id)
+    stockDetail = depotStock
+    resolvedDepotId = depot.id
+  } else {
+    stockDetail = Number(produit.stockActuel)
+  }
+
   const contenance = getContenance(produit)
   const stockDisplay = resolveStockDisplay(produit, stockDetail)
 
@@ -256,6 +313,7 @@ export async function getLigneVenteInfo(
     airsi_pct: ligne.airsiPct,
     airsi_montant: ligne.airsiMontant,
     montant_apres_airsi: ligne.montantApresAirsi,
+    depot_id: resolvedDepotId,
     stock_actuel: stockDisplay.stockDetail,
     stock_pieces: stockDisplay.stockPieces,
     stock_reste_detail: stockDisplay.stockResteDetail,
@@ -311,6 +369,7 @@ async function persistLignes(
         montantApresAirsi: l.montantApresAirsi,
         quantiteRetournee: 0,
         ligneOrigineId: extra?.ligneOrigineId ?? null,
+        depotId: l.depotId,
       },
       { client: trx }
     )
@@ -321,8 +380,7 @@ async function applyStockSortie(
   venteId: number,
   lignes: CalculatedLigne[],
   userId: number,
-  trx: TransactionClientContract,
-  depotId?: number
+  trx: TransactionClientContract
 ) {
   for (const l of lignes) {
     await stockSortie(
@@ -333,7 +391,7 @@ async function applyStockSortie(
       userId,
       trx,
       null,
-      depotId
+      l.depotId
     )
   }
 }
@@ -342,8 +400,7 @@ async function applyStockEntreeRetour(
   venteId: number,
   lignes: CalculatedLigne[],
   userId: number,
-  trx: TransactionClientContract,
-  depotId?: number
+  trx: TransactionClientContract
 ) {
   for (const l of lignes) {
     await stockEntree(
@@ -354,7 +411,7 @@ async function applyStockEntreeRetour(
       userId,
       trx,
       null,
-      depotId
+      l.depotId
     )
   }
 }
@@ -372,6 +429,7 @@ export type CreateVenteInput = {
   remise_pct?: number
   notes?: string | null
   depot_id?: number
+  depotId?: number
   lignes: LigneVenteInput[]
 }
 
@@ -383,7 +441,12 @@ export type UpdateVenteInput = {
   remise_pct?: number
   notes?: string | null
   depot_id?: number
+  depotId?: number
   lignes?: LigneVenteInput[]
+}
+
+function resolveVenteDepotId(data: { depot_id?: number; depotId?: number }): number | undefined {
+  return data.depot_id ?? data.depotId
 }
 
 function assertVenteModifiablePourFne(vente: Vente) {
@@ -392,7 +455,7 @@ function assertVenteModifiablePourFne(vente: Vente) {
   }
 }
 
-function venteLigneToCalculated(ligne: VenteLigne): CalculatedLigne {
+function venteLigneToCalculated(ligne: VenteLigne, fallbackDepotId?: number | null): CalculatedLigne {
   return {
     produitId: ligne.produitId,
     designation: ligne.designation,
@@ -410,6 +473,7 @@ function venteLigneToCalculated(ligne: VenteLigne): CalculatedLigne {
     airsiPct: Number(ligne.airsiPct),
     airsiMontant: Number(ligne.airsiMontant),
     montantApresAirsi: Number(ligne.montantApresAirsi),
+    depotId: ligne.depotId ?? fallbackDepotId!,
   }
 }
 
@@ -419,7 +483,7 @@ async function restituerStockFacture(
   lignes: VenteLigne[],
   userId: number,
   trx: TransactionClientContract,
-  depotId?: number | null
+  fallbackDepotId?: number | null
 ) {
   for (const ligne of lignes) {
     await stockEntree(
@@ -430,7 +494,7 @@ async function restituerStockFacture(
       userId,
       trx,
       `Modification facture ${numero}`,
-      depotId ?? undefined
+      ligne.depotId ?? fallbackDepotId ?? undefined
     )
   }
 }
@@ -497,16 +561,27 @@ export async function creerVente(
     const checkPlancher = isFactureInvalide(data.statut)
     const checkStock = isFactureInvalide(data.statut)
     if (checkStock) {
-      assertProduitsUniquesSurFacture(data.lignes)
+      assertProduitsUniquesSurFacture(normalizeLignesVenteInput(data.lignes))
     }
-    const calculated = await buildLignesFromPayload(data.lignes, checkPlancher, trx)
-    const depot = await resolveDepotForPointDeVente(pos.pointDeVenteId, data.depot_id, trx)
+    const depot = await resolveDepotForPointDeVente(
+      pos.pointDeVenteId,
+      resolveVenteDepotId(data),
+      trx
+    )
+    const lignes = normalizeLignesVenteInput(data.lignes)
+    const calculated = await withLigneDepots(
+      await buildLignesFromPayload(lignes, checkPlancher, trx),
+      lignes,
+      pos.pointDeVenteId,
+      depot.id,
+      trx
+    )
 
     if (checkStock) {
       for (const l of calculated) {
         const { produit, quantite: disponible } = await getStockDisponible(
           l.produitId,
-          depot.id,
+          l.depotId,
           trx
         )
         if (disponible < l.quantiteStock) {
@@ -557,7 +632,7 @@ export async function creerVente(
     await persistLignes(vente.id, calculated, trx)
 
     if (isFactureInvalide(data.statut)) {
-      await applyStockSortie(vente.id, calculated, userId, trx, depot.id)
+      await applyStockSortie(vente.id, calculated, userId, trx)
       const client = await Client.query({ client: trx }).where('id', data.client_id).firstOrFail()
       client.solde = roundMoney(Number(client.solde) + totaux.totalApresAirsi)
       client.useTransaction(trx)
@@ -607,15 +682,16 @@ export async function mettreAJourVente(
     const posId = pointDeVenteId ?? vente.pointDeVenteId
     const depot = await resolveDepotForPointDeVente(
       posId,
-      data.depot_id ?? vente.depotId ?? undefined,
+      resolveVenteDepotId(data) ?? vente.depotId ?? undefined,
       trx
     )
 
     let calculated: CalculatedLigne[]
 
     if (data.lignes) {
+      const lignes = normalizeLignesVenteInput(data.lignes)
       if (isFacture) {
-        assertProduitsUniquesSurFacture(data.lignes)
+        assertProduitsUniquesSurFacture(lignes)
         await restituerStockFacture(
           vente.id,
           vente.numero,
@@ -627,13 +703,19 @@ export async function mettreAJourVente(
       }
 
       await VenteLigne.query({ client: trx }).where('vente_id', vente.id).delete()
-      calculated = await buildLignesFromPayload(data.lignes, isFacture, trx)
+      calculated = await withLigneDepots(
+        await buildLignesFromPayload(lignes, isFacture, trx),
+        lignes,
+        posId,
+        depot.id,
+        trx
+      )
 
       if (isFacture) {
         for (const l of calculated) {
           const { produit, quantite: disponible } = await getStockDisponible(
             l.produitId,
-            depot.id,
+            l.depotId,
             trx
           )
           if (disponible < l.quantiteStock) {
@@ -642,12 +724,12 @@ export async function mettreAJourVente(
             )
           }
         }
-        await applyStockSortie(vente.id, calculated, userId, trx, depot.id)
+        await applyStockSortie(vente.id, calculated, userId, trx)
       }
 
       await persistLignes(vente.id, calculated, trx)
     } else {
-      calculated = anciennesLignes.map(venteLigneToCalculated)
+      calculated = anciennesLignes.map((l) => venteLigneToCalculated(l, vente.depotId))
     }
 
     const totaux = calculerTotauxVente(calculated, remisePct)
@@ -716,18 +798,25 @@ export async function convertirDevisEnFacture(
       mode_vente: (l.modeVente as ModeVente) || 'piece',
       prix_unitaire: Number(l.prixUnitaire),
       remise_pct: Number(l.remisePct),
+      depot_id: l.depotId ?? vente.depotId ?? undefined,
     }))
 
     assertProduitsUniquesSurFacture(lignesInput)
-    const calculated = await buildLignesFromPayload(lignesInput, true, trx)
     const depot = await resolveDepotForPointDeVente(
       vente.pointDeVenteId,
       vente.depotId ?? undefined,
       trx
     )
+    const calculated = await withLigneDepots(
+      await buildLignesFromPayload(lignesInput, true, trx),
+      lignesInput,
+      vente.pointDeVenteId,
+      depot.id,
+      trx
+    )
 
     for (const l of calculated) {
-      const { produit, quantite: disponible } = await getStockDisponible(l.produitId, depot.id, trx)
+      const { produit, quantite: disponible } = await getStockDisponible(l.produitId, l.depotId, trx)
       if (disponible < l.quantiteStock) {
         throw new VenteBusinessError(
           `Stock insuffisant pour ${produit.nom} (disponible: ${formatStockLabel(produit, disponible)})`
@@ -760,7 +849,7 @@ export async function convertirDevisEnFacture(
 
     await VenteLigne.query({ client: trx }).where('vente_id', venteId).delete()
     await persistLignes(vente.id, calculated, trx)
-    await applyStockSortie(vente.id, calculated, userId, trx, depot.id)
+    await applyStockSortie(vente.id, calculated, userId, trx)
 
     const client = await Client.query({ client: trx }).where('id', vente.clientId).firstOrFail()
     client.solde = roundMoney(Number(client.solde) + totaux.totalApresAirsi)
@@ -822,7 +911,7 @@ export async function supprimerFacture(venteId: number, userId: number) {
         userId,
         trx,
         `Suppression facture ${vente.numero}`,
-        vente.depotId ?? undefined
+        ligne.depotId ?? vente.depotId ?? undefined
       )
     }
 
@@ -911,6 +1000,12 @@ export async function creerFactureRetour(
         .firstOrFail()
       const quantiteStock = toStockQuantite(mode, item.quantite, produit)
 
+      const ligneDepot = await resolveDepotForPointDeVente(
+        pos.pointDeVenteId,
+        depotId ?? ligneOrigine.depotId ?? facture.depotId ?? undefined,
+        trx
+      )
+
       calculated.push({
         produitId: ligneOrigine.produitId,
         designation: ligneOrigine.designation,
@@ -928,6 +1023,7 @@ export async function creerFactureRetour(
         airsiPct: airsi.airsiPct,
         airsiMontant: airsi.airsiMontant,
         montantApresAirsi: airsi.montantApresAirsi,
+        depotId: ligneDepot.id,
       })
 
       ligneOrigine.quantiteRetournee = roundMoney(dejaRetourne + item.quantite)
@@ -997,12 +1093,13 @@ export async function creerFactureRetour(
           montantApresAirsi: l.montantApresAirsi,
           quantiteRetournee: 0,
           ligneOrigineId: origine.ligne_id,
+          depotId: l.depotId,
         },
         { client: trx }
       )
     }
 
-    await applyStockEntreeRetour(retour.id, calculated, userId, trx, depotRetour.id)
+    await applyStockEntreeRetour(retour.id, calculated, userId, trx)
 
     const client = await Client.query({ client: trx }).where('id', facture.clientId).firstOrFail()
     client.solde = roundMoney(Math.max(0, Number(client.solde) - totaux.totalApresAirsi))

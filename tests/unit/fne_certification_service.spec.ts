@@ -32,6 +32,7 @@ const sampleLigne = (): CalculatedLigne => ({
   airsiPct: 5,
   airsiMontant: 59,
   montantApresAirsi: 1239,
+  depotId: 1,
 })
 
 test.group('calculerTotauxVente AIRSI', () => {

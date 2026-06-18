@@ -151,13 +151,16 @@ export default class VentesController {
   /** Default line price from produit.prix_vente_ttc when adding a ligne in the UI */
   async ligneInfo(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(venteLigneInfoValidator)
+    const pos = requirePointDeVente(ctx)
     try {
       const info = await getLigneVenteInfo(
-        payload.produit_id,
+        payload.produit_id ?? payload.produitId!,
         payload.quantite ?? 1,
-        payload.remise_pct ?? 0,
+        payload.remise_pct ?? payload.remisePct ?? 0,
         false,
-        payload.mode_vente ?? 'piece'
+        payload.mode_vente ?? payload.modeVente ?? 'piece',
+        payload.depot_id ?? payload.depotId,
+        pos.pointDeVenteId
       )
       const visibility = getVenteLigneVisibility(ctx)
       const { marge: _marge, plancher: _plancher, ...publicInfo } = info
@@ -261,6 +264,7 @@ export default class VentesController {
           notes: payload.notes ?? null,
           lignes: payload.lignes,
           depot_id: payload.depot_id,
+          depotId: payload.depotId,
         },
         ctx.auth.getUserOrFail().id,
         requirePointDeVente(ctx)
@@ -297,6 +301,7 @@ export default class VentesController {
           notes: payload.notes,
           lignes: payload.lignes,
           depot_id: payload.depot_id,
+          depotId: payload.depotId,
         },
         ctx.auth.getUserOrFail().id,
         pos.pointDeVenteId

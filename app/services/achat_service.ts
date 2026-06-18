@@ -48,6 +48,7 @@ export type LigneAchatInput = {
   quantite: number
   prix_unitaire_ht?: number
   frais?: number
+  remise_pct?: number
 }
 
 export type LigneRecueInput = {
@@ -68,6 +69,7 @@ export type CalculatedAchatLigne = {
   quantiteStock: number
   prixUnitaireHt: number
   frais: number
+  remisePct: number
   tvaPct: number
   montantHt: number
   montantTva: number
@@ -93,15 +95,32 @@ export function resolveFraisAchatLigneGros(
   return 0
 }
 
-function calcLigneMontants(quantite: number, prixUnitaireHt: number, tvaPct: number) {
-  const montantHt = roundMoney(quantite * prixUnitaireHt)
+/** Prix unitaire HT après remise ligne (base CMUP). */
+export function prixHtApresRemiseLigne(prixUnitaireHt: number, remisePct: number): number {
+  return roundMoney(prixUnitaireHt * (1 - remisePct / 100))
+}
+
+export function calcLigneMontants(
+  quantite: number,
+  prixUnitaireHt: number,
+  tvaPct: number,
+  remisePct = 0
+) {
+  const brutHt = roundMoney(quantite * prixUnitaireHt)
+  const remiseHt = roundMoney(brutHt * (remisePct / 100))
+  const montantHt = roundMoney(brutHt - remiseHt)
   const montantTva = roundMoney(montantHt * (tvaPct / 100))
   const montantTtc = roundMoney(montantHt + montantTva)
   return { montantHt, montantTva, montantTtc }
 }
 
-export function calcReceptionTtc(quantiteRecue: number, prixUnitaireHt: number, tvaPct: number) {
-  const { montantTtc } = calcLigneMontants(quantiteRecue, prixUnitaireHt, tvaPct)
+export function calcReceptionTtc(
+  quantiteRecue: number,
+  prixUnitaireHt: number,
+  tvaPct: number,
+  remisePct = 0
+) {
+  const { montantTtc } = calcLigneMontants(quantiteRecue, prixUnitaireHt, tvaPct, remisePct)
   return montantTtc
 }
 
@@ -186,10 +205,12 @@ export async function buildLignesFromPayload(
       )
     }
     const quantiteStock = toStockQuantite(ACHAT_MODE_GROS, ligne.quantite, produit)
+    const remisePct = ligne.remise_pct ?? 0
     const { montantHt, montantTva, montantTtc } = calcLigneMontants(
       ligne.quantite,
       prixUnitaireHt,
-      tvaPct
+      tvaPct,
+      remisePct
     )
 
     result.push({
@@ -200,6 +221,7 @@ export async function buildLignesFromPayload(
       quantiteStock,
       prixUnitaireHt,
       frais,
+      remisePct,
       tvaPct,
       montantHt,
       montantTva,
@@ -214,7 +236,8 @@ export async function getLigneAchatInfo(
   produitId: number,
   quantite = 1,
   prixUnitaireHt?: number,
-  frais?: number
+  frais?: number,
+  remisePct = 0
 ) {
   const produit = await Produit.query().where('id', produitId).where('is_active', true).first()
   if (!produit) throw new AchatBusinessError(`Produit ${produitId} introuvable`)
@@ -240,8 +263,9 @@ export async function getLigneAchatInfo(
     prixHt = prixGrosRef
   }
   fraisLigne = resolveFraisAchatLigneGros(produitFraisGros, dernierGros?.frais, frais)
+  const prixHtCmup = prixHtApresRemiseLigne(prixHt, remisePct)
   const quantiteStock = toStockQuantite(ACHAT_MODE_GROS, quantite, produit)
-  const cmup = toAchatCmupUnits(ACHAT_MODE_GROS, quantite, prixHt, fraisLigne, produit)
+  const cmup = toAchatCmupUnits(ACHAT_MODE_GROS, quantite, prixHtCmup, fraisLigne, produit)
   const stockAvant = Number(produit.stockActuel)
   const stockDisplay = resolveStockDisplay(produit, stockAvant)
   const stockApresDetail = roundQty(stockAvant + quantiteStock)
@@ -259,7 +283,7 @@ export async function getLigneAchatInfo(
     ancienFrais: prixInterne.frais,
     tauxTva: tvaPct,
   })
-  const { montantHt, montantTva, montantTtc } = calcLigneMontants(quantite, prixHt, tvaPct)
+  const { montantHt, montantTva, montantTtc } = calcLigneMontants(quantite, prixHt, tvaPct, remisePct)
   const contenance = getContenance(produit)
   const detailConfig = hasUniteDetailConfig(produit)
   const uniteQuantite = produit.uniteGros?.trim() || (detailConfig ? 'pièce' : '')
@@ -284,6 +308,8 @@ export async function getLigneAchatInfo(
     quantite_stock: quantiteStock,
     prix_unitaire_ht: prixHt,
     prix_gros_ht: prixGrosRef,
+    remise_pct: remisePct,
+    prix_ht_apres_remise: prixHtCmup,
     ...serializeAchatCataloguePrix(catalogueActuel),
     ...serializeAchatCataloguePrix(catalogueApres, 'apres'),
     frais_gros: fraisGrosRef,
@@ -324,6 +350,7 @@ async function persistLignes(
         quantiteRecue: 0,
         prixUnitaireHt: l.prixUnitaireHt,
         frais: l.frais,
+        remisePct: l.remisePct,
         tvaPct: l.tvaPct,
         montantHt: l.montantHt,
         montantTva: l.montantTva,
@@ -440,10 +467,12 @@ export async function recevoirMarchandise(
       const stockAvant = Number(produit.stockActuel)
       const mode = achatLigneMode(ligne)
       const quantiteRecueStock = toStockQuantite(mode, item.quantite_recue, produit)
+      const remisePct = Number(ligne.remisePct ?? 0)
+      const prixHtCmup = prixHtApresRemiseLigne(Number(ligne.prixUnitaireHt), remisePct)
       const cmup = toAchatCmupUnits(
         mode,
         item.quantite_recue,
-        Number(ligne.prixUnitaireHt),
+        prixHtCmup,
         Number(ligne.frais),
         produit
       )
@@ -493,7 +522,8 @@ export async function recevoirMarchandise(
       receptionTtcTotal += calcReceptionTtc(
         item.quantite_recue,
         Number(ligne.prixUnitaireHt),
-        Number(ligne.tvaPct)
+        Number(ligne.tvaPct),
+        remisePct
       )
     }
 
