@@ -133,12 +133,14 @@ export default class DepotsController {
       depot!.code = payload.code
     }
 
-    if (payload.nom) depot!.nom = payload.nom
+    if (payload.nom !== undefined) depot!.nom = payload.nom
     if (payload.adresse !== undefined) depot!.adresse = payload.adresse ?? null
     if (payload.is_active !== undefined) depot!.isActive = payload.is_active
 
     if (payload.is_default) {
       await Depot.transaction(async (trx) => {
+        depot!.useTransaction(trx)
+        await depot!.save()
         await setDefaultDepot(depot!.id, trx)
       })
       await depot!.refresh()

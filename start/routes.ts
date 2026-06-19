@@ -17,6 +17,7 @@
 
 import { middleware } from '#start/kernel'
 import router from '@adonisjs/core/services/router'
+import db from '@adonisjs/lucid/services/db'
 
 const ApikeysController = () => import('#controllers/apikeys_controller')
 const AuthController = () => import('#controllers/auth_controller')
@@ -37,7 +38,14 @@ const UsersController = () => import('#controllers/users_controller')
 const PointsDeVenteController = () => import('#controllers/points_de_vente_controller')
 const ReglementsController = () => import('#controllers/reglements_controller')
 
-router.get('/health', () => ({ status: 'ok' }))
+router.get('/health', async ({ response }) => {
+  try {
+    await db.rawQuery('SELECT 1 AS ok')
+    return { status: 'ok', database: 'connected' }
+  } catch {
+    return response.status(503).send({ status: 'degraded', database: 'unreachable' })
+  }
+})
 
 router
   .group(() => {

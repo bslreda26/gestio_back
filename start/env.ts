@@ -19,8 +19,15 @@ export default await Env.create(new URL('../', import.meta.url), {
   LOG_LEVEL: Env.schema.string(),
 
   // App
+  APP_NAME: Env.schema.string.optional(),
   APP_KEY: Env.schema.secret(),
   APP_URL: Env.schema.string({ format: 'url', tld: false }),
+
+  // Auth
+  AUTH_TOKEN_EXPIRES_IN: Env.schema.string.optional(),
+
+  // CORS — comma-separated origins, e.g. https://app.example.com,https://admin.example.com
+  CORS_ORIGIN: Env.schema.string.optional(),
 
   // Session
   SESSION_DRIVER: Env.schema.enum(['cookie', 'memory', 'database'] as const),

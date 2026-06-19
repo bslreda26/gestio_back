@@ -1,7 +1,8 @@
 import vine from '@vinejs/vine'
+import { CLIENT_TYPES } from '#constants/client_types'
 
-export const CLIENT_TYPES = ['B2B', 'B2C', 'B2F', 'B2G'] as const
-export type ClientType = (typeof CLIENT_TYPES)[number]
+export type { ClientType } from '#constants/client_types'
+export { CLIENT_TYPES }
 
 const clientFields = {
   nom: vine.string().trim().minLength(1).maxLength(150),

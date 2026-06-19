@@ -232,6 +232,59 @@ test.group('buildFneInvoicePayload', () => {
     assert.equal(payload.commercialMessage, 'ref: 01-FAC-2026-0001 Merci')
   })
 
+  test('uses B2F template for export clients and B2G for government clients', ({ assert }) => {
+    const baseInput = {
+      vente: {
+        numero: '01-FAC-2026-0001',
+        dateVente: DateTime.fromISO('2026-01-15'),
+        sousTotal: '1000.00',
+        totalTtc: '1180.00',
+        totalApresAirsi: '1180.00',
+        airsiPct: '0.00',
+        airsiMontant: '0.00',
+        tvaMontant: '180.00',
+        remisePct: '0.00',
+        notes: null,
+      } as any,
+      pointDeVente: {
+        nom: 'PDV',
+        pointOfSale: 'pdv',
+        establishment: 'etab',
+        timbreReference: null,
+      } as any,
+      lignes: [
+        {
+          id: 1,
+          produitId: 1,
+          designation: 'Produit',
+          quantite: '1',
+          prixUnitaire: '1000.00',
+          remisePct: '0',
+          tvaPct: '18',
+          montantHt: '1000.00',
+          montantTtc: '1180.00',
+          airsiPct: '0.00',
+          airsiMontant: '0.00',
+          montantApresAirsi: '1180.00',
+        },
+      ] as any[],
+      produitsById: new Map<number, Produit>([[1, { id: 1, code: 'PRD-0001' } as Produit]]),
+      paymentMethod: 'deferred' as const,
+    }
+
+    const exportPayload = buildFneInvoicePayload({
+      ...baseInput,
+      client: { nom: 'Client export', type: 'B2F' } as any,
+    })
+    const govPayload = buildFneInvoicePayload({
+      ...baseInput,
+      client: { nom: 'Ministère', type: 'B2G', ncc: '9606123E' } as any,
+    })
+
+    assert.equal(exportPayload.template, 'B2F')
+    assert.equal(govPayload.template, 'B2G')
+  })
+
   test('sends gross unit HT and line discount separately for FNE', ({ assert }) => {
     const vente = {
       numero: '01-FAC-2026-0004',

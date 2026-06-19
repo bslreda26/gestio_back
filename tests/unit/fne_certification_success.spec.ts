@@ -22,8 +22,8 @@ test.group('isFneCertificationSuccessful', () => {
     )
   })
 
-  test('rejects payload without invoice id', ({ assert }) => {
-    assert.isFalse(
+  test('accepts refund payload with reference and token without invoice id', ({ assert }) => {
+    assert.isTrue(
       isFneCertificationSuccessful({
         reference: '1102324W26000001382',
         token: 'https://fne.dgi.gouv.ci/verify/abc',

@@ -9,6 +9,7 @@ import hash from '@adonisjs/core/services/hash'
 import vine from '@vinejs/vine'
 import limiter from '@adonisjs/limiter/services/main'
 import { errors as authErrors } from '@adonisjs/auth'
+import env from '#start/env'
 
 const changePasswordValidator = vine.compile(
   vine.object({
@@ -55,7 +56,8 @@ export default class AuthController {
         return sendError(ctx, 'Compte désactivé', 403)
       }
 
-      const token = await User.accessTokens.create(user)
+      const tokenExpiresIn = env.get('AUTH_TOKEN_EXPIRES_IN', '7 days')
+      const token = await User.accessTokens.create(user, ['*'], { expiresIn: tokenExpiresIn })
       return serialize({
         user: {
           ...UserTransformer.transform(user),

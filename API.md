@@ -406,11 +406,11 @@ Auth + `X-Point-De-Vente-Id`.
 | POST | `/clients/ventes` | `clients` |
 | POST | `/clients/solde` | `clients_solde` |
 
-`type`: `B2B` \| `B2C` \| `B2F` \| `B2G` (défaut `B2C`)
+`type`: `B2B` \| `B2C` \| `B2F` (export) \| `B2G` (gouvernement) — défaut `B2C`
 
 | Champ | Description |
 |-------|-------------|
-| `ncc` | Numéro de Compte Contribuable — **obligatoire pour certification FNE B2B** |
+| `ncc` | Numéro de Compte Contribuable — **obligatoire pour certification FNE B2B et B2G** |
 
 ```json
 // POST /clients/create

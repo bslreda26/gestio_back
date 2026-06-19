@@ -1,4 +1,5 @@
 import User from '#models/user'
+import app from '@adonisjs/core/services/app'
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
 
 const DEFAULT_POINT_DE_VENTE_ID = 1
@@ -44,6 +45,13 @@ const SEED_USERS = [
 
 export default class extends BaseSeeder {
   async run() {
+    if (app.inProduction && process.env.ALLOW_DEFAULT_SEED_USERS !== 'true') {
+      console.warn(
+        '[01_user_seeder] Skipped in production. Set ALLOW_DEFAULT_SEED_USERS=true to override.'
+      )
+      return
+    }
+
     for (const seed of SEED_USERS) {
       const existing = await User.findBy('email', seed.email)
       if (existing) {

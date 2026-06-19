@@ -1,4 +1,5 @@
 import { fneNomTvaFromTaux } from '#constants/fne_tva'
+import { clientTypeRequiresNcc, resolveFneTemplate, type FneInvoiceTemplate } from '#constants/client_types'
 import {
   isDevis,
   isFactureInvalide,
@@ -38,7 +39,7 @@ export type FneInvoicePayload = {
   paymentMethod: 'cash' | 'deferred'
   vatAmount: number
   isRne: boolean
-  template: 'B2B' | 'B2C'
+  template: FneInvoiceTemplate
   pointOfSale: string
   establishment: string
   discount: number
@@ -149,7 +150,7 @@ export function buildFneInvoicePayload(input: {
     throw new FneCertificationError('Aucune ligne éligible pour la certification FNE')
   }
 
-  const template = client.type === 'B2B' ? 'B2B' : 'B2C'
+  const template = resolveFneTemplate(client.type)
 
   return {
     amount: hasAirsi ? Number(vente.totalApresAirsi) : Number(vente.totalTtc),
@@ -368,8 +369,9 @@ function assertCommonCertifiable(
   if (lignes.length === 0) {
     throw new FneCertificationError('La facture ne contient aucune ligne')
   }
-  if (client.type === 'B2B' && !client.ncc?.trim()) {
-    throw new FneCertificationError('Le NCC du client est obligatoire pour une facture B2B')
+  if (clientTypeRequiresNcc(client.type) && !client.ncc?.trim()) {
+    const label = client.type === 'B2G' ? 'gouvernement' : 'B2B'
+    throw new FneCertificationError(`Le NCC du client est obligatoire pour une facture ${label}`)
   }
   if (!pointDeVente.pointOfSale?.trim() && !pointDeVente.nom?.trim()) {
     throw new FneCertificationError('Le point de vente FNE est mal configuré')

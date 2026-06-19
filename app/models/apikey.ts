@@ -1,3 +1,4 @@
+import { decryptSecret, encryptSecret } from '#helpers/secret_field'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
@@ -7,7 +8,10 @@ export default class Apikey extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
-  @column()
+  @column({
+    prepare: (value: string) => encryptSecret(value),
+    consume: (value: string) => decryptSecret(value),
+  })
   declare key: string
 
   @column()
