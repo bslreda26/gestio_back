@@ -11,10 +11,13 @@ import {
   fournisseurUpdateValidator,
 } from '#validators/fournisseur_validator'
 import type { HttpContext } from '@adonisjs/core/http'
-import { maskSolde, withReleveSolde } from '#helpers/solde_visibility'
+import { maskSolde } from '#helpers/solde_visibility'
 import { requirePointDeVente, scopeByPointDeVente } from '#helpers/point_de_vente_context'
 import { hasUserPermission } from '#services/permission_service'
-import { computeFournisseurSoldePdv, computeFournisseurSoldesPdv } from '#services/rapport_service'
+import {
+  getFournisseurSoldePdv,
+  getFournisseurSoldesPdv,
+} from '#services/fournisseur_solde_service'
 
 const RECENT_ACHATS_LIMIT = 5
 
@@ -44,7 +47,7 @@ export default class FournisseursController {
     const fournisseurs = await query.offset(offset).limit(limit)
 
     const pos = requirePointDeVente(ctx)
-    const soldes = await computeFournisseurSoldesPdv(
+    const soldes = await getFournisseurSoldesPdv(
       pos.pointDeVenteId,
       fournisseurs.map((f) => f.id)
     )
@@ -52,9 +55,11 @@ export default class FournisseursController {
     const canSeeSolde = hasUserPermission(ctx.auth.getUserOrFail(), 'fournisseurs_solde')
     return sendPaginated(
       ctx,
-      fournisseurs.map((f) =>
-        maskSolde(withReleveSolde(f.serialize(), soldes.get(f.id) ?? 0), canSeeSolde)
-      ),
+      fournisseurs.map((f) => {
+        const serialized = f.serialize() as Record<string, unknown>
+        serialized.solde = soldes.get(f.id) ?? 0
+        return maskSolde(serialized, canSeeSolde)
+      }),
       buildMeta(Number(total[0].$extras.total), page, limit)
     )
   }
@@ -74,10 +79,12 @@ export default class FournisseursController {
       pos.pointDeVenteId
     )
 
-    const solde = await computeFournisseurSoldePdv(id, pos.pointDeVenteId)
+    const solde = await getFournisseurSoldePdv(id, pos.pointDeVenteId)
     const canSeeSolde = hasUserPermission(ctx.auth.getUserOrFail(), 'fournisseurs_solde')
+    const serialized = fournisseur.serialize() as Record<string, unknown>
+    serialized.solde = solde
     return sendSuccess(ctx, {
-      fournisseur: maskSolde(withReleveSolde(fournisseur.serialize(), solde), canSeeSolde),
+      fournisseur: maskSolde(serialized, canSeeSolde),
       recentAchats,
     })
   }

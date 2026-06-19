@@ -15,7 +15,7 @@ import {
   roundMoney,
   updateProduitFromAchatReception,
 } from '#services/pricing_service'
-import { resolveDepotForPointDeVente } from '#services/depot_service'
+import { adjustFournisseurSoldePdv } from '#services/fournisseur_solde_service'
 import { enregistrerEntree as stockEntree, enregistrerSortie as stockSortie } from '#services/stock_service'
 import {
   assertCaisseOuverte,
@@ -530,12 +530,12 @@ export async function recevoirMarchandise(
     receptionTtcTotal = roundMoney(receptionTtcTotal)
 
     if (receptionTtcTotal > 0) {
-      const fournisseur = await Fournisseur.query({ client: trx })
-        .where('id', achat.fournisseurId)
-        .firstOrFail()
-      fournisseur.solde = roundMoney(Number(fournisseur.solde) + receptionTtcTotal)
-      fournisseur.useTransaction(trx)
-      await fournisseur.save()
+      await adjustFournisseurSoldePdv(
+        achat.fournisseurId,
+        achat.pointDeVenteId,
+        receptionTtcTotal,
+        trx
+      )
 
       achat.resteAPayer = roundMoney(Number(achat.resteAPayer) + receptionTtcTotal)
     }
@@ -708,14 +708,14 @@ export async function creerAchatRetour(
       achat.depotId
     )
 
-    const fournisseur = await Fournisseur.query({ client: trx })
-      .where('id', achat.fournisseurId)
-      .firstOrFail()
-    fournisseur.solde = roundMoney(Math.max(0, Number(fournisseur.solde) - totaux.totalTtc))
+    await adjustFournisseurSoldePdv(
+      achat.fournisseurId,
+      achat.pointDeVenteId,
+      -totaux.totalTtc,
+      trx
+    )
     achat.resteAPayer = roundMoney(Math.max(0, Number(achat.resteAPayer) - totaux.totalTtc))
-    fournisseur.useTransaction(trx)
     achat.useTransaction(trx)
-    await fournisseur.save()
     await achat.save()
 
     return { retour, achat }
@@ -771,12 +771,12 @@ export async function annulerAchat(achatId: number, userId: number, notes?: stri
     receivedTtcToReverse = roundMoney(receivedTtcToReverse)
 
     if (receivedTtcToReverse > 0) {
-      const fournisseur = await Fournisseur.query({ client: trx })
-        .where('id', achat.fournisseurId)
-        .firstOrFail()
-      fournisseur.solde = roundMoney(Math.max(0, Number(fournisseur.solde) - receivedTtcToReverse))
-      fournisseur.useTransaction(trx)
-      await fournisseur.save()
+      await adjustFournisseurSoldePdv(
+        achat.fournisseurId,
+        achat.pointDeVenteId,
+        -receivedTtcToReverse,
+        trx
+      )
     }
 
     achat.statut = ACHAT_STATUT.ANNULE
@@ -850,12 +850,12 @@ export async function enregistrerPaiementAchat(data: PaiementAchatInput, userId:
     await achat.save()
 
     if (!isRetour) {
-      const fournisseur = await Fournisseur.query({ client: trx })
-        .where('id', achat.fournisseurId)
-        .firstOrFail()
-      fournisseur.solde = roundMoney(Math.max(0, Number(fournisseur.solde) - data.montant))
-      fournisseur.useTransaction(trx)
-      await fournisseur.save()
+      await adjustFournisseurSoldePdv(
+        achat.fournisseurId,
+        achat.pointDeVenteId,
+        -data.montant,
+        trx
+      )
     }
 
     if (data.mode_paiement === 'especes') {

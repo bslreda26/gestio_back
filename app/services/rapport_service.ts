@@ -13,6 +13,11 @@ import { buildMeta, parsePagination, type PaginationInput } from '#helpers/pagin
 import { applyStockAlertFilter, getStockStatus } from '#helpers/produit_query'
 import { aggregateStockStatus } from '#helpers/depot_stock_serializer'
 import { roundMoney } from '#services/pricing_service'
+import { readClientSolde } from '#services/client_solde_service'
+import FournisseurSolde from '#models/fournisseur_solde'
+import {
+  getFournisseurSoldesPdv,
+} from '#services/fournisseur_solde_service'
 import { getStocksParDepotForProduits } from '#services/depot_service'
 import { calcReceptionTtc } from '#services/achat_service'
 import { ACHAT_STATUT } from '#constants/achat_statuts'
@@ -904,31 +909,22 @@ export async function rapportBalanceClients(filters: {
 
   const clientQuery = clientReportQuery(filters).orderBy('nom', 'asc')
 
-  const [countRow, allClients, clients] = await Promise.all([
+  const [countRow, totalSoldeRow, clients] = await Promise.all([
     clientQuery.clone().count('* as total'),
-    clientReportQuery(filters).select('id'),
+    clientQuery.clone().sum('solde as total'),
     clientQuery.offset(offset).limit(limit),
   ])
 
   const totalClients = Number(countRow[0].$extras.total)
   const meta = buildMeta(totalClients, page, limit)
-  const allIds = allClients.map((client) => client.id)
-  const pageIds = clients.map((client) => client.id)
-
-  const [allSoldes, pageSoldes] = await Promise.all([
-    computeClientSoldesPdv(filters.pointDeVenteId, allIds),
-    computeClientSoldesPdv(filters.pointDeVenteId, pageIds),
-  ])
 
   const lignes = clients.map((client) => ({
     reference: client.code,
     designation: client.nom,
-    solde: pageSoldes.get(client.id) ?? 0,
+    solde: readClientSolde(client),
   }))
 
-  const totalSoldeClients = roundMoney(
-    [...allSoldes.values()].reduce((sum, solde) => sum + solde, 0)
-  )
+  const totalSoldeClients = roundMoney(Number(totalSoldeRow[0]?.$extras.total ?? 0))
 
   return {
     lignes,
@@ -976,12 +972,15 @@ async function clientSoldeNetChange(
       .where('paiements.type', 'vente')
       .where('ventes.client_id', clientId)
       .where('ventes.point_de_vente_id', pointDeVenteId)
-      .whereIn('ventes.statut', ['valide', 'retour'])
+      .whereIn('ventes.statut', ['valide', 'non_valide', 'retour'])
 
   const [facturesRow, retoursRow, paiementsRow, reglementsRow] = await Promise.all([
-    applyReleveDateFilter(venteBase().where('statut', 'valide'), 'date_vente', dateFrom, dateTo).sum(
-      'total_ttc as total'
-    ),
+    applyReleveDateFilter(
+      venteBase().whereIn('statut', ['valide', 'non_valide']),
+      'date_vente',
+      dateFrom,
+      dateTo
+    ).sum('total_ttc as total'),
     applyReleveDateFilter(venteBase().where('statut', 'retour'), 'date_vente', dateFrom, dateTo).sum(
       'total_ttc as total'
     ),
@@ -1021,22 +1020,35 @@ function clientSoldeFromNet(totalDebit: number, totalCredit: number) {
   return roundMoney(totalDebit - totalCredit)
 }
 
-/** Solde client recalculé depuis les mouvements (même logique que le relevé). */
+/** Solde client recalculé depuis les mouvements (relevés historiques). */
 export async function computeClientSoldePdv(clientId: number, pointDeVenteId: number) {
   const net = await clientSoldeNetChange(clientId, pointDeVenteId)
   return clientSoldeFromNet(net.totalDebit, net.totalCredit)
 }
 
+/** Lecture rapide du solde matérialisé (listes, balance). */
+export async function getClientSoldeStored(clientId: number, pointDeVenteId: number) {
+  const client = await Client.query()
+    .where('id', clientId)
+    .where('point_de_vente_id', pointDeVenteId)
+    .select('solde')
+    .first()
+
+  return client ? readClientSolde(client) : 0
+}
+
 export async function computeClientSoldesPdv(pointDeVenteId: number, clientIds: number[]) {
   const soldes = new Map<number, number>()
-  for (const id of clientIds) soldes.set(id, 0)
   if (clientIds.length === 0) return soldes
 
-  await Promise.all(
-    clientIds.map(async (clientId) => {
-      soldes.set(clientId, await computeClientSoldePdv(clientId, pointDeVenteId))
-    })
-  )
+  const rows = await Client.query()
+    .where('point_de_vente_id', pointDeVenteId)
+    .whereIn('id', clientIds)
+    .select('id', 'solde')
+
+  for (const row of rows) {
+    soldes.set(row.id, readClientSolde(row))
+  }
 
   return soldes
 }
@@ -1054,7 +1066,7 @@ async function buildClientReleveOperations(
     Vente.query()
       .where('client_id', clientId)
       .where('point_de_vente_id', pointDeVenteId)
-      .whereIn('statut', ['valide', 'retour'])
+      .whereIn('statut', ['valide', 'non_valide', 'retour'])
       .where('date_vente', '>=', from)
       .where('date_vente', '<=', to)
       .orderBy('date_vente', 'asc')
@@ -1068,7 +1080,7 @@ async function buildClientReleveOperations(
           .select('id')
           .where('client_id', clientId)
           .where('point_de_vente_id', pointDeVenteId)
-          .whereIn('statut', ['valide', 'retour'])
+          .whereIn('statut', ['valide', 'non_valide', 'retour'])
       )
       .where('date_paiement', '>=', from)
       .where('date_paiement', '<=', to)
@@ -1528,17 +1540,7 @@ export async function computeFournisseurSoldePdv(fournisseurId: number, pointDeV
 }
 
 export async function computeFournisseurSoldesPdv(pointDeVenteId: number, fournisseurIds: number[]) {
-  const soldes = new Map<number, number>()
-  for (const id of fournisseurIds) soldes.set(id, 0)
-  if (fournisseurIds.length === 0) return soldes
-
-  await Promise.all(
-    fournisseurIds.map(async (fournisseurId) => {
-      soldes.set(fournisseurId, await computeFournisseurSoldePdv(fournisseurId, pointDeVenteId))
-    })
-  )
-
-  return soldes
+  return getFournisseurSoldesPdv(pointDeVenteId, fournisseurIds)
 }
 
 type FournisseurReleveOperation = {
@@ -1693,21 +1695,21 @@ export async function rapportBalanceFournisseurs(filters: {
   const { page, limit, offset } = parsePagination(filters)
   const fournisseurQuery = fournisseurReportQuery(filters).orderBy('nom', 'asc')
 
-  const [countRow, allFournisseurs, fournisseurs] = await Promise.all([
+  const [countRow, totalSoldeRow, fournisseurs] = await Promise.all([
     fournisseurQuery.clone().count('* as total'),
-    fournisseurReportQuery(filters).select('id'),
+    FournisseurSolde.query()
+      .where('point_de_vente_id', filters.pointDeVenteId)
+      .whereIn('fournisseur_id', fournisseurReportQuery(filters).select('id'))
+      .sum('solde as total'),
     fournisseurQuery.offset(offset).limit(limit),
   ])
 
   const totalFournisseurs = Number(countRow[0].$extras.total)
   const meta = buildMeta(totalFournisseurs, page, limit)
-  const allIds = allFournisseurs.map((fournisseur) => fournisseur.id)
-  const pageIds = fournisseurs.map((fournisseur) => fournisseur.id)
-
-  const [allSoldes, pageSoldes] = await Promise.all([
-    computeFournisseurSoldesPdv(filters.pointDeVenteId, allIds),
-    computeFournisseurSoldesPdv(filters.pointDeVenteId, pageIds),
-  ])
+  const pageSoldes = await getFournisseurSoldesPdv(
+    filters.pointDeVenteId,
+    fournisseurs.map((fournisseur) => fournisseur.id)
+  )
 
   const lignes = fournisseurs.map((fournisseur) => ({
     reference: fournisseur.code,
@@ -1715,9 +1717,7 @@ export async function rapportBalanceFournisseurs(filters: {
     solde: pageSoldes.get(fournisseur.id) ?? 0,
   }))
 
-  const totalSoldeFournisseurs = roundMoney(
-    [...allSoldes.values()].reduce((sum, solde) => sum + solde, 0)
-  )
+  const totalSoldeFournisseurs = roundMoney(Number(totalSoldeRow[0]?.$extras.total ?? 0))
 
   return {
     lignes,

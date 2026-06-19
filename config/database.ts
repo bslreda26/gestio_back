@@ -14,6 +14,13 @@ const dbConfig = defineConfig({
         password: env.get('DB_PASSWORD'),
         database: env.get('DB_DATABASE'),
       },
+      pool: {
+        min: 2,
+        max: 20,
+        createTimeoutMillis: 3000,
+        acquireTimeoutMillis: 30000,
+        idleTimeoutMillis: 30000,
+      },
       migrations: {
         naturalSort: true,
         paths: ['database/migrations'],

@@ -2,6 +2,7 @@ import Client from '#models/client'
 import Fournisseur from '#models/fournisseur'
 import Reglement from '#models/reglement'
 import { roundMoney } from '#services/pricing_service'
+import { adjustFournisseurSoldePdv } from '#services/fournisseur_solde_service'
 import {
   assertCaisseOuverte,
   enregistrerEntree as caisseEntree,
@@ -153,8 +154,12 @@ export async function enregistrerReglementFournisseur(
 
     if (!fournisseur) throw new ReglementBusinessError('Fournisseur introuvable')
 
-    const soldeAvant = Number(fournisseur.solde)
-    const soldeApres = roundMoney(soldeAvant - data.montant)
+    const { soldeAvant, soldeApres } = await adjustFournisseurSoldePdv(
+      fournisseur.id,
+      pointDeVenteId,
+      -data.montant,
+      trx
+    )
 
     const reglement = await Reglement.create(
       {
@@ -174,9 +179,7 @@ export async function enregistrerReglementFournisseur(
       { client: trx }
     )
 
-    fournisseur.solde = soldeApres
-    fournisseur.useTransaction(trx)
-    await fournisseur.save()
+    await fournisseur.refresh()
 
     if (data.mode_paiement === 'especes') {
       await appliquerMouvementCaisseEspeces(
