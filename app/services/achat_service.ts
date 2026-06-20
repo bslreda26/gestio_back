@@ -16,6 +16,7 @@ import {
   updateProduitFromAchatReception,
 } from '#services/pricing_service'
 import { adjustFournisseurSoldePdv } from '#services/fournisseur_solde_service'
+import { resolveDepotForPointDeVente } from '#services/depot_service'
 import { enregistrerEntree as stockEntree, enregistrerSortie as stockSortie } from '#services/stock_service'
 import {
   assertCaisseOuverte,

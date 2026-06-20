@@ -687,6 +687,66 @@ test.group('API — dépôts & stock multi-dépôt', (group) => {
     assert.equal(ligneDepot.totalEntree, transferQty)
     assert.equal(ligneDepot.stockFinal, transferQty)
   })
+
+  test('transfer accepts gros or detail quantity for detail products', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    const ref = await Produit.findByOrFail('code', 'PRD-0001')
+    const defaultDepot = await Depot.query().where('is_default', true).firstOrFail()
+
+    const created = await authedPos(client, token).post('/api/v1/produits/create').json({
+      nom: 'Riz transfert sac kg',
+      tva_groupe_id: ref.tvaGroupeId,
+      prix_vente_ttc: 25000,
+      unite: 'kg',
+      unite_gros: 'sac',
+      contenance: 50,
+      vente_au_detail: true,
+    })
+    created.assertStatus(200)
+    const produitId = created.body().data.id as number
+
+    await authedPos(client, token).post('/api/v1/produits/ajustement').json({
+      id: produitId,
+      type: 'entree',
+      quantite_pieces: 5,
+      quantite_detail: 12,
+    })
+
+    const secondary = await authedPos(client, token).post('/api/v1/depots/create').json({
+      code: 'TRF',
+      nom: 'Dépôt transfert',
+    })
+    secondary.assertStatus(200)
+    const secondaryId = secondary.body().data.id
+
+    const transfertGros = await authedPos(client, token).post('/api/v1/depots/transfert').json({
+      produit_id: produitId,
+      quantite: 2,
+      mode_vente: 'piece',
+      depot_source_id: defaultDepot.id,
+      depot_dest_id: secondaryId,
+    })
+    transfertGros.assertStatus(200)
+    assert.equal(transfertGros.body().data.quantite_stock, 100)
+    assert.equal(transfertGros.body().data.quantite_label, '2 sac')
+    assert.equal(transfertGros.body().data.depot_dest.stock_label, '2 sac')
+    assert.equal(transfertGros.body().data.depot_dest.stock_pieces, 2)
+    assert.equal(transfertGros.body().data.depot_dest.stock_reste_detail, 0)
+
+    const transfertDetail = await authedPos(client, token).post('/api/v1/depots/transfert').json({
+      produit_id: produitId,
+      quantite_pieces: 1,
+      quantite_detail: 10,
+      depot_source_id: defaultDepot.id,
+      depot_dest_id: secondaryId,
+    })
+    transfertDetail.assertStatus(200)
+    assert.equal(transfertDetail.body().data.quantite_stock, 60)
+    assert.equal(transfertDetail.body().data.quantite_label, '1 sac + 10 kg')
+    assert.equal(transfertDetail.body().data.depot_dest.stock_label, '3 sac + 10 kg')
+    assert.equal(transfertDetail.body().data.depot_dest.stock_pieces, 3)
+    assert.equal(transfertDetail.body().data.depot_dest.stock_reste_detail, 10)
+  })
 })
 
 function roundMoney(value: number) {

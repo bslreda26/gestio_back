@@ -11,6 +11,7 @@ import {
   resolveAjustementQuantite,
   resolvePlancherLigne,
   resolveStockDisplay,
+  resolveTransfertQuantite,
   toPlancherAffichage,
   toPlancherStockage,
   toProduitPrixAffichage,
@@ -118,6 +119,34 @@ test.group('vente_unite_service — ajustement', () => {
         resolveAjustementQuantite(produitSacKg, { quantite_pieces: 0, quantite_detail: 50 }),
       AjustementQuantiteError
     )
+  })
+})
+
+test.group('vente_unite_service — transfert', () => {
+  test('mode piece converts gros quantity to stock detail', ({ assert }) => {
+    assert.equal(
+      resolveTransfertQuantite(produitSacKg, { quantite: 2, mode_vente: 'piece' }),
+      100
+    )
+  })
+
+  test('mode detail uses quantity as stock detail', ({ assert }) => {
+    assert.equal(
+      resolveTransfertQuantite(produitSacKg, { quantite: 25, mode_vente: 'detail' }),
+      25
+    )
+  })
+
+  test('pieces + detail combines gros and reliquat', ({ assert }) => {
+    assert.equal(
+      resolveTransfertQuantite(produitSacKg, { quantite_pieces: 1, quantite_detail: 12 }),
+      62
+    )
+  })
+
+  test('quantite without mode defaults to gros (piece)', ({ assert }) => {
+    assert.equal(resolveTransfertQuantite(produitSacKg, { quantite: 2 }), 100)
+    assert.equal(resolveTransfertQuantite(produitGrosSimple, { quantite: 3 }), 3)
   })
 })
 

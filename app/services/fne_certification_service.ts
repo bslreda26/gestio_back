@@ -31,9 +31,9 @@ export type FneInvoiceItemPayload = {
 export type FneInvoicePayload = {
   amount: number
   clientCompanyName: string
-  clientEmail: string | null
+  clientEmail: string
   clientNcc: string | null
-  clientPhone: string | null
+  clientPhone: string
   invoiceType: 'sale' | 'refund'
   items: FneInvoiceItemPayload[]
   paymentMethod: 'cash' | 'deferred'
@@ -91,6 +91,11 @@ function buildCommercialMessage(numero: string, notes: string | null): string {
   const base = `ref: ${numero}`
   if (!notes?.trim()) return base
   return `${base} ${notes.trim()}`
+}
+
+/** FNE rejects null on string fields — send empty string when absent. */
+function fneOptionalString(value: string | null | undefined): string {
+  return value?.trim() ?? ''
 }
 
 function ligneReference(ligne: VenteLigne, produitsById: Map<number, Produit>): string {
@@ -155,9 +160,9 @@ export function buildFneInvoicePayload(input: {
   return {
     amount: hasAirsi ? Number(vente.totalApresAirsi) : Number(vente.totalTtc),
     clientCompanyName: client.nom,
-    clientEmail: client.email,
+    clientEmail: fneOptionalString(client.email),
     clientNcc: client.ncc,
-    clientPhone: client.telephone,
+    clientPhone: fneOptionalString(client.telephone),
     invoiceType: input.invoiceType ?? 'sale',
     items,
     paymentMethod,

@@ -16,6 +16,11 @@ import {
 } from '#services/depot_service'
 import { enregistrerTransfert } from '#services/stock_service'
 import {
+  AjustementQuantiteError,
+  resolveStockDisplay,
+  resolveTransfertQuantite,
+} from '#services/vente_unite_service'
+import {
   depotCreateValidator,
   depotDeactivateValidator,
   depotIdValidator,
@@ -223,20 +228,61 @@ export default class DepotsController {
     }
 
     try {
+      const quantiteStock = resolveTransfertQuantite(produit!, {
+        quantite: payload.quantite,
+        quantite_pieces: payload.quantite_pieces,
+        quantite_detail: payload.quantite_detail,
+        mode_vente: payload.mode_vente ?? payload.modeVente,
+      })
       const updated = await enregistrerTransfert(
         payload.produit_id,
-        payload.quantite,
+        quantiteStock,
         payload.depot_source_id,
         payload.depot_dest_id,
         ctx.auth.getUserOrFail().id,
         payload.notes ?? null
       )
+
+      const [sourceRow, destRow] = await Promise.all([
+        DepotStock.query()
+          .where('depot_id', payload.depot_source_id)
+          .where('produit_id', payload.produit_id)
+          .firstOrFail(),
+        DepotStock.query()
+          .where('depot_id', payload.depot_dest_id)
+          .where('produit_id', payload.produit_id)
+          .firstOrFail(),
+      ])
+
+      const quantiteDisplay = resolveStockDisplay(produit!, quantiteStock)
+      const sourceDisplay = resolveStockDisplay(produit!, Number(sourceRow.quantite))
+      const destDisplay = resolveStockDisplay(produit!, Number(destRow.quantite))
+
       return sendSuccess(ctx, {
         message: 'Transfert enregistré',
+        quantite_stock: quantiteStock,
+        quantite_label: quantiteDisplay.stockLabel,
         produit: serializeProduit(updated),
+        depot_source: {
+          depot_id: payload.depot_source_id,
+          quantite: Number(sourceRow.quantite),
+          stock_label: sourceDisplay.stockLabel,
+          stock_pieces: sourceDisplay.stockPieces,
+          stock_reste_detail: sourceDisplay.stockResteDetail,
+        },
+        depot_dest: {
+          depot_id: payload.depot_dest_id,
+          quantite: Number(destRow.quantite),
+          stock_label: destDisplay.stockLabel,
+          stock_pieces: destDisplay.stockPieces,
+          stock_reste_detail: destDisplay.stockResteDetail,
+        },
       })
     } catch (error) {
-      if (error instanceof Error && error.name === 'StockInsuffisantError') {
+      if (
+        error instanceof AjustementQuantiteError ||
+        (error instanceof Error && error.name === 'StockInsuffisantError')
+      ) {
         return sendError(ctx, error.message, 422)
       }
       throw error
@@ -272,10 +318,17 @@ export default class DepotsController {
 
     return sendPaginated(
       ctx,
-      rows.map((row) => ({
-        produit: serializeProduit(row.produit),
-        quantite: Number(row.quantite),
-      })),
+      rows.map((row) => {
+        const quantite = Number(row.quantite)
+        const stockDisplay = resolveStockDisplay(row.produit, quantite)
+        return {
+          produit: serializeProduit(row.produit),
+          quantite,
+          stock_label: stockDisplay.stockLabel,
+          stock_pieces: stockDisplay.stockPieces,
+          stock_reste_detail: stockDisplay.stockResteDetail,
+        }
+      }),
       buildMeta(Number(total[0].$extras.total), page, limit)
     )
   }

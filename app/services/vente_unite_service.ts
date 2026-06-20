@@ -467,6 +467,34 @@ export function resolveAjustementQuantite(
   return roundQty(input.quantite)
 }
 
+export type TransfertQuantiteInput = AjustementQuantiteInput & {
+  mode_vente?: ModeVente
+  modeVente?: ModeVente
+}
+
+/** Convertit la saisie transfert (gros, détail ou pièces + reliquat) en quantité stock interne. */
+export function resolveTransfertQuantite(
+  produit: Pick<Produit, 'contenance' | 'venteAuDetail' | 'nom' | 'unite' | 'uniteGros'>,
+  input: TransfertQuantiteInput
+): number {
+  const hasPieces = input.quantite_pieces !== undefined
+  const hasDetail = input.quantite_detail !== undefined
+
+  if (hasPieces || hasDetail) {
+    return resolveAjustementQuantite(produit, input)
+  }
+
+  if (input.quantite === undefined || input.quantite <= 0) {
+    throw new AjustementQuantiteError('Quantité requise')
+  }
+
+  const mode = input.mode_vente ?? input.modeVente ?? 'piece'
+  if (mode === 'detail') {
+    assertModeVenteAllowed(produit, mode)
+  }
+  return toStockQuantite(mode, input.quantite, produit)
+}
+
 export function assertModeVenteAllowed(
   produit: Pick<Produit, 'venteAuDetail' | 'contenance' | 'nom'>,
   mode: ModeVente

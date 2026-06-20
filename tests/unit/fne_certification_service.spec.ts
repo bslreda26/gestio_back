@@ -232,6 +232,57 @@ test.group('buildFneInvoicePayload', () => {
     assert.equal(payload.commercialMessage, 'ref: 01-FAC-2026-0001 Merci')
   })
 
+  test('sends empty strings for missing client email and phone', ({ assert }) => {
+    const payload = buildFneInvoicePayload({
+      vente: {
+        numero: '01-FAC-2026-0001',
+        dateVente: DateTime.fromISO('2026-01-15'),
+        sousTotal: '1180.00',
+        totalTtc: '1180.00',
+        totalApresAirsi: '1180.00',
+        airsiPct: '0.00',
+        airsiMontant: '0.00',
+        tvaMontant: '180.00',
+        remisePct: '0.00',
+        notes: null,
+      } as any,
+      client: {
+        nom: 'CLIENT COMPTANT',
+        email: null,
+        telephone: null,
+        ncc: '0000000E',
+        type: 'B2C',
+      } as any,
+      pointDeVente: {
+        nom: 'PDV',
+        pointOfSale: 'pdv',
+        establishment: 'etab',
+        timbreReference: null,
+      } as any,
+      lignes: [
+        {
+          id: 1,
+          produitId: 1,
+          designation: 'Produit',
+          quantite: '1',
+          prixUnitaire: '1180.00',
+          remisePct: '0',
+          tvaPct: '18',
+          montantHt: '1000.00',
+          montantTtc: '1180.00',
+          airsiPct: '0.00',
+          airsiMontant: '0.00',
+          montantApresAirsi: '1180.00',
+        },
+      ] as any[],
+      produitsById: new Map([[1, { id: 1, code: 'PRD-1' } as Produit]]),
+      paymentMethod: 'cash',
+    })
+
+    assert.equal(payload.clientEmail, '')
+    assert.equal(payload.clientPhone, '')
+  })
+
   test('uses B2F template for export clients and B2G for government clients', ({ assert }) => {
     const baseInput = {
       vente: {

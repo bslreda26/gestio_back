@@ -370,6 +370,23 @@ export class DepotSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class FournisseurSoldeSchema extends BaseModel {
+  static $columns = ['createdAt', 'fournisseurId', 'id', 'pointDeVenteId', 'solde', 'updatedAt'] as const
+  $columns = FournisseurSoldeSchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare fournisseurId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare pointDeVenteId: number
+  @column()
+  declare solde: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+}
+
 export class FournisseurSchema extends BaseModel {
   static $columns = ['adresse', 'code', 'contactNom', 'createdAt', 'email', 'id', 'isActive', 'nom', 'notes', 'pays', 'solde', 'telephone', 'updatedAt', 'ville'] as const
   $columns = FournisseurSchema.$columns

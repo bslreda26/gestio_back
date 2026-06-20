@@ -57,7 +57,14 @@ export const depotStockSearchValidator = vine.compile(
 export const depotTransfertValidator = vine.compile(
   vine.object({
     produit_id: vine.number().positive(),
-    quantite: vine.number().positive(),
+    /** Quantité en unité gros par défaut ; utiliser mode_vente: detail pour l'unité détail */
+    quantite: vine.number().positive().optional(),
+    /** Nombre de pièces / sacs / cartons */
+    quantite_pieces: vine.number().min(0).optional(),
+    /** Reliquat en unité de détail (kg, litre…) */
+    quantite_detail: vine.number().min(0).optional(),
+    mode_vente: vine.enum(['piece', 'detail'] as const).optional(),
+    modeVente: vine.enum(['piece', 'detail'] as const).optional(),
     depot_source_id: vine.number().positive(),
     depot_dest_id: vine.number().positive(),
     notes: vine.string().trim().optional(),

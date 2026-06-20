@@ -1,4 +1,5 @@
 import {
+  formatFneErrorMessage,
   isFneCertificationSuccessful,
   parseFneApiResponse,
 } from '#helpers/fne_response_parser'
@@ -56,5 +57,19 @@ test.group('parseFneApiResponse', () => {
         statusCode: 400,
       })
     )
+  })
+
+  test('formatFneErrorMessage extracts nested validation errors', ({ assert }) => {
+    const message = formatFneErrorMessage({
+      message: 'Bad Request Exception',
+      statusCode: 400,
+      errors: {
+        clientPhone: { isString: 'clientPhone must be a string' },
+        clientEmail: { isString: 'clientEmail must be a string' },
+      },
+    })
+
+    assert.include(message, 'clientPhone must be a string')
+    assert.include(message, 'clientEmail must be a string')
   })
 })

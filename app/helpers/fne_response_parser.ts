@@ -66,6 +66,22 @@ function certificationRecord(
 }
 
 export function formatFneErrorMessage(response: Record<string, unknown>): string {
+  const nestedErrors = asRecord(response.errors)
+  if (nestedErrors) {
+    const parts: string[] = []
+    for (const fieldErrors of Object.values(nestedErrors)) {
+      const record = asRecord(fieldErrors)
+      if (record) {
+        for (const msg of Object.values(record)) {
+          if (typeof msg === 'string' && msg.trim()) parts.push(msg.trim())
+        }
+      } else if (typeof fieldErrors === 'string' && fieldErrors.trim()) {
+        parts.push(fieldErrors.trim())
+      }
+    }
+    if (parts.length) return parts.join('; ')
+  }
+
   const message = response.message
   if (Array.isArray(message)) {
     const parts = message.filter((part) => typeof part === 'string' && part.trim())
