@@ -840,6 +840,12 @@ const routes = {
     tokens: [{"old":"/api/v1/rapports/reglement-fournisseurs","type":0,"val":"api","end":""},{"old":"/api/v1/rapports/reglement-fournisseurs","type":0,"val":"v1","end":""},{"old":"/api/v1/rapports/reglement-fournisseurs","type":0,"val":"rapports","end":""},{"old":"/api/v1/rapports/reglement-fournisseurs","type":0,"val":"reglement-fournisseurs","end":""}],
     types: placeholder as Registry['rapports.reglement_fournisseurs']['types'],
   },
+  'rapports.certification': {
+    methods: ["POST"],
+    pattern: '/api/v1/rapports/certification',
+    tokens: [{"old":"/api/v1/rapports/certification","type":0,"val":"api","end":""},{"old":"/api/v1/rapports/certification","type":0,"val":"v1","end":""},{"old":"/api/v1/rapports/certification","type":0,"val":"rapports","end":""},{"old":"/api/v1/rapports/certification","type":0,"val":"certification","end":""}],
+    types: placeholder as Registry['rapports.certification']['types'],
+  },
 } as const satisfies Record<string, AdonisEndpoint>
 
 export { routes }

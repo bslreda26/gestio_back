@@ -411,6 +411,7 @@ export default class ProduitsController {
         quantite: payload.quantite,
         quantite_pieces: payload.quantite_pieces,
         quantite_detail: payload.quantite_detail,
+        mode_vente: payload.mode_vente ?? payload.modeVente,
       })
       await ajustementManuel(
         payload.id,

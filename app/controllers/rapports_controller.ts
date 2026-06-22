@@ -15,6 +15,7 @@ import {
   rapportMouvementsStock,
   rapportStockActuel,
   rapportValeurStock,
+  rapportCertification,
 } from '#services/rapport_service'
 import {
   rapportBalanceClientsValidator,
@@ -30,6 +31,7 @@ import {
   rapportMouvementsStockValidator,
   rapportStockActuelValidator,
   rapportValeurStockValidator,
+  rapportCertificationValidator,
 } from '#validators/rapport_validator'
 import type { HttpContext } from '@adonisjs/core/http'
 import Depot from '#models/depot'
@@ -339,6 +341,28 @@ export default class RapportsController {
         limit: payload.limit,
         fournisseurId: payload.fournisseur_id,
         modePaiement: payload.mode_paiement,
+        search: payload.search,
+      })
+      return sendSuccess(ctx, data, data.meta)
+    } catch (error) {
+      return handleRapportError(ctx, error)
+    }
+  }
+
+  /**
+   * Rapport certification FNE — factures certifiées / non certifiées et total TTC sur période
+   */
+  async certification(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(rapportCertificationValidator)
+    try {
+      const pos = requirePointDeVente(ctx)
+      const data = await rapportCertification({
+        pointDeVenteId: pos.pointDeVenteId,
+        dateDebut: payload.date_debut,
+        dateFin: payload.date_fin,
+        page: payload.page,
+        limit: payload.limit,
+        normalise: payload.normalise,
         search: payload.search,
       })
       return sendSuccess(ctx, data, data.meta)

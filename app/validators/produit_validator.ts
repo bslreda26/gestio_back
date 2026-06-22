@@ -70,12 +70,15 @@ export const produitAjustementValidator = vine.compile(
   vine.object({
     id: vine.number().positive(),
     type: vine.enum(['entree', 'sortie'] as const),
-    /** Quantité en unité de détail (rétrocompatibilité) */
+    /** Quantité simple ; sans mode_vente = unité stock interne (détail, rétrocompat.) */
     quantite: vine.number().positive().optional(),
     /** Nombre de pièces / sacs / cartons */
     quantite_pieces: vine.number().min(0).optional(),
     /** Reliquat en unité de détail (kg, litre…) — si vente au détail activée */
     quantite_detail: vine.number().min(0).optional(),
+    /** piece = gros ; detail = unité détail — avec quantite uniquement */
+    mode_vente: vine.enum(['piece', 'detail'] as const).optional(),
+    modeVente: vine.enum(['piece', 'detail'] as const).optional(),
     notes: vine.string().trim().optional(),
     depot_id: vine.number().positive().optional(),
   })

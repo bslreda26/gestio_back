@@ -494,6 +494,10 @@ router
               .post('reglement-fournisseurs', [RapportsController, 'reglementFournisseurs'])
               .as('reglement_fournisseurs')
               .use(middleware.role({ permission: 'rapports' }))
+            router
+              .post('certification', [RapportsController, 'certification'])
+              .as('certification')
+              .use(middleware.role({ permission: 'rapports' }))
           })
           .prefix('rapports')
           .as('rapports')

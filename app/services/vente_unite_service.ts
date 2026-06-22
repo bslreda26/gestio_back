@@ -404,6 +404,9 @@ export type AjustementQuantiteInput = {
   quantite?: number
   quantite_pieces?: number
   quantite_detail?: number
+  /** piece = gros (sac, carton…) ; detail = unité détail (kg, litre…) */
+  mode_vente?: ModeVente
+  modeVente?: ModeVente
 }
 
 export class AjustementQuantiteError extends Error {
@@ -464,6 +467,23 @@ export function resolveAjustementQuantite(
   if (input.quantite === undefined || input.quantite <= 0) {
     throw new AjustementQuantiteError('Quantité requise')
   }
+
+  const mode = input.mode_vente ?? input.modeVente
+  if (mode !== undefined) {
+    if (mode === 'detail') {
+      try {
+        assertModeVenteAllowed(produit, mode)
+      } catch (error) {
+        if (error instanceof Error) {
+          throw new AjustementQuantiteError(error.message)
+        }
+        throw error
+      }
+    }
+    return toStockQuantite(mode, input.quantite, produit)
+  }
+
+  /** Rétrocompatibilité : quantite seule = unité stock interne (détail). */
   return roundQty(input.quantite)
 }
 

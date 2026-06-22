@@ -202,5 +202,6 @@ export interface ApiDefinition {
     releveFournisseur: typeof routes['rapports.releve_fournisseur']
     reglementClients: typeof routes['rapports.reglement_clients']
     reglementFournisseurs: typeof routes['rapports.reglement_fournisseurs']
+    certification: typeof routes['rapports.certification']
   }
 }

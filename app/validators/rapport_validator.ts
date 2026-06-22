@@ -141,3 +141,14 @@ export const rapportReglementFournisseursValidator = vine.compile(
     search: vine.string().trim().optional(),
   })
 )
+
+export const rapportCertificationValidator = vine.compile(
+  vine.object({
+    date_debut: vine.date({ formats: ['iso8601'] }),
+    date_fin: vine.date({ formats: ['iso8601'] }),
+    page: vine.number().min(1).optional(),
+    limit: vine.number().min(1).max(100).optional(),
+    normalise: vine.boolean().optional(),
+    search: vine.string().trim().optional(),
+  })
+)

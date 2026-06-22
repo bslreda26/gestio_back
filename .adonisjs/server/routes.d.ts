@@ -143,6 +143,7 @@ export type ScannedRoutes = {
     'rapports.releve_fournisseur': { paramsTuple?: []; params?: {} }
     'rapports.reglement_clients': { paramsTuple?: []; params?: {} }
     'rapports.reglement_fournisseurs': { paramsTuple?: []; params?: {} }
+    'rapports.certification': { paramsTuple?: []; params?: {} }
   }
   GET: {
     'auth.me': { paramsTuple?: []; params?: {} }
@@ -293,6 +294,7 @@ export type ScannedRoutes = {
     'rapports.releve_fournisseur': { paramsTuple?: []; params?: {} }
     'rapports.reglement_clients': { paramsTuple?: []; params?: {} }
     'rapports.reglement_fournisseurs': { paramsTuple?: []; params?: {} }
+    'rapports.certification': { paramsTuple?: []; params?: {} }
   }
 }
 declare module '@adonisjs/core/types/http' {

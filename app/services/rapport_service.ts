@@ -21,6 +21,7 @@ import {
 import { getStocksParDepotForProduits } from '#services/depot_service'
 import { calcReceptionTtc } from '#services/achat_service'
 import { ACHAT_STATUT } from '#constants/achat_statuts'
+import { VENTE_STATUT } from '#constants/vente_statuts'
 import { resolveStockDisplay } from '#services/vente_unite_service'
 import { getSolde } from '#services/caisse_service'
 import db from '@adonisjs/lucid/services/db'
@@ -2031,5 +2032,134 @@ export async function rapportReglementFournisseurs(
     lignes,
     meta,
     totaux,
+  }
+}
+
+function certificationVentesQuery(filters: {
+  pointDeVenteId: number
+  dateDebut: DateTime
+  dateFin: DateTime
+  normalise?: boolean
+  search?: string
+}) {
+  let query = Vente.query()
+    .where('point_de_vente_id', filters.pointDeVenteId)
+    .where('statut', VENTE_STATUT.VALIDE)
+    .where('excluded', false)
+    .where('date_vente', '>=', toSqlDate(filters.dateDebut))
+    .where('date_vente', '<=', toSqlDate(filters.dateFin))
+
+  if (filters.normalise !== undefined) {
+    query = query.where('normalise', filters.normalise)
+  }
+
+  if (filters.search) {
+    const term = `%${filters.search.trim()}%`
+    query = query.where((q) => {
+      q.whereILike('numero', term).orWhereIn('client_id', (sub) => {
+        sub
+          .from('clients')
+          .select('id')
+          .where((clientQuery) => {
+            clientQuery.whereILike('nom', term).orWhereILike('code', term)
+          })
+      })
+    })
+  }
+
+  return query
+}
+
+export async function rapportCertification(filters: {
+  pointDeVenteId: number
+  dateDebut: DateTime
+  dateFin: DateTime
+  page?: number
+  limit?: number
+  normalise?: boolean
+  search?: string
+}) {
+  if (filters.dateDebut > filters.dateFin) {
+    throw new RapportBusinessError('date_debut doit être antérieure ou égale à date_fin')
+  }
+
+  const { page, limit, offset } = parsePagination(filters)
+  const baseQuery = certificationVentesQuery(filters)
+
+  const [totauxRow, ventes, countRow] = await Promise.all([
+    db
+      .from('ventes')
+      .where('point_de_vente_id', filters.pointDeVenteId)
+      .where('statut', VENTE_STATUT.VALIDE)
+      .where('excluded', false)
+      .where('date_vente', '>=', toSqlDate(filters.dateDebut))
+      .where('date_vente', '<=', toSqlDate(filters.dateFin))
+      .select(
+        db.raw('COUNT(*) as nombre_factures'),
+        db.raw('COALESCE(SUM(CASE WHEN normalise = 1 THEN 1 ELSE 0 END), 0) as nombre_certifiees'),
+        db.raw('COALESCE(SUM(CASE WHEN normalise = 0 THEN 1 ELSE 0 END), 0) as nombre_non_certifiees'),
+        db.raw(
+          'COALESCE(SUM(CASE WHEN normalise = 1 THEN CAST(total_ttc AS DECIMAL(18,4)) ELSE 0 END), 0) as total_ttc_certifiees'
+        ),
+        db.raw(
+          'COALESCE(SUM(CASE WHEN normalise = 0 THEN CAST(total_ttc AS DECIMAL(18,4)) ELSE 0 END), 0) as total_ttc_non_certifiees'
+        ),
+        db.raw('COALESCE(SUM(CAST(total_ttc AS DECIMAL(18,4))), 0) as total_ttc')
+      )
+      .first(),
+    baseQuery
+      .clone()
+      .orderBy('date_vente', 'desc')
+      .orderBy('id', 'desc')
+      .offset(offset)
+      .limit(limit),
+    baseQuery.clone().count('* as total'),
+  ])
+
+  const totalFactures = Number(countRow[0].$extras.total)
+  const meta = buildMeta(totalFactures, page, limit)
+
+  const totalTtcCertifiees = roundMoney(Number(totauxRow?.total_ttc_certifiees ?? 0))
+  const totalTtcNonCertifiees = roundMoney(Number(totauxRow?.total_ttc_non_certifiees ?? 0))
+  const totalTtc = roundMoney(Number(totauxRow?.total_ttc ?? 0))
+
+  const clientIds = [...new Set(ventes.map((vente) => vente.clientId))]
+  const clients =
+    clientIds.length > 0 ? await Client.query().whereIn('id', clientIds) : []
+  const clientMap = new Map(clients.map((client) => [client.id, client]))
+
+  const lignes = ventes.map((vente) => {
+    const client = clientMap.get(vente.clientId)
+    return {
+      id: vente.id,
+      numero: vente.numero,
+      date_vente: toSqlDate(vente.dateVente),
+      client: client
+        ? { id: client.id, code: client.code, nom: client.nom }
+        : null,
+      total_ttc: roundMoney(Number(vente.totalTtc)),
+      normalise: vente.normalise,
+      test_normalise: vente.testNormalise,
+      certified_at: vente.certifiedAt?.toISO() ?? null,
+      fne_invoice_id: vente.fneInvoiceId,
+    }
+  })
+
+  return {
+    periode: { date_debut: toSqlDate(filters.dateDebut), date_fin: toSqlDate(filters.dateFin) },
+    lignes,
+    meta,
+    totaux: {
+      nombre_factures: Number(totauxRow?.nombre_factures ?? 0),
+      factures_certifiees: {
+        nombre: Number(totauxRow?.nombre_certifiees ?? 0),
+        total_ttc: totalTtcCertifiees,
+      },
+      factures_non_certifiees: {
+        nombre: Number(totauxRow?.nombre_non_certifiees ?? 0),
+        total_ttc: totalTtcNonCertifiees,
+      },
+      total_ttc: totalTtc,
+    },
   }
 }

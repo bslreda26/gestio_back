@@ -1675,4 +1675,16 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['reglementFournisseurs']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'rapports.certification': {
+    methods: ["POST"]
+    pattern: '/api/v1/rapports/certification'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/rapport_validator').rapportCertificationValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/rapport_validator').rapportCertificationValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['certification']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['certification']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
 }

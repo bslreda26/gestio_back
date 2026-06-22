@@ -120,6 +120,35 @@ test.group('vente_unite_service — ajustement', () => {
       AjustementQuantiteError
     )
   })
+
+  test('mode piece converts gros quantity to stock detail', ({ assert }) => {
+    assert.equal(
+      resolveAjustementQuantite(produitSacKg, { quantite: 2, mode_vente: 'piece' }),
+      100
+    )
+  })
+
+  test('mode detail uses quantity as stock detail', ({ assert }) => {
+    assert.equal(
+      resolveAjustementQuantite(produitSacKg, { quantite: 25, mode_vente: 'detail' }),
+      25
+    )
+  })
+
+  test('quantite without mode stays in stock detail units (legacy)', ({ assert }) => {
+    assert.equal(resolveAjustementQuantite(produitSacKg, { quantite: 250 }), 250)
+  })
+
+  test('rejects detail mode when vente au detail is closed', ({ assert }) => {
+    assert.throws(
+      () =>
+        resolveAjustementQuantite(produitSacKgSansDetail, {
+          quantite: 10,
+          mode_vente: 'detail',
+        }),
+      AjustementQuantiteError
+    )
+  })
 })
 
 test.group('vente_unite_service — transfert', () => {

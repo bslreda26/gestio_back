@@ -1045,6 +1045,44 @@ test.group('API — stock', (group) => {
     assert.equal(sortie.body().data.stockResteDetail, 0)
   })
 
+  test('ajustement accepts mode_vente piece and detail', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    const ref = await Produit.findByOrFail('code', 'PRD-0001')
+
+    const created = await authedPos(client, token).post('/api/v1/produits/create').json({
+      nom: 'Riz ajustement mode vente',
+      tva_groupe_id: ref.tvaGroupeId,
+      prix_vente_ttc: 25000,
+      unite: 'kg',
+      unite_gros: 'sac',
+      contenance: 50,
+      vente_au_detail: true,
+    })
+    created.assertStatus(200)
+    const produitId = created.body().data.id as number
+
+    const entreeGros = await authedPos(client, token).post('/api/v1/produits/ajustement').json({
+      id: produitId,
+      type: 'entree',
+      quantite: 5,
+      mode_vente: 'piece',
+    })
+    entreeGros.assertStatus(200)
+    assert.equal(entreeGros.body().data.stockActuel, 250)
+    assert.equal(entreeGros.body().data.stockPieces, 5)
+
+    const sortieDetail = await authedPos(client, token).post('/api/v1/produits/ajustement').json({
+      id: produitId,
+      type: 'sortie',
+      quantite: 12,
+      mode_vente: 'detail',
+    })
+    sortieDetail.assertStatus(200)
+    assert.equal(sortieDetail.body().data.stockActuel, 238)
+    assert.equal(sortieDetail.body().data.stockPieces, 4)
+    assert.equal(sortieDetail.body().data.stockResteDetail, 38)
+  })
+
   test('valorisation returns total and categories', async ({ client, assert }) => {
     const token = await loginAsAdmin(client)
     const response = await authedPos(client, token).get('/api/v1/stock/valorisation')
