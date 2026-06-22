@@ -497,7 +497,7 @@ router
             router
               .post('certification', [RapportsController, 'certification'])
               .as('certification')
-              .use(middleware.role({ permission: 'rapports' }))
+              .use(middleware.role({ permission: 'rapports_certification' }))
           })
           .prefix('rapports')
           .as('rapports')

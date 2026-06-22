@@ -1,4 +1,9 @@
 import { fneNomTvaFromTaux } from '#constants/fne_tva'
+import {
+  FNE_PAYMENT_METHOD,
+  FNE_PAYMENT_METHOD_DEFAULT,
+  type FnePaymentMethod,
+} from '#constants/fne_payment'
 import { clientTypeRequiresNcc, resolveFneTemplate, type FneInvoiceTemplate } from '#constants/client_types'
 import {
   isDevis,
@@ -7,9 +12,9 @@ import {
   isFactureValide,
 } from '#constants/vente_statuts'
 import { isFneCertificationSuccessful, formatFneErrorMessage, resolveFneStoredInvoiceId } from '#helpers/fne_response_parser'
+import { isTimbreProduitCode } from '#helpers/timbre'
 import Apikey from '#models/apikey'
 import Client from '#models/client'
-import Paiement from '#models/paiement'
 import PointDeVente from '#models/point_de_vente'
 import Produit from '#models/produit'
 import Vente from '#models/vente'
@@ -108,7 +113,116 @@ function isTimbreLigne(
   produitsById: Map<number, Produit>,
   timbreRef: string | null
 ): boolean {
-  return Boolean(timbreRef && ligneReference(ligne, produitsById) === timbreRef)
+  return isTimbreProduitCode(ligneReference(ligne, produitsById), timbreRef)
+}
+
+export function hasTimbreLigneOnFacture(
+  lignes: VenteLigne[],
+  produitsById: Map<number, Produit>,
+  timbreRef: string | null
+): boolean {
+  if (!timbreRef?.trim()) return false
+  return lignes.some((ligne) => isTimbreLigne(ligne, produitsById, timbreRef.trim()))
+}
+
+export function computeTimbreDeductions(
+  lignes: VenteLigne[],
+  produitsById: Map<number, Produit>,
+  timbreRef: string | null
+) {
+  let montantTtc = 0
+  let montantApresAirsi = 0
+  let tvaMontant = 0
+
+  for (const ligne of lignes) {
+    if (!isTimbreLigne(ligne, produitsById, timbreRef)) continue
+    montantTtc = roundMoney(montantTtc + Number(ligne.montantTtc))
+    montantApresAirsi = roundMoney(montantApresAirsi + Number(ligne.montantApresAirsi))
+    tvaMontant = roundMoney(tvaMontant + Number(ligne.montantTva))
+  }
+
+  return { montantTtc, montantApresAirsi, tvaMontant }
+}
+
+export function resolveVenteFnePaymentMethod(vente: Vente): FnePaymentMethod {
+  const mode = vente.modePaiementFne?.trim() || FNE_PAYMENT_METHOD_DEFAULT
+  return mode === FNE_PAYMENT_METHOD.CASH ? FNE_PAYMENT_METHOD.CASH : FNE_PAYMENT_METHOD.DEFERRED
+}
+
+export function assertCashFnePaymentTimbre(
+  pointDeVente: PointDeVente,
+  lignes: VenteLigne[],
+  produitsById: Map<number, Produit>
+) {
+  const timbreRef = pointDeVente.timbreReference?.trim()
+  if (!timbreRef) {
+    throw new FneCertificationError(
+      'Mode espèces FNE : configurez la référence timbre (timbre_reference) sur le point de vente'
+    )
+  }
+  if (!hasTimbreLigneOnFacture(lignes, produitsById, timbreRef)) {
+    throw new FneCertificationError(
+      `Mode espèces FNE : ajoutez l'article timbre (référence ${timbreRef}) sur la facture avant la certification`
+    )
+  }
+}
+
+export type FneTimbreCertificationStatus = {
+  mode_paiement_fne: FnePaymentMethod
+  timbre_reference: string | null
+  timbre_sur_facture: boolean
+  pret_pour_certification: boolean
+  message: string | null
+}
+
+export function evaluateFneTimbreStatus(input: {
+  vente: Vente
+  pointDeVente: PointDeVente
+  lignes: VenteLigne[]
+  produitsById: Map<number, Produit>
+}): FneTimbreCertificationStatus {
+  const mode = resolveVenteFnePaymentMethod(input.vente)
+  const timbreRef = input.pointDeVente.timbreReference?.trim() || null
+  const timbreSurFacture = hasTimbreLigneOnFacture(input.lignes, input.produitsById, timbreRef)
+
+  if (mode === FNE_PAYMENT_METHOD.DEFERRED) {
+    return {
+      mode_paiement_fne: mode,
+      timbre_reference: timbreRef,
+      timbre_sur_facture: timbreSurFacture,
+      pret_pour_certification: true,
+      message: null,
+    }
+  }
+
+  if (!timbreRef) {
+    return {
+      mode_paiement_fne: mode,
+      timbre_reference: null,
+      timbre_sur_facture: false,
+      pret_pour_certification: false,
+      message:
+        'Configurez la référence timbre sur le point de vente pour certifier en mode espèces',
+    }
+  }
+
+  if (!timbreSurFacture) {
+    return {
+      mode_paiement_fne: mode,
+      timbre_reference: timbreRef,
+      timbre_sur_facture: false,
+      pret_pour_certification: false,
+      message: `Ajoutez l'article timbre (référence ${timbreRef}) sur la facture`,
+    }
+  }
+
+  return {
+    mode_paiement_fne: mode,
+    timbre_reference: timbreRef,
+    timbre_sur_facture: true,
+    pret_pour_certification: true,
+    message: null,
+  }
 }
 
 function ligneCustomTaxes(airsiPct: number): { name: string; amount: number }[] {
@@ -155,10 +269,17 @@ export function buildFneInvoicePayload(input: {
     throw new FneCertificationError('Aucune ligne éligible pour la certification FNE')
   }
 
+  const timbreDeduction = computeTimbreDeductions(lignes, produitsById, timbreRef)
+  const baseAmount = hasAirsi ? Number(vente.totalApresAirsi) : Number(vente.totalTtc)
+  const amount = roundMoney(
+    Math.max(0, baseAmount - (hasAirsi ? timbreDeduction.montantApresAirsi : timbreDeduction.montantTtc))
+  )
+  const vatAmount = roundMoney(Math.max(0, Number(vente.tvaMontant) - timbreDeduction.tvaMontant))
+
   const template = resolveFneTemplate(client.type)
 
   return {
-    amount: hasAirsi ? Number(vente.totalApresAirsi) : Number(vente.totalTtc),
+    amount,
     clientCompanyName: client.nom,
     clientEmail: fneOptionalString(client.email),
     clientNcc: client.ncc,
@@ -166,7 +287,7 @@ export function buildFneInvoicePayload(input: {
     invoiceType: input.invoiceType ?? 'sale',
     items,
     paymentMethod,
-    vatAmount: Number(vente.tvaMontant),
+    vatAmount,
     isRne: false,
     template,
     pointOfSale: pointDeVente.pointOfSale ?? pointDeVente.nom,
@@ -219,32 +340,6 @@ export function buildFneRefundItems(
 
 export function buildFneRefundPayload(items: FneRefundItemPayload[]): FneRefundPayload {
   return { items }
-}
-
-async function resolvePaymentMethod(
-  vente: Vente,
-  lignes: VenteLigne[],
-  produitsById: Map<number, Produit>,
-  pointDeVente: PointDeVente
-): Promise<'cash' | 'deferred'> {
-  const timbreRef = pointDeVente.timbreReference?.trim()
-  if (timbreRef) {
-    const hasTimbre = lignes.some((ligne) => {
-      const produit = produitsById.get(ligne.produitId)
-      return produit?.code === timbreRef
-    })
-    if (hasTimbre) return 'cash'
-  }
-
-  const paiements = await Paiement.query()
-    .where('type', 'vente')
-    .where('reference_id', vente.id)
-
-  if (paiements.some((p) => p.modePaiement === 'especes')) {
-    return 'cash'
-  }
-
-  return 'deferred'
 }
 
 async function resolveActiveApiKey(): Promise<Apikey> {
@@ -530,7 +625,11 @@ export async function certifierVenteParId(venteId: number): Promise<Vente> {
 
   assertVenteCertifiable(sale, client, lignes, pointDeVente)
 
-  const paymentMethod = await resolvePaymentMethod(sale, lignes, produitsById, pointDeVente)
+  const paymentMethod = resolveVenteFnePaymentMethod(sale)
+  if (paymentMethod === FNE_PAYMENT_METHOD.CASH) {
+    assertCashFnePaymentTimbre(pointDeVente, lignes, produitsById)
+  }
+
   const payload = buildFneInvoicePayload({
     vente: sale,
     client,

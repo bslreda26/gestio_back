@@ -2,6 +2,7 @@ import {
   assertProduitsUniquesSurFacture,
   calcLigneMontants,
   calculerTotauxVente,
+  syncVentePaiement,
   VenteBusinessError,
   type CalculatedLigne,
 } from '#services/vente_service'
@@ -89,5 +90,50 @@ test.group('calculerTotauxVente remise ligne + remise facture', () => {
     assert.equal(totaux.totalHt, 16200)
     assert.equal(totaux.tvaMontant, 2916)
     assert.equal(totaux.totalTtc, 19116)
+  })
+})
+
+test.group('syncVentePaiement', () => {
+  test('reste = totalApresAirsi - montantPaye', ({ assert }) => {
+    const vente = {
+      totalApresAirsi: 30000,
+      montantPaye: 10000,
+      resteAPayer: 0,
+      statutPaiement: 'paye',
+    }
+
+    syncVentePaiement(vente)
+
+    assert.equal(vente.resteAPayer, 20000)
+    assert.equal(vente.statutPaiement, 'partiel')
+  })
+
+  test('fully paid invoice', ({ assert }) => {
+    const vente = {
+      totalApresAirsi: 30000,
+      montantPaye: 30000,
+      resteAPayer: 5000,
+      statutPaiement: 'partiel',
+    }
+
+    syncVentePaiement(vente)
+
+    assert.equal(vente.resteAPayer, 0)
+    assert.equal(vente.statutPaiement, 'paye')
+  })
+
+  test('retour does not change facture reste — only sync from totals', ({ assert }) => {
+    const facture = {
+      totalApresAirsi: 30000,
+      montantPaye: 10000,
+      resteAPayer: 0,
+      statutPaiement: 'paye',
+    }
+
+    syncVentePaiement(facture)
+
+    assert.equal(facture.totalApresAirsi, 30000)
+    assert.equal(facture.resteAPayer, 20000)
+    assert.equal(facture.statutPaiement, 'partiel')
   })
 })

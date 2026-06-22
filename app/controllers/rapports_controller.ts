@@ -350,7 +350,7 @@ export default class RapportsController {
   }
 
   /**
-   * Rapport certification FNE — factures certifiées / non certifiées et total TTC sur période
+   * Rapport certification FNE — factures et avoirs certifiés / non certifiés et total TTC sur période
    */
   async certification(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(rapportCertificationValidator)

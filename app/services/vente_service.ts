@@ -9,12 +9,14 @@ import {
   isFactureValide,
   isPaiementBlocked,
 } from '#constants/vente_statuts'
+import { FNE_PAYMENT_METHOD_DEFAULT, type FnePaymentMethod } from '#constants/fne_payment'
 import Client from '#models/client'
 import Produit from '#models/produit'
 import Vente from '#models/vente'
 import VenteLigne from '#models/vente_ligne'
 import Paiement from '#models/paiement'
 import TvaGroupe from '#models/tva_groupe'
+import { isTimbreProduitCode, resolveTimbreReference } from '#helpers/timbre'
 import { resolveDepotForPointDeVente } from '#services/depot_service'
 import { calcMargeLigne, calculerMargeFacture, roundMoney, validatePrixPlancher } from '#services/pricing_service'
 import { enregistrerEntree as stockEntree, enregistrerSortie as stockSortie, getStockDisponible } from '#services/stock_service'
@@ -45,7 +47,7 @@ import { DateTime } from 'luxon'
 export type LigneVenteInput = {
   produit_id: number
   produitId?: number
-  quantite: number
+  quantite?: number
   mode_vente?: ModeVente
   modeVente?: ModeVente
   prix_unitaire?: number
@@ -182,7 +184,8 @@ export function calculerTotauxVente(lignes: CalculatedLigne[], remisePct = 0) {
 export async function buildLignesFromPayload(
   lignes: LigneVenteInput[],
   checkPlancher: boolean,
-  trx?: TransactionClientContract
+  trx?: TransactionClientContract,
+  options?: { timbreReference?: string | null }
 ): Promise<Omit<CalculatedLigne, 'depotId'>[]> {
   const result: Omit<CalculatedLigne, 'depotId'>[] = []
 
@@ -191,9 +194,25 @@ export async function buildLignesFromPayload(
     const produit = await query.where('id', ligne.produit_id).where('is_active', true).first()
     if (!produit) throw new VenteBusinessError(`Produit ${ligne.produit_id} introuvable`)
 
+    const isTimbre = isTimbreProduitCode(produit.code, options?.timbreReference)
+    let quantite = ligne.quantite
+    if (quantite === undefined || quantite === null) {
+      if (isTimbre) {
+        quantite = 1
+      } else {
+        throw new VenteBusinessError(`Quantité requise pour ${produit.nom}`)
+      }
+    }
+    if (quantite <= 0) {
+      throw new VenteBusinessError(`Quantité invalide pour ${produit.nom}`)
+    }
+
     const mode: ModeVente = ligne.mode_vente ?? 'piece'
     if (mode === 'detail' && !canVenteAuDetail(produit)) {
       throw new VenteBusinessError(`Le produit ${produit.nom} ne peut pas être vendu au détail`)
+    }
+    if (isTimbre && mode === 'detail') {
+      throw new VenteBusinessError(`L'article timbre ${produit.nom} ne peut pas être vendu au détail`)
     }
 
     const tvaQuery = trx ? TvaGroupe.query({ client: trx }) : TvaGroupe.query()
@@ -201,15 +220,15 @@ export async function buildLignesFromPayload(
     const tvaPct = Number(tvaGroupe?.taux ?? 0)
     const plancherLigne = resolvePlancherLigne(produit, mode)
     const prixUnitaire = resolvePrixUnitaireLigne(produit, mode, ligne.prix_unitaire)
-    const quantiteStock = toStockQuantite(mode, ligne.quantite, produit)
+    const quantiteStock = isTimbre ? 0 : toStockQuantite(mode, quantite, produit)
 
-    if (checkPlancher && mode !== 'detail') {
+    if (checkPlancher && mode !== 'detail' && !isTimbre) {
       validatePrixPlancher(prixUnitaire, plancherLigne, produit.nom)
     }
 
     const remisePct = ligne.remise_pct ?? 0
     const { montantHt, montantTva, montantTtc } = calcLigneMontants(
-      ligne.quantite,
+      quantite,
       prixUnitaire,
       tvaPct,
       remisePct
@@ -221,7 +240,7 @@ export async function buildLignesFromPayload(
       produitId: produit.id,
       designation: produit.nom,
       modeVente: mode,
-      quantite: ligne.quantite,
+      quantite,
       quantiteStock,
       prixUnitaire,
       plancherLigne,
@@ -264,19 +283,34 @@ async function withLigneDepots(
 
 export async function getLigneVenteInfo(
   produitId: number,
-  quantite = 1,
+  quantite?: number,
   remisePct = 0,
   checkPlancher = false,
   modeVente: ModeVente = 'piece',
   depotId?: number,
   pointDeVenteId?: number
 ) {
-  const [ligne] = await buildLignesFromPayload(
-    [{ produit_id: produitId, quantite, remise_pct: remisePct, mode_vente: modeVente }],
-    checkPlancher
-  )
-
+  const timbreReference = pointDeVenteId
+    ? await resolveTimbreReference(pointDeVenteId)
+    : null
   const produit = await Produit.findOrFail(produitId)
+  const isTimbre = isTimbreProduitCode(produit.code, timbreReference)
+
+  const lignePayload: LigneVenteInput = {
+    produit_id: produitId,
+    remise_pct: remisePct,
+    mode_vente: modeVente,
+  }
+  if (quantite !== undefined) {
+    lignePayload.quantite = quantite
+  }
+
+  const [ligne] = await buildLignesFromPayload(
+    [lignePayload],
+    checkPlancher,
+    undefined,
+    { timbreReference }
+  )
   let stockDetail: number
   let resolvedDepotId: number | undefined
 
@@ -322,6 +356,8 @@ export async function getLigneVenteInfo(
     unite: produit.unite,
     unite_gros: produit.uniteGros,
     vente_au_detail: canVenteAuDetail(produit),
+    is_timbre: isTimbre,
+    sans_quantite: isTimbre,
   }
 }
 
@@ -383,6 +419,7 @@ async function applyStockSortie(
   trx: TransactionClientContract
 ) {
   for (const l of lignes) {
+    if (l.quantiteStock <= 0) continue
     await stockSortie(
       l.produitId,
       l.quantiteStock,
@@ -430,6 +467,8 @@ export type CreateVenteInput = {
   notes?: string | null
   depot_id?: number
   depotId?: number
+  mode_paiement_fne?: FnePaymentMethod
+  modePaiementFne?: FnePaymentMethod
   lignes: LigneVenteInput[]
 }
 
@@ -442,11 +481,20 @@ export type UpdateVenteInput = {
   notes?: string | null
   depot_id?: number
   depotId?: number
+  mode_paiement_fne?: FnePaymentMethod
+  modePaiementFne?: FnePaymentMethod
   lignes?: LigneVenteInput[]
 }
 
 function resolveVenteDepotId(data: { depot_id?: number; depotId?: number }): number | undefined {
   return data.depot_id ?? data.depotId
+}
+
+function resolveModePaiementFneInput(data: {
+  mode_paiement_fne?: FnePaymentMethod
+  modePaiementFne?: FnePaymentMethod
+}): FnePaymentMethod {
+  return data.mode_paiement_fne ?? data.modePaiementFne ?? FNE_PAYMENT_METHOD_DEFAULT
 }
 
 function assertVenteModifiablePourFne(vente: Vente) {
@@ -486,9 +534,11 @@ async function restituerStockFacture(
   fallbackDepotId?: number | null
 ) {
   for (const ligne of lignes) {
+    const qty = ligneQuantiteStock(ligne)
+    if (qty <= 0) continue
     await stockEntree(
       ligne.produitId,
-      ligneQuantiteStock(ligne),
+      qty,
       'retour_client',
       { referenceId: venteId, referenceType: 'vente_modification' },
       userId,
@@ -569,8 +619,9 @@ export async function creerVente(
       trx
     )
     const lignes = normalizeLignesVenteInput(data.lignes)
+    const timbreReference = await resolveTimbreReference(pos.pointDeVenteId, trx)
     const calculated = await withLigneDepots(
-      await buildLignesFromPayload(lignes, checkPlancher, trx),
+      await buildLignesFromPayload(lignes, checkPlancher, trx, { timbreReference }),
       lignes,
       pos.pointDeVenteId,
       depot.id,
@@ -579,6 +630,7 @@ export async function creerVente(
 
     if (checkStock) {
       for (const l of calculated) {
+        if (l.quantiteStock <= 0) continue
         const { produit, quantite: disponible } = await getStockDisponible(
           l.produitId,
           l.depotId,
@@ -624,6 +676,7 @@ export async function creerVente(
         margePct: totaux.margePct,
         montantPaye: 0,
         resteAPayer: totaux.totalApresAirsi,
+        modePaiementFne: resolveModePaiementFneInput(data),
         notes: data.notes ?? null,
       },
       { client: trx }
@@ -703,8 +756,9 @@ export async function mettreAJourVente(
       }
 
       await VenteLigne.query({ client: trx }).where('vente_id', vente.id).delete()
+      const timbreReference = await resolveTimbreReference(posId, trx)
       calculated = await withLigneDepots(
-        await buildLignesFromPayload(lignes, isFacture, trx),
+        await buildLignesFromPayload(lignes, isFacture, trx, { timbreReference }),
         lignes,
         posId,
         depot.id,
@@ -713,6 +767,7 @@ export async function mettreAJourVente(
 
       if (isFacture) {
         for (const l of calculated) {
+          if (l.quantiteStock <= 0) continue
           const { produit, quantite: disponible } = await getStockDisponible(
             l.produitId,
             l.depotId,
@@ -745,6 +800,11 @@ export async function mettreAJourVente(
       )
     }
 
+    const modePaiementFne =
+      data.mode_paiement_fne !== undefined || data.modePaiementFne !== undefined
+        ? resolveModePaiementFneInput(data)
+        : vente.modePaiementFne
+
     vente.merge({
       clientId: nouveauClientId,
       depotId: depot.id,
@@ -766,6 +826,7 @@ export async function mettreAJourVente(
       resteAPayer: totaux.totalApresAirsi,
       montantPaye: 0,
       statutPaiement: 'non_paye',
+      modePaiementFne,
     })
     vente.useTransaction(trx)
     await vente.save()
@@ -807,8 +868,9 @@ export async function convertirDevisEnFacture(
       vente.depotId ?? undefined,
       trx
     )
+    const timbreReference = await resolveTimbreReference(vente.pointDeVenteId, trx)
     const calculated = await withLigneDepots(
-      await buildLignesFromPayload(lignesInput, true, trx),
+      await buildLignesFromPayload(lignesInput, true, trx, { timbreReference }),
       lignesInput,
       vente.pointDeVenteId,
       depot.id,
@@ -816,6 +878,7 @@ export async function convertirDevisEnFacture(
     )
 
     for (const l of calculated) {
+      if (l.quantiteStock <= 0) continue
       const { produit, quantite: disponible } = await getStockDisponible(l.produitId, l.depotId, trx)
       if (disponible < l.quantiteStock) {
         throw new VenteBusinessError(
@@ -949,6 +1012,23 @@ export async function annulerDevis(venteId: number, _notes?: string | null) {
  * Facture retour — admin only.
  * Returns goods to stock and creates a RET-YYYY-XXXX document linked to the original invoice.
  */
+/** Reste à payer = total à payer (après AIRSI) − montant payé. Source unique pour factures et avoirs. */
+export function syncVentePaiement(vente: {
+  totalApresAirsi: number | string
+  montantPaye: number | string
+  resteAPayer: number | string
+  statutPaiement: string
+}) {
+  vente.resteAPayer = roundMoney(
+    Math.max(0, Number(vente.totalApresAirsi) - Number(vente.montantPaye))
+  )
+  if (Number(vente.resteAPayer) <= 0.01) vente.resteAPayer = 0
+
+  if (Number(vente.resteAPayer) <= 0) vente.statutPaiement = 'paye'
+  else if (Number(vente.montantPaye) > 0) vente.statutPaiement = 'partiel'
+  else vente.statutPaiement = 'non_paye'
+}
+
 export async function creerFactureRetour(
   factureId: number,
   lignesRetour: LigneRetourInput[],
@@ -1103,9 +1183,9 @@ export async function creerFactureRetour(
 
     const client = await Client.query({ client: trx }).where('id', facture.clientId).firstOrFail()
     client.solde = roundMoney(Math.max(0, Number(client.solde) - totaux.totalApresAirsi))
-    facture.resteAPayer = roundMoney(
-      Math.max(0, Number(facture.resteAPayer) - totaux.totalApresAirsi)
-    )
+    // La facture d'origine conserve ses totaux et son reste (totalApresAirsi − montantPaye).
+    // Le crédit client est porté par l'avoir (retour) séparément.
+    syncVentePaiement(facture)
     client.useTransaction(trx)
     facture.useTransaction(trx)
     await client.save()
@@ -1138,7 +1218,9 @@ export async function enregistrerPaiementVente(data: PaiementVenteInput, userId:
       throw new VenteBusinessError('Le montant du paiement doit être positif')
     }
 
-    const reste = Number(vente.resteAPayer)
+    const reste = roundMoney(
+      Math.max(0, Number(vente.totalApresAirsi) - Number(vente.montantPaye))
+    )
     if (data.montant > reste + 0.01) {
       throw new VenteBusinessError(`Montant supérieur au reste à payer (${reste})`)
     }
@@ -1158,13 +1240,7 @@ export async function enregistrerPaiementVente(data: PaiementVenteInput, userId:
     )
 
     vente.montantPaye = roundMoney(Number(vente.montantPaye) + data.montant)
-    vente.resteAPayer = roundMoney(
-      Math.max(0, Number(vente.totalApresAirsi) - Number(vente.montantPaye))
-    )
-
-    if (vente.resteAPayer <= 0) vente.statutPaiement = 'paye'
-    else if (vente.montantPaye > 0) vente.statutPaiement = 'partiel'
-    else vente.statutPaiement = 'non_paye'
+    syncVentePaiement(vente)
 
     vente.useTransaction(trx)
     await vente.save()

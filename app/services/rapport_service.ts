@@ -2035,6 +2035,8 @@ export async function rapportReglementFournisseurs(
   }
 }
 
+const CERTIFICATION_VENTE_STATUTS = [VENTE_STATUT.VALIDE, VENTE_STATUT.RETOUR] as const
+
 function certificationVentesQuery(filters: {
   pointDeVenteId: number
   dateDebut: DateTime
@@ -2044,7 +2046,7 @@ function certificationVentesQuery(filters: {
 }) {
   let query = Vente.query()
     .where('point_de_vente_id', filters.pointDeVenteId)
-    .where('statut', VENTE_STATUT.VALIDE)
+    .whereIn('statut', [...CERTIFICATION_VENTE_STATUTS])
     .where('excluded', false)
     .where('date_vente', '>=', toSqlDate(filters.dateDebut))
     .where('date_vente', '<=', toSqlDate(filters.dateFin))
@@ -2090,7 +2092,7 @@ export async function rapportCertification(filters: {
     db
       .from('ventes')
       .where('point_de_vente_id', filters.pointDeVenteId)
-      .where('statut', VENTE_STATUT.VALIDE)
+      .whereIn('statut', [...CERTIFICATION_VENTE_STATUTS])
       .where('excluded', false)
       .where('date_vente', '>=', toSqlDate(filters.dateDebut))
       .where('date_vente', '<=', toSqlDate(filters.dateFin))
@@ -2133,6 +2135,7 @@ export async function rapportCertification(filters: {
     return {
       id: vente.id,
       numero: vente.numero,
+      statut: vente.statut,
       date_vente: toSqlDate(vente.dateVente),
       client: client
         ? { id: client.id, code: client.code, nom: client.nom }
@@ -2142,6 +2145,7 @@ export async function rapportCertification(filters: {
       test_normalise: vente.testNormalise,
       certified_at: vente.certifiedAt?.toISO() ?? null,
       fne_invoice_id: vente.fneInvoiceId,
+      facture_origine_id: vente.factureOrigineId,
     }
   })
 

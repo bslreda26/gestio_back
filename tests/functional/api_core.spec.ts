@@ -1619,4 +1619,38 @@ test.group('API — achats & plancher', (group) => {
     show.assertStatus(200)
     assert.notEqual(Number(show.body().data.produit.plancher), 1500)
   })
+
+  test('non-admin cannot manually set frais on produit', async ({ client, assert }) => {
+    const adminToken = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0003')
+    const avant = Number(produit.frais)
+
+    const gerant = await User.create({
+      email: 'gerant.frais@test.local',
+      password: 'Test@12345',
+      nom: 'Gest',
+      prenom: 'Frais',
+      fullName: 'Gest Frais',
+      role: 'gerant',
+      pointDeVenteId: DEFAULT_POINT_DE_VENTE_ID,
+      isActive: true,
+    })
+
+    const login = await client.post('/api/v1/auth/login').json({
+      email: gerant.email,
+      password: 'Test@12345',
+    })
+    login.assertStatus(200)
+    const token = login.body().data.token
+
+    const response = await authedPos(client, token).post('/api/v1/produits/update').json({
+      id: produit.id,
+      frais: 999,
+    })
+    response.assertStatus(403)
+
+    const show = await authedPos(client, adminToken).post('/api/v1/produits/show').json({ id: produit.id })
+    show.assertStatus(200)
+    assert.equal(Number(show.body().data.produit.frais), avant)
+  })
 })

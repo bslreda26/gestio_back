@@ -11,7 +11,7 @@ import {
 import { buildMeta, parsePagination } from '#helpers/pagination'
 import { applyLowStockAlertFilter, applyStockAlertFilter } from '#helpers/produit_query'
 import { serializeProduit } from '#helpers/produit_serializer'
-import { hasUserPermission } from '#services/permission_service'
+import { canEditPlancherCmupManually } from '#services/permission_service'
 import { generateProduitCode } from '#services/code_generator_service'
 import { calcProduitPricing, calcProduitPricingFromVenteTtc, calcCmupHt } from '#services/pricing_service'
 import { ajustementManuel } from '#services/stock_service'
@@ -44,7 +44,7 @@ async function getTvaGroupeOrFail(tvaGroupeId: number) {
 
 function produitSerializeOptions(ctx: HttpContext) {
   const user = ctx.auth.getUserOrFail()
-  return { hidePlancher: !hasUserPermission(user, 'produits_plancher') }
+  return { hidePlancher: !canEditPlancherCmupManually(user) }
 }
 
 function resolveMoyenneAchatHt(payload: {
@@ -52,6 +52,42 @@ function resolveMoyenneAchatHt(payload: {
   moyenne_achat_ht?: number
 }): number | undefined {
   return payload.moyenne_achat_ht ?? payload.prix_achat_ht
+}
+
+function assertManualPricingAllowed(
+  ctx: HttpContext,
+  payload: {
+    plancher?: number
+    prix_achat_ht?: number
+    moyenne_achat_ht?: number
+    dernier_prix_achat_ht?: number
+    frais?: number
+  }
+) {
+  const canEdit = canEditPlancherCmupManually(ctx.auth.getUserOrFail())
+  if (canEdit) return null
+
+  if (payload.plancher !== undefined) {
+    return sendError(ctx, 'Accès refusé — modification du plancher non autorisée', 403)
+  }
+  if (resolveMoyenneAchatHt(payload) !== undefined) {
+    return sendError(
+      ctx,
+      'Accès refusé — modification de la moyenne achat HT non autorisée',
+      403
+    )
+  }
+  if (payload.dernier_prix_achat_ht !== undefined) {
+    return sendError(
+      ctx,
+      'Accès refusé — modification du dernier prix achat non autorisée',
+      403
+    )
+  }
+  if (payload.frais !== undefined) {
+    return sendError(ctx, 'Accès refusé — modification des frais catalogue non autorisée', 403)
+  }
+  return null
 }
 
 function produitUniteShape(unites: ReturnType<typeof normalizeProduitUniteFields>) {
@@ -139,6 +175,8 @@ export default class ProduitsController {
 
   async create(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(produitCreateValidator)
+    const pricingDenied = assertManualPricingAllowed(ctx, payload)
+    if (pricingDenied) return pricingDenied
 
     let tvaGroupe: TvaGroupe
     try {
@@ -198,27 +236,11 @@ export default class ProduitsController {
     const produit = await Produit.find(payload.id)
     if (!(await assertRecordBelongsToPointDeVente(ctx, produit, 'Produit'))) return
 
-    const user = ctx.auth.getUserOrFail()
-    const canEditPricing = hasUserPermission(user, 'produits_plancher')
-    if (payload.plancher !== undefined && !canEditPricing) {
-      return sendError(ctx, 'Accès refusé — modification du plancher non autorisée', 403)
-    }
+    const pricingDenied = assertManualPricingAllowed(ctx, payload)
+    if (pricingDenied) return pricingDenied
 
+    const canEditPricing = canEditPlancherCmupManually(ctx.auth.getUserOrFail())
     const moyenneAchatPayload = resolveMoyenneAchatHt(payload)
-    if (moyenneAchatPayload !== undefined && !canEditPricing) {
-      return sendError(
-        ctx,
-        'Accès refusé — modification de la moyenne achat HT non autorisée',
-        403
-      )
-    }
-    if (payload.dernier_prix_achat_ht !== undefined && !canEditPricing) {
-      return sendError(
-        ctx,
-        'Accès refusé — modification du dernier prix achat non autorisée',
-        403
-      )
-    }
 
     const tvaGroupeId = payload.tva_groupe_id ?? produit!.tvaGroupeId
     let tvaGroupe: TvaGroupe
@@ -460,7 +482,7 @@ export default class ProduitsController {
       tauxTva,
     })
 
-    const canSeePlancher = hasUserPermission(ctx.auth.getUserOrFail(), 'produits_plancher')
+    const canSeePlancher = canEditPlancherCmupManually(ctx.auth.getUserOrFail())
     return sendSuccess(ctx, {
       tva_groupe: tvaGroupe.serialize(),
       prix_achat_ht: prixAchatHt,

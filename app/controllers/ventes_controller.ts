@@ -1,5 +1,7 @@
 import { parseFneApiResponse } from '#helpers/fne_response_parser'
 import Client from '#models/client'
+import PointDeVente from '#models/point_de_vente'
+import Produit from '#models/produit'
 import Paiement from '#models/paiement'
 import User from '#models/user'
 import Vente from '#models/vente'
@@ -29,6 +31,7 @@ import {
   FneCertificationError,
   certifierVenteParId,
   certifierVenteParNumero,
+  evaluateFneTimbreStatus,
 } from '#services/fne_certification_service'
 import {
   annulerDevis,
@@ -39,6 +42,7 @@ import {
   enregistrerPaiementVente,
   getLigneVenteInfo,
   supprimerFacture,
+  syncVentePaiement,
   validerFacture,
   VenteBusinessError,
 } from '#services/vente_service'
@@ -66,7 +70,7 @@ import {
   venteUnlockValidator,
   venteUpdateValidator,
 } from '#validators/vente_validator'
-import { VENTE_STATUT, VENTE_STATUT_LABELS, isFactureRetour } from '#constants/vente_statuts'
+import { VENTE_STATUT, VENTE_STATUT_LABELS, isDevis, isFactureRetour } from '#constants/vente_statuts'
 import type { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
 
@@ -155,7 +159,7 @@ export default class VentesController {
     try {
       const info = await getLigneVenteInfo(
         payload.produit_id ?? payload.produitId!,
-        payload.quantite ?? 1,
+        payload.quantite,
         payload.remise_pct ?? payload.remisePct ?? 0,
         false,
         payload.mode_vente ?? payload.modeVente ?? 'piece',
@@ -183,6 +187,8 @@ export default class VentesController {
       .first()
     if (!vente) return sendError(ctx, 'Vente introuvable', 404)
 
+    if (!isDevis(vente.statut)) syncVentePaiement(vente)
+
     const [lignes, client, user, paiements, factureOrigine, retours] = await Promise.all([
       VenteLigne.query().where('vente_id', id).orderBy('id', 'asc'),
       Client.find(vente.clientId),
@@ -204,7 +210,10 @@ export default class VentesController {
         includeMarge: ligneVisibility.includeMarge,
         includeMargePct: ligneVisibility.includeMargePct,
       }),
-      lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
+      lignes: await serializeVenteLignesForApi(lignes, {
+        ...ligneVisibility,
+        pointDeVenteId: pos.pointDeVenteId,
+      }),
       client,
       user: user ? { id: user.id, nom: user.nom, prenom: user.prenom, email: user.email } : null,
       paiements,
@@ -253,6 +262,7 @@ export default class VentesController {
 
   async create(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(venteCreateValidator)
+    const pos = requirePointDeVente(ctx)
     try {
       const vente = await creerVente(
         {
@@ -265,9 +275,11 @@ export default class VentesController {
           lignes: payload.lignes,
           depot_id: payload.depot_id,
           depotId: payload.depotId,
+          mode_paiement_fne: payload.mode_paiement_fne,
+          modePaiementFne: payload.modePaiementFne,
         },
         ctx.auth.getUserOrFail().id,
-        requirePointDeVente(ctx)
+        pos
       )
       const lignes = await VenteLigne.query().where('vente_id', vente.id)
       const ligneVisibility = getVenteLigneVisibility(ctx)
@@ -276,7 +288,10 @@ export default class VentesController {
         includeMarge: ligneVisibility.includeMarge,
         includeMargePct: ligneVisibility.includeMargePct,
       }),
-        lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
+        lignes: await serializeVenteLignesForApi(lignes, {
+        ...ligneVisibility,
+        pointDeVenteId: pos.pointDeVenteId,
+      }),
       })
     } catch (error) {
       return handleVenteError(ctx, error)
@@ -302,6 +317,8 @@ export default class VentesController {
           lignes: payload.lignes,
           depot_id: payload.depot_id,
           depotId: payload.depotId,
+          mode_paiement_fne: payload.mode_paiement_fne,
+          modePaiementFne: payload.modePaiementFne,
         },
         ctx.auth.getUserOrFail().id,
         pos.pointDeVenteId
@@ -314,7 +331,10 @@ export default class VentesController {
           includeMarge: ligneVisibility.includeMarge,
           includeMargePct: ligneVisibility.includeMargePct,
         }),
-        lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
+        lignes: await serializeVenteLignesForApi(lignes, {
+        ...ligneVisibility,
+        pointDeVenteId: pos.pointDeVenteId,
+      }),
       })
     } catch (error) {
       return handleVenteError(ctx, error)
@@ -391,13 +411,14 @@ export default class VentesController {
    */
   async retour(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(venteRetourValidator)
+    const pos = requirePointDeVente(ctx)
     try {
       await acquireVenteLock(payload.facture_id, ctx.auth.getUserOrFail().id)
       const { retour, facture } = await creerFactureRetour(
         payload.facture_id,
         payload.lignes,
         ctx.auth.getUserOrFail().id,
-        requirePointDeVente(ctx),
+        pos,
         payload.notes ?? null,
         payload.depot_id
       )
@@ -406,7 +427,10 @@ export default class VentesController {
       return sendSuccess(ctx, {
         message: 'Facture retour créée — articles retournés au stock',
         retour,
-        lignes: await serializeVenteLignesForApi(lignes, getVenteLigneVisibility(ctx)),
+        lignes: await serializeVenteLignesForApi(lignes, {
+          ...getVenteLigneVisibility(ctx),
+          pointDeVenteId: pos.pointDeVenteId,
+        }),
         facture,
       })
     } catch (error) {
@@ -459,10 +483,23 @@ export default class VentesController {
       .first()
     if (!vente) return sendError(ctx, 'Vente introuvable', 404)
 
-    const [lignes, client] = await Promise.all([
+    if (!isDevis(vente.statut)) syncVentePaiement(vente)
+
+    const [lignes, client, pointDeVente] = await Promise.all([
       VenteLigne.query().where('vente_id', id),
       Client.find(vente.clientId),
+      PointDeVente.find(vente.pointDeVenteId),
     ])
+
+    const produitIds = [...new Set(lignes.map((l) => l.produitId))]
+    const produits =
+      produitIds.length > 0 ? await Produit.query().whereIn('id', produitIds) : []
+    const produitsById = new Map(produits.map((p) => [p.id, p]))
+
+    const fneTimbre =
+      pointDeVente && !isDevis(vente.statut)
+        ? evaluateFneTimbreStatus({ vente, pointDeVente, lignes, produitsById })
+        : null
 
     const typeDocument =
       vente.statut === VENTE_STATUT.DEVIS
@@ -512,9 +549,14 @@ export default class VentesController {
         certified_at: vente.certifiedAt,
         fne_invoice_id: vente.fneInvoiceId,
         fne: vente.normalise ? parseFneApiResponse(vente.apiResponse) : null,
+        mode_paiement_fne: vente.modePaiementFne ?? 'deferred',
+        fne_timbre: fneTimbre,
       },
       vente: serializeVenteForApi(vente, ligneVisibility),
-      lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
+      lignes: await serializeVenteLignesForApi(lignes, {
+        ...ligneVisibility,
+        pointDeVenteId: pos.pointDeVenteId,
+      }),
       totaux,
       generated_at: DateTime.now().toISO(),
     })
@@ -569,6 +611,7 @@ export default class VentesController {
     const venteRecord = await Vente.find(venteId)
     if (!(await assertRecordBelongsToPointDeVente(ctx, venteRecord, 'Vente'))) return
 
+    const pos = requirePointDeVente(ctx)
     try {
       const vente = payload.id
         ? await certifierVenteParId(payload.id)
@@ -585,7 +628,10 @@ export default class VentesController {
           includeMarge: ligneVisibility.includeMarge,
           includeMargePct: ligneVisibility.includeMargePct,
         }),
-        lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
+        lignes: await serializeVenteLignesForApi(lignes, {
+        ...ligneVisibility,
+        pointDeVenteId: pos.pointDeVenteId,
+      }),
         fne: vente.apiResponse ? JSON.parse(vente.apiResponse) : null,
       })
     } catch (error) {

@@ -1,10 +1,11 @@
 import { VENTE_CREATE_STATUTS } from '#constants/vente_statuts'
+import { FNE_PAYMENT_METHOD } from '#constants/fne_payment'
 import vine from '@vinejs/vine'
 
 const ligneVenteSchema = vine.object({
   produit_id: vine.number().positive(),
   produitId: vine.number().positive().optional(),
-  quantite: vine.number().positive(),
+  quantite: vine.number().positive().optional(),
   mode_vente: vine.enum(['piece', 'detail'] as const).optional(),
   modeVente: vine.enum(['piece', 'detail'] as const).optional(),
   prix_unitaire: vine.number().min(0).optional(),
@@ -28,6 +29,8 @@ export const venteLigneInfoValidator = vine.compile(
     depotId: vine.number().positive().optional(),
   })
 )
+
+const modePaiementFne = vine.enum([FNE_PAYMENT_METHOD.CASH, FNE_PAYMENT_METHOD.DEFERRED] as const)
 
 const modePaiement = vine.enum([
   'especes',
@@ -77,6 +80,8 @@ export const venteCreateValidator = vine.compile(
     notes: vine.string().trim().optional(),
     depot_id: vine.number().positive().optional(),
     depotId: vine.number().positive().optional(),
+    mode_paiement_fne: modePaiementFne.optional(),
+    modePaiementFne: modePaiementFne.optional(),
     lignes: vine.array(ligneVenteSchema).minLength(1),
   })
 )
@@ -91,6 +96,8 @@ export const venteUpdateValidator = vine.compile(
     notes: vine.string().trim().optional(),
     depot_id: vine.number().positive().optional(),
     depotId: vine.number().positive().optional(),
+    mode_paiement_fne: modePaiementFne.optional(),
+    modePaiementFne: modePaiementFne.optional(),
     lignes: vine.array(ligneVenteSchema).minLength(1).optional(),
   })
 )
