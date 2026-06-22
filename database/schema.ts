@@ -710,7 +710,7 @@ export class VenteLigneSchema extends BaseModel {
 }
 
 export class VenteSchema extends BaseModel {
-  static $columns = ['airsiMontant', 'airsiPct', 'apiResponse', 'bonSortieImpressionCount', 'certifiedAt', 'clientId', 'createdAt', 'dateEcheance', 'dateVente', 'depotId', 'devisOrigineId', 'excluded', 'factureImpressionCount', 'factureOrigineId', 'fneInvoiceId', 'id', 'lockExpiresAt', 'lockedAt', 'lockedByUserId', 'marge', 'margePct', 'modePaiementFne', 'montantPaye', 'normalise', 'notes', 'numero', 'pointDeVenteId', 'remiseMontant', 'remisePct', 'resteAPayer', 'sousTotal', 'statut', 'statutPaiement', 'testNormalise', 'totalApresAirsi', 'totalHt', 'totalTtc', 'tvaMontant', 'updatedAt', 'userId'] as const
+  static $columns = ['airsiMontant', 'airsiPct', 'apiResponse', 'bonSortieImpressionCount', 'certifiedAt', 'clientId', 'createdAt', 'dateEcheance', 'dateVente', 'depotId', 'devisOrigineId', 'excluded', 'factureImpressionCount', 'factureOrigineId', 'fneInvoiceId', 'id', 'lockExpiresAt', 'lockedAt', 'lockedByUserId', 'marge', 'margePct', 'modePaiementFne', 'montantPaye', 'montantTimbre', 'normalise', 'notes', 'numero', 'pointDeVenteId', 'remiseMontant', 'remisePct', 'resteAPayer', 'sousTotal', 'statut', 'statutPaiement', 'testNormalise', 'totalApresAirsi', 'totalHt', 'totalTtc', 'tvaMontant', 'updatedAt', 'userId'] as const
   $columns = VenteSchema.$columns
   @column()
   declare airsiMontant: string
@@ -758,6 +758,8 @@ export class VenteSchema extends BaseModel {
   declare modePaiementFne: string
   @column()
   declare montantPaye: string
+  @column()
+  declare montantTimbre: string
   @column()
   declare normalise: boolean
   @column()

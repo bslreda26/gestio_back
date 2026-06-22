@@ -1,5 +1,6 @@
 import type { VenteImpressionContext } from '#services/vente_impression_service'
 import { statutPaiementLabel } from '#services/vente_impression_service'
+import { venteTotalAPayer } from '#helpers/timbre'
 import { VENTE_STATUT, isFactureRetour } from '#constants/vente_statuts'
 import PDFDocument from 'pdfkit'
 
@@ -386,7 +387,11 @@ function drawTotals(doc: PdfDoc, ctx: VenteImpressionContext, y: number) {
   const airsiMontant = Number(vente.airsiMontant)
   const remiseMontant = Number(vente.remiseMontant)
   const totalTtc = Number(vente.totalTtc)
-  const finalTtc = airsiMontant > 0 ? Number(vente.totalApresAirsi) : totalTtc
+  const montantTimbre = Number(vente.montantTimbre ?? 0)
+  const finalTtc = venteTotalAPayer({
+    totalApresAirsi: airsiMontant > 0 ? Number(vente.totalApresAirsi) : totalTtc,
+    montantTimbre,
+  })
 
   const rows: [string, string, boolean][] = []
 
@@ -401,6 +406,13 @@ function drawTotals(doc: PdfDoc, ctx: VenteImpressionContext, y: number) {
     if (airsiMontant > 0) {
       rows.push(['Total TTC', formatMoney(totalTtc), false])
       rows.push([`AIRSI (${formatPct(airsiPct)})`, formatMoney(airsiMontant), false])
+    } else if (montantTimbre > 0) {
+      rows.push(['Total TTC', formatMoney(totalTtc), false])
+    }
+    if (montantTimbre > 0) {
+      rows.push(['Timbre fiscal', formatMoney(montantTimbre), false])
+    }
+    if (airsiMontant > 0 || montantTimbre > 0) {
       rows.push(['Total a payer', formatMoney(finalTtc), true])
     } else {
       rows.push(['Total TTC', formatMoney(totalTtc), true])

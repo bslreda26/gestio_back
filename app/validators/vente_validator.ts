@@ -5,7 +5,7 @@ import vine from '@vinejs/vine'
 const ligneVenteSchema = vine.object({
   produit_id: vine.number().positive(),
   produitId: vine.number().positive().optional(),
-  quantite: vine.number().positive().optional(),
+  quantite: vine.number().positive(),
   mode_vente: vine.enum(['piece', 'detail'] as const).optional(),
   modeVente: vine.enum(['piece', 'detail'] as const).optional(),
   prix_unitaire: vine.number().min(0).optional(),

@@ -108,6 +108,21 @@ test.group('syncVentePaiement', () => {
     assert.equal(vente.statutPaiement, 'partiel')
   })
 
+  test('reste includes timbre when mode cash', ({ assert }) => {
+    const vente = {
+      totalApresAirsi: 30000,
+      montantTimbre: 100,
+      montantPaye: 10000,
+      resteAPayer: 0,
+      statutPaiement: 'paye',
+    }
+
+    syncVentePaiement(vente)
+
+    assert.equal(vente.resteAPayer, 20100)
+    assert.equal(vente.statutPaiement, 'partiel')
+  })
+
   test('fully paid invoice', ({ assert }) => {
     const vente = {
       totalApresAirsi: 30000,

@@ -2,7 +2,6 @@ import { VENTE_STATUT } from '#constants/vente_statuts'
 import Client from '#models/client'
 import PointDeVente from '#models/point_de_vente'
 import {
-  assertCashFnePaymentTimbre,
   assertVenteCertifiable,
   buildFneInvoicePayload,
   buildFneRefundItems,
@@ -549,13 +548,13 @@ test.group('FNE mode paiement et timbre', () => {
     remisePct: '0.00',
     notes: null,
     modePaiementFne: 'deferred',
+    montantTimbre: '0.00',
   } as Vente
 
   const pointDeVente = {
     nom: 'PDV',
     pointOfSale: 'test1',
     establishment: 'CODCI',
-    timbreReference: 'TIMBRE-FNE',
   } as PointDeVente
 
   const ligneProduit = {
@@ -574,46 +573,20 @@ test.group('FNE mode paiement et timbre', () => {
     montantApresAirsi: '15000.00',
   } as VenteLigne
 
-  const ligneTimbre = {
-    id: 2,
-    produitId: 2,
-    designation: 'Timbre quittance',
-    quantite: '1',
-    prixUnitaire: '100.00',
-    remisePct: '0',
-    tvaPct: '0',
-    montantHt: '100.00',
-    montantTva: '0.00',
-    montantTtc: '100.00',
-    airsiPct: '0.00',
-    airsiMontant: '0.00',
-    montantApresAirsi: '100.00',
-  } as VenteLigne
-
   const produitsById = new Map<number, Produit>([
     [1, { id: 1, code: 'LAIT20' } as Produit],
-    [2, { id: 2, code: 'TIMBRE-FNE' } as Produit],
   ])
 
   test('default payment mode is deferred', ({ assert }) => {
     assert.equal(resolveVenteFnePaymentMethod({ modePaiementFne: null } as Vente), 'deferred')
   })
 
-  test('cash without timbre line is rejected at certification', ({ assert }) => {
-    assert.throws(
-      () =>
-        assertCashFnePaymentTimbre(pointDeVente, [ligneProduit], produitsById),
-      FneCertificationError,
-      /ajoutez l'article timbre/i
-    )
-  })
-
-  test('cash with timbre excludes timbre from FNE amount', ({ assert }) => {
+  test('cash FNE payload uses product total without timbre article', ({ assert }) => {
     const payload = buildFneInvoicePayload({
-      vente: { ...venteBase, modePaiementFne: 'cash' } as Vente,
+      vente: { ...venteBase, modePaiementFne: 'cash', montantTimbre: '100.00', totalTtc: '15000.00' } as Vente,
       client: { nom: 'CLIENT', type: 'B2C' } as Client,
       pointDeVente,
-      lignes: [ligneProduit, ligneTimbre],
+      lignes: [ligneProduit],
       produitsById,
       paymentMethod: 'cash',
     })
@@ -625,15 +598,13 @@ test.group('FNE mode paiement et timbre', () => {
     assert.equal(payload.vatAmount, 1239)
   })
 
-  test('evaluateFneTimbreStatus guides frontend when timbre missing', ({ assert }) => {
+  test('evaluateFneTimbreStatus returns computed montant for cash', ({ assert }) => {
     const status = evaluateFneTimbreStatus({
-      vente: { ...venteBase, modePaiementFne: 'cash' } as Vente,
-      pointDeVente,
-      lignes: [ligneProduit],
-      produitsById,
+      vente: { ...venteBase, modePaiementFne: 'cash', totalTtc: '20000.00' } as Vente,
     })
 
-    assert.equal(status.pret_pour_certification, false)
-    assert.match(status.message ?? '', /TIMBRE-FNE/)
+    assert.equal(status.mode_paiement_fne, 'cash')
+    assert.equal(status.montant_timbre, 100)
+    assert.equal(status.pret_pour_certification, true)
   })
 })

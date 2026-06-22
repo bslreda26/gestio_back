@@ -1,5 +1,4 @@
 import { loadProduitCodeMap } from '#helpers/produit_codes'
-import { isTimbreProduitCode, resolveTimbreReference } from '#helpers/timbre'
 import Produit from '#models/produit'
 import type VenteLigne from '#models/vente_ligne'
 import { calcMargeLigne } from '#services/pricing_service'
@@ -15,7 +14,6 @@ export type VenteLigneSerializeOptions = {
   includePlancher?: boolean
   plancher?: number
   marge?: number
-  timbreReference?: string | null
 }
 
 function ligneMode(ligne: VenteLigne): ModeVente {
@@ -46,16 +44,15 @@ function pricingFromProduit(
 }
 
 export function serializeVenteLigne(ligne: VenteLigne, options?: VenteLigneSerializeOptions) {
-  const code = options?.code
-  const isTimbre = isTimbreProduitCode(code, options?.timbreReference)
-
   const base: Record<string, unknown> = {
     id: ligne.id,
     venteId: ligne.venteId,
     produitId: ligne.produitId,
-    code,
+    code: options?.code,
     designation: ligne.designation,
     modeVente: ligne.modeVente ?? 'piece',
+    quantite: Number(ligne.quantite),
+    quantiteStock: ligne.quantiteStock !== null ? Number(ligne.quantiteStock) : Number(ligne.quantite),
     prixUnitaire: Number(ligne.prixUnitaire),
     remisePct: Number(ligne.remisePct),
     tvaPct: Number(ligne.tvaPct),
@@ -70,14 +67,6 @@ export function serializeVenteLigne(ligne: VenteLigne, options?: VenteLigneSeria
     depotId: ligne.depotId,
     createdAt: ligne.createdAt,
     updatedAt: ligne.updatedAt,
-    isTimbre,
-    sansQuantite: isTimbre,
-  }
-
-  if (!isTimbre) {
-    base.quantite = Number(ligne.quantite)
-    base.quantiteStock =
-      ligne.quantiteStock !== null ? Number(ligne.quantiteStock) : Number(ligne.quantite)
   }
 
   if (options?.includePlancher) {
@@ -98,7 +87,6 @@ export function serializeVenteLignes(
   options?: VenteLigneSerializeOptions & {
     codes?: Map<number, string>
     produits?: Map<number, Produit>
-    timbreReference?: string | null
   }
 ) {
   return lignes.map((ligne) => {
@@ -107,7 +95,6 @@ export function serializeVenteLignes(
       includeMarge: options?.includeMarge,
       includePlancher: options?.includePlancher,
       code: options?.codes?.get(ligne.produitId),
-      timbreReference: options?.timbreReference,
       plancher: livePricing.plancher,
       marge: livePricing.marge,
     })
@@ -116,14 +103,9 @@ export function serializeVenteLignes(
 
 export async function serializeVenteLignesForApi(
   lignes: VenteLigne[],
-  options?: Pick<VenteLigneSerializeOptions, 'includeMarge' | 'includePlancher'> & {
-    pointDeVenteId?: number
-  }
+  options?: Pick<VenteLigneSerializeOptions, 'includeMarge' | 'includePlancher'>
 ) {
   const produitIds = [...new Set(lignes.map((l) => l.produitId))]
-  const timbreReference = options?.pointDeVenteId
-    ? await resolveTimbreReference(options.pointDeVenteId)
-    : null
   const [codes, produits] = await Promise.all([
     loadProduitCodeMap(produitIds),
     produitIds.length ? Produit.query().whereIn('id', produitIds) : Promise.resolve([]),
@@ -131,7 +113,6 @@ export async function serializeVenteLignesForApi(
 
   return serializeVenteLignes(lignes, {
     ...options,
-    timbreReference,
     codes,
     produits: new Map(produits.map((p) => [p.id, p])),
   })

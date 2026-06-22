@@ -1,7 +1,7 @@
 import { parseFneApiResponse } from '#helpers/fne_response_parser'
+import { venteTotalAPayer } from '#helpers/timbre'
 import Client from '#models/client'
 import PointDeVente from '#models/point_de_vente'
-import Produit from '#models/produit'
 import Paiement from '#models/paiement'
 import User from '#models/user'
 import Vente from '#models/vente'
@@ -159,7 +159,7 @@ export default class VentesController {
     try {
       const info = await getLigneVenteInfo(
         payload.produit_id ?? payload.produitId!,
-        payload.quantite,
+        payload.quantite ?? 1,
         payload.remise_pct ?? payload.remisePct ?? 0,
         false,
         payload.mode_vente ?? payload.modeVente ?? 'piece',
@@ -210,10 +210,7 @@ export default class VentesController {
         includeMarge: ligneVisibility.includeMarge,
         includeMargePct: ligneVisibility.includeMargePct,
       }),
-      lignes: await serializeVenteLignesForApi(lignes, {
-        ...ligneVisibility,
-        pointDeVenteId: pos.pointDeVenteId,
-      }),
+      lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
       client,
       user: user ? { id: user.id, nom: user.nom, prenom: user.prenom, email: user.email } : null,
       paiements,
@@ -288,10 +285,7 @@ export default class VentesController {
         includeMarge: ligneVisibility.includeMarge,
         includeMargePct: ligneVisibility.includeMargePct,
       }),
-        lignes: await serializeVenteLignesForApi(lignes, {
-        ...ligneVisibility,
-        pointDeVenteId: pos.pointDeVenteId,
-      }),
+        lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
       })
     } catch (error) {
       return handleVenteError(ctx, error)
@@ -331,10 +325,7 @@ export default class VentesController {
           includeMarge: ligneVisibility.includeMarge,
           includeMargePct: ligneVisibility.includeMargePct,
         }),
-        lignes: await serializeVenteLignesForApi(lignes, {
-        ...ligneVisibility,
-        pointDeVenteId: pos.pointDeVenteId,
-      }),
+        lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
       })
     } catch (error) {
       return handleVenteError(ctx, error)
@@ -427,10 +418,7 @@ export default class VentesController {
       return sendSuccess(ctx, {
         message: 'Facture retour créée — articles retournés au stock',
         retour,
-        lignes: await serializeVenteLignesForApi(lignes, {
-          ...getVenteLigneVisibility(ctx),
-          pointDeVenteId: pos.pointDeVenteId,
-        }),
+        lignes: await serializeVenteLignesForApi(lignes, getVenteLigneVisibility(ctx)),
         facture,
       })
     } catch (error) {
@@ -485,21 +473,12 @@ export default class VentesController {
 
     if (!isDevis(vente.statut)) syncVentePaiement(vente)
 
-    const [lignes, client, pointDeVente] = await Promise.all([
+    const [lignes, client] = await Promise.all([
       VenteLigne.query().where('vente_id', id),
       Client.find(vente.clientId),
-      PointDeVente.find(vente.pointDeVenteId),
     ])
 
-    const produitIds = [...new Set(lignes.map((l) => l.produitId))]
-    const produits =
-      produitIds.length > 0 ? await Produit.query().whereIn('id', produitIds) : []
-    const produitsById = new Map(produits.map((p) => [p.id, p]))
-
-    const fneTimbre =
-      pointDeVente && !isDevis(vente.statut)
-        ? evaluateFneTimbreStatus({ vente, pointDeVente, lignes, produitsById })
-        : null
+    const fneTimbre = !isDevis(vente.statut) ? evaluateFneTimbreStatus({ vente }) : null
 
     const typeDocument =
       vente.statut === VENTE_STATUT.DEVIS
@@ -519,6 +498,8 @@ export default class VentesController {
       airsi_pct: Number(vente.airsiPct),
       airsi_montant: Number(vente.airsiMontant),
       total_apres_airsi: Number(vente.totalApresAirsi),
+      montant_timbre: Number(vente.montantTimbre ?? 0),
+      total_a_payer: venteTotalAPayer(vente),
       montant_paye: vente.montantPaye,
       reste_a_payer: vente.resteAPayer,
     }
@@ -553,10 +534,7 @@ export default class VentesController {
         fne_timbre: fneTimbre,
       },
       vente: serializeVenteForApi(vente, ligneVisibility),
-      lignes: await serializeVenteLignesForApi(lignes, {
-        ...ligneVisibility,
-        pointDeVenteId: pos.pointDeVenteId,
-      }),
+      lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
       totaux,
       generated_at: DateTime.now().toISO(),
     })
@@ -628,10 +606,7 @@ export default class VentesController {
           includeMarge: ligneVisibility.includeMarge,
           includeMargePct: ligneVisibility.includeMargePct,
         }),
-        lignes: await serializeVenteLignesForApi(lignes, {
-        ...ligneVisibility,
-        pointDeVenteId: pos.pointDeVenteId,
-      }),
+        lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
         fne: vente.apiResponse ? JSON.parse(vente.apiResponse) : null,
       })
     } catch (error) {
