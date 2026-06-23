@@ -129,7 +129,9 @@ export type FneTimbreCertificationStatus = {
 
 export function evaluateFneTimbreStatus(input: { vente: Vente }): FneTimbreCertificationStatus {
   const mode = resolveVenteFnePaymentMethod(input.vente)
-  const montantTimbre = resolveMontantTimbre(mode, Number(input.vente.totalTtc))
+  const montantTimbre = isFactureRetour(input.vente.statut)
+    ? 0
+    : resolveMontantTimbre(mode, Number(input.vente.totalTtc))
 
   return {
     mode_paiement_fne: mode,

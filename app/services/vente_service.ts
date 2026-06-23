@@ -1089,7 +1089,7 @@ export async function creerFactureRetour(
 
     const totaux = calculerTotauxVente(calculated, Number(facture.remisePct))
     const modePaiementFne = facture.modePaiementFne
-    const montantTimbre = resolveMontantTimbre(modePaiementFne, totaux.totalTtc)
+    const montantTimbre = 0
     const totalAPayer = venteTotalAPayer({
       totalApresAirsi: totaux.totalApresAirsi,
       montantTimbre,

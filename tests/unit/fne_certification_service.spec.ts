@@ -607,4 +607,18 @@ test.group('FNE mode paiement et timbre', () => {
     assert.equal(status.montant_timbre, 100)
     assert.equal(status.pret_pour_certification, true)
   })
+
+  test('evaluateFneTimbreStatus returns zero timbre for avoir retour', ({ assert }) => {
+    const status = evaluateFneTimbreStatus({
+      vente: {
+        ...venteBase,
+        statut: 'retour',
+        modePaiementFne: 'cash',
+        totalTtc: '20000.00',
+      } as Vente,
+    })
+
+    assert.equal(status.mode_paiement_fne, 'cash')
+    assert.equal(status.montant_timbre, 0)
+  })
 })
