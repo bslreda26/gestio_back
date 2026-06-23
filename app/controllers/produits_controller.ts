@@ -218,6 +218,7 @@ export default class ProduitsController {
       uniteGros: unites.uniteGros,
       contenance: unites.contenance,
       venteAuDetail: unites.venteAuDetail,
+      venteSousPlancher: payload.vente_sous_plancher ?? false,
       stockActuel: 0,
       stockMinimum: payload.stock_minimum ?? 0,
       stockMaximum: payload.stock_maximum ?? 0,
@@ -327,6 +328,10 @@ export default class ProduitsController {
       stockMaximum: payload.stock_maximum ?? produit.stockMaximum,
       isActive: payload.is_active ?? produit.isActive,
       airsiPct: payload.airsi_pct ?? produit.airsiPct,
+      venteSousPlancher:
+        payload.vente_sous_plancher !== undefined
+          ? payload.vente_sous_plancher
+          : produit.venteSousPlancher,
     })
 
     produit.unite = unites.unite

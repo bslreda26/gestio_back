@@ -205,7 +205,7 @@ export async function buildLignesFromPayload(
     const prixUnitaire = resolvePrixUnitaireLigne(produit, mode, ligne.prix_unitaire)
     const quantiteStock = toStockQuantite(mode, ligne.quantite, produit)
 
-    if (checkPlancher && mode !== 'detail') {
+    if (checkPlancher && mode !== 'detail' && !produit.venteSousPlancher) {
       validatePrixPlancher(prixUnitaire, plancherLigne, produit.nom)
     }
 
@@ -324,6 +324,7 @@ export async function getLigneVenteInfo(
     unite: produit.unite,
     unite_gros: produit.uniteGros,
     vente_au_detail: canVenteAuDetail(produit),
+    vente_sous_plancher: produit.venteSousPlancher,
   }
 }
 

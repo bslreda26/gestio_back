@@ -704,6 +704,35 @@ test.group('API — ventes & stock', (group) => {
     assert.match(body.message.toLowerCase(), /plancher/)
   })
 
+  test('facture below plancher is allowed when vente_sous_plancher is enabled', async ({
+    client,
+    assert,
+  }) => {
+    const token = await loginAsAdmin(client)
+    await openCaisse(client, token)
+    const produit = await Produit.findByOrFail('code', 'PRD-0001')
+    const prixSousPlancher = 10000
+
+    await authedPos(client, token).post('/api/v1/produits/update').json({
+      id: produit.id,
+      vente_sous_plancher: true,
+    })
+
+    const response = await authedPos(client, token)
+      .post('/api/v1/ventes/create')
+      .json({
+        statut: 'non_valide',
+        client_id: 1,
+        date_vente: '2026-06-10',
+        lignes: [{ produit_id: produit.id, quantite: 1, prix_unitaire: prixSousPlancher }],
+      })
+
+    response.assertStatus(200)
+    const ligne = response.body().data.lignes[0]
+    assert.equal(ligne.prixUnitaire, prixSousPlancher)
+    assert.isBelow(ligne.marge, 0)
+  })
+
   test('facture numero includes point de vente code', async ({ client, assert }) => {
     const token = await loginAsAdmin(client)
     const produit = await Produit.findByOrFail('code', 'PRD-0002')
@@ -1585,6 +1614,18 @@ test.group('API — achats & plancher', (group) => {
     })
     response.assertStatus(200)
     assert.equal(Number(response.body().data.plancher), 1500)
+  })
+
+  test('admin can enable vente_sous_plancher on produit', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0003')
+
+    const response = await authedPos(client, token).post('/api/v1/produits/update').json({
+      id: produit.id,
+      vente_sous_plancher: true,
+    })
+    response.assertStatus(200)
+    assert.isTrue(response.body().data.venteSousPlancher)
   })
 
   test('non-admin cannot manually set plancher on produit', async ({ client, assert }) => {

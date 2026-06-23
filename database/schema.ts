@@ -477,7 +477,7 @@ export class PointsDeVenteSchema extends BaseModel {
 }
 
 export class ProduitSchema extends BaseModel {
-  static $columns = ['airsiPct', 'categorieId', 'code', 'contenance', 'createdAt', 'dernierPrixAchatHt', 'description', 'frais', 'id', 'isActive', 'nom', 'plancher', 'pointDeVenteId', 'prixAchatHt', 'prixAchatTtc', 'prixVenteHt', 'prixVenteTtc', 'stockActuel', 'stockMaximum', 'stockMinimum', 'tvaGroupeId', 'unite', 'uniteGros', 'updatedAt', 'venteAuDetail'] as const
+  static $columns = ['airsiPct', 'categorieId', 'code', 'contenance', 'createdAt', 'dernierPrixAchatHt', 'description', 'frais', 'id', 'isActive', 'nom', 'plancher', 'pointDeVenteId', 'prixAchatHt', 'prixAchatTtc', 'prixVenteHt', 'prixVenteTtc', 'stockActuel', 'stockMaximum', 'stockMinimum', 'tvaGroupeId', 'unite', 'uniteGros', 'updatedAt', 'venteAuDetail', 'venteSousPlancher'] as const
   $columns = ProduitSchema.$columns
   @column()
   declare airsiPct: string
@@ -529,6 +529,8 @@ export class ProduitSchema extends BaseModel {
   declare updatedAt: DateTime | null
   @column()
   declare venteAuDetail: boolean
+  @column()
+  declare venteSousPlancher: boolean
 }
 
 export class RateLimitSchema extends BaseModel {
