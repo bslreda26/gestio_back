@@ -35,6 +35,11 @@ function formatDate(value: { toFormat: (fmt: string) => string } | null | undefi
   return value.toFormat('dd/MM/yyyy')
 }
 
+function formatDateTime(value: { toFormat: (fmt: string) => string } | null | undefined): string {
+  if (!value) return '—'
+  return value.toFormat('dd/MM/yyyy HH:mm')
+}
+
 function ascii(text: string): string {
   return text
     .normalize('NFD')
@@ -53,27 +58,9 @@ function drawLine(doc: PdfDoc, y: number, weight = 0.5, color = C.border) {
     .stroke()
 }
 
-function drawThickLine(doc: PdfDoc, y: number) {
-  drawLine(doc, y, 1.5, C.black)
-}
 
-function drawBadge(doc: PdfDoc, label: string, x: number, y: number) {
-  const isDuplicata = label === 'DUPLICATA'
-  const text = isDuplicata ? 'DUPLICATA' : 'ORIGINAL'
-  const width = isDuplicata ? 88 : 72
-  const height = 22
-
-  doc
-    .rect(x, y, width, height)
-    .lineWidth(isDuplicata ? 1.5 : 0.75)
-    .strokeColor(C.black)
-    .stroke()
-
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(isDuplicata ? 8 : 7)
-    .fillColor(C.black)
-    .text(text, x, y + (isDuplicata ? 6 : 7), { width, align: 'center' })
+function impressionBadgeText(label: string): string {
+  return label === 'DUPLICATA' ? 'DUPLICATA' : 'ORIGINAL'
 }
 
 function statusBannerText(statut: string): string | null {
@@ -101,136 +88,137 @@ function drawStatusBanner(doc: PdfDoc, ctx: VenteImpressionContext, startY: numb
   return startY + bannerH + 14
 }
 
-function fneCertifiedBannerLabel(statut: string): string {
-  if (isFactureRetour(statut)) return 'AVOIR CERTIFIE FNE'
-  return 'FACTURE CERTIFIEE FNE'
-}
+function drawBlackDocumentHeader(doc: PdfDoc, ctx: VenteImpressionContext, startY: number): number {
+  const showQr = ctx.type === 'facture' && ctx.vente.normalise && ctx.qrCodePng
+  const qrSize = showQr ? 52 : 0
+  const pad = 10
+  const headerH = Math.max(50, qrSize + pad * 2)
 
-function drawFneCertifiedBanner(doc: PdfDoc, ctx: VenteImpressionContext, startY: number): number {
-  if (!ctx.vente.normalise || ctx.type !== 'facture') return startY
+  doc.rect(PAGE_MARGIN, startY, CONTENT_WIDTH, headerH).fill(C.black)
 
-  const bannerH = 26
-  doc.rect(PAGE_MARGIN, startY, CONTENT_WIDTH, bannerH).lineWidth(1).strokeColor(C.black).stroke()
+  const leftW = CONTENT_WIDTH * 0.36
+  const centerW = CONTENT_WIDTH * 0.34
+  const leftX = PAGE_MARGIN + pad
+  const centerX = PAGE_MARGIN + leftW
+
+  doc.font('Helvetica-Bold').fontSize(11).fillColor(C.white)
+  doc.text(ascii(ctx.pointDeVente.nom), leftX, startY + pad, { width: leftW - pad })
+
+  doc.font('Helvetica-Bold').fontSize(8).fillColor(C.white)
+  doc.text(ctx.documentTitle, leftX, startY + pad + 14, {
+    width: leftW - pad,
+    characterSpacing: 0.8,
+  })
+
+  const badgeText = impressionBadgeText(ctx.impression.label)
+  const badgeW = badgeText === 'DUPLICATA' ? 90 : 76
+  const badgeH = 20
+  const badgeX = centerX + (centerW - badgeW) / 2
+  const badgeY = startY + (headerH - badgeH) / 2
+
+  doc
+    .rect(badgeX, badgeY, badgeW, badgeH)
+    .lineWidth(1)
+    .strokeColor(C.white)
+    .stroke()
+
   doc
     .font('Helvetica-Bold')
-    .fontSize(10)
-    .fillColor(C.black)
-    .text(fneCertifiedBannerLabel(ctx.vente.statut), PAGE_MARGIN, startY + 8, {
-      width: CONTENT_WIDTH,
+    .fontSize(badgeText === 'DUPLICATA' ? 8 : 7)
+    .fillColor(C.white)
+    .text(badgeText, badgeX, badgeY + (badgeText === 'DUPLICATA' ? 6 : 7), {
+      width: badgeW,
       align: 'center',
-      characterSpacing: 1,
+      characterSpacing: 0.8,
     })
 
-  return startY + bannerH + 12
+  if (showQr && ctx.qrCodePng) {
+    const qrX = PAGE_MARGIN + CONTENT_WIDTH - qrSize - pad
+    const qrY = startY + (headerH - qrSize) / 2
+    doc.image(ctx.qrCodePng, qrX, qrY, { width: qrSize, height: qrSize })
+  }
+
+  return startY + headerH + 6
 }
 
-function drawPointDeVenteHeader(doc: PdfDoc, ctx: VenteImpressionContext, startY: number) {
+function drawPosContactLine(doc: PdfDoc, ctx: VenteImpressionContext, startY: number): number {
   const pos = ctx.pointDeVente
-  const badgeX = PAGE_MARGIN + CONTENT_WIDTH - 88
-
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(16)
-    .fillColor(C.black)
-    .text(ascii(pos.nom), PAGE_MARGIN, startY, { width: CONTENT_WIDTH - 100 })
-
-  drawBadge(doc, ctx.impression.label, badgeX, startY)
-
-  let y = startY + 30
-  doc.font('Helvetica').fontSize(9).fillColor(C.muted)
-
-  const contactLines: string[] = []
-  if (pos.adresse) contactLines.push(ascii(pos.adresse))
+  const parts: string[] = []
+  if (pos.adresse) parts.push(ascii(pos.adresse))
   const villeTel = [pos.ville?.toUpperCase(), pos.telephone ? `Tel. ${pos.telephone}` : null]
     .filter(Boolean)
     .join('  ·  ')
-  if (villeTel) contactLines.push(villeTel)
+  if (villeTel) parts.push(villeTel)
 
-  for (const line of contactLines) {
-    doc.text(line, PAGE_MARGIN, y, { width: CONTENT_WIDTH - 100 })
-    y += 13
-  }
+  if (parts.length === 0) return startY
 
-  return y + 10
+  doc.font('Helvetica').fontSize(7).fillColor(C.muted)
+  doc.text(parts.join('  ·  '), PAGE_MARGIN, startY, { width: CONTENT_WIDTH })
+
+  return startY + 11
 }
 
-function drawDocumentTitle(doc: PdfDoc, ctx: VenteImpressionContext, y: number) {
-  drawThickLine(doc, y)
-  y += 14
+type MetaField = { label: string; value: string }
 
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(18)
-    .fillColor(C.black)
-    .text(ctx.documentTitle, PAGE_MARGIN, y, { align: 'center', width: CONTENT_WIDTH, characterSpacing: 1.5 })
-
-  y += 28
-  drawLine(doc, y)
-  return y + 16
-}
-
-type MetaRow = { label: string; value: string }
-
-function drawMetaCard(
+function drawMetaField(
   doc: PdfDoc,
-  title: string,
-  rows: MetaRow[],
   x: number,
   y: number,
-  width: number
+  width: number,
+  field: MetaField
 ): number {
-  const padding = 10
-  const titleH = 16
-  const rowH = 13
-  const cardH = padding * 2 + titleH + rows.length * rowH
+  doc.font('Helvetica-Bold').fontSize(6.5).fillColor(C.muted).text(field.label.toUpperCase(), x, y, { width })
+  doc.font('Helvetica').fontSize(7.5).fillColor(C.text).text(field.value, x, y + 8, { width })
+  return y + 18
+}
 
-  doc.rect(x, y, width, cardH).lineWidth(0.75).strokeColor(C.black).stroke()
-
-  doc
-    .font('Helvetica-Bold')
-    .fontSize(8)
-    .fillColor(C.black)
-    .text(title.toUpperCase(), x + padding, y + padding, { characterSpacing: 0.8 })
-
-  let rowY = y + padding + titleH
-  for (const row of rows) {
-    doc.font('Helvetica').fontSize(8).fillColor(C.muted).text(row.label, x + padding, rowY, { width: 62 })
-    doc.font('Helvetica').fontSize(8).fillColor(C.text).text(row.value, x + padding + 64, rowY, {
-      width: width - padding * 2 - 64,
-    })
-    rowY += rowH
+function drawMetaColumn(
+  doc: PdfDoc,
+  x: number,
+  y: number,
+  width: number,
+  fields: MetaField[]
+): number {
+  let rowY = y
+  for (const field of fields) {
+    rowY = drawMetaField(doc, x, rowY, width, field)
   }
-
-  return cardH
+  return rowY
 }
 
 function drawMetaBlock(doc: PdfDoc, ctx: VenteImpressionContext, y: number) {
   const vente = ctx.vente
   const client = ctx.client
-  const gap = 12
+  const gap = 20
   const colWidth = (CONTENT_WIDTH - gap) / 2
   const leftX = PAGE_MARGIN
   const rightX = PAGE_MARGIN + colWidth + gap
 
-  const docRows: MetaRow[] = [
+  const clientFields: MetaField[] = [
+    { label: 'Client', value: ascii(client.nom) },
+  ]
+  if (client.code) clientFields.push({ label: 'Code', value: client.code })
+  if (client.telephone) clientFields.push({ label: 'Tel.', value: client.telephone })
+
+  const docFields: MetaField[] = [
     { label: 'Numero', value: vente.numero },
     { label: 'Date', value: formatDate(vente.dateVente) },
     { label: 'Statut', value: ascii(ctx.statutLabel) },
   ]
 
   if (ctx.type === 'facture') {
-    docRows.push({ label: 'Paiement', value: ascii(statutPaiementLabel(vente.statutPaiement)) })
+    docFields.push({ label: 'Paiement', value: ascii(statutPaiementLabel(vente.statutPaiement)) })
     if (vente.dateEcheance) {
-      docRows.push({ label: 'Echeance', value: formatDate(vente.dateEcheance) })
+      docFields.push({ label: 'Echeance', value: formatDate(vente.dateEcheance) })
     }
   }
 
   if (ctx.type === 'bon_sortie') {
-    docRows.push({ label: 'Facture liee', value: vente.numero })
+    docFields.push({ label: 'Facture liee', value: vente.numero })
   }
 
   if (isFactureRetour(vente.statut) && vente.factureOrigineId) {
-    docRows.push({
+    docFields.push({
       label: 'Facture orig.',
       value: ctx.factureOrigineNumero ?? String(vente.factureOrigineId),
     })
@@ -239,27 +227,22 @@ function drawMetaBlock(doc: PdfDoc, ctx: VenteImpressionContext, y: number) {
   if (ctx.vendeur) {
     const vendeurNom =
       `${ctx.vendeur.prenom ?? ''} ${ctx.vendeur.nom ?? ''}`.trim() || ctx.vendeur.email
-    docRows.push({ label: 'Vendeur', value: ascii(vendeurNom) })
+    docFields.push({ label: 'Vendeur', value: ascii(vendeurNom) })
   }
 
   if (ctx.vente.normalise && ctx.fne) {
-    if (ctx.fne.reference) docRows.push({ label: 'Ref. FNE', value: ascii(ctx.fne.reference) })
-    if (ctx.fne.invoiceId) docRows.push({ label: 'ID FNE', value: ascii(ctx.fne.invoiceId) })
+    if (ctx.fne.reference) docFields.push({ label: 'Ref. FNE', value: ascii(ctx.fne.reference) })
     if (ctx.vente.certifiedAt) {
-      docRows.push({ label: 'Certifiee', value: formatDate(ctx.vente.certifiedAt) })
+      docFields.push({ label: 'Certifiee le', value: formatDateTime(ctx.vente.certifiedAt) })
     }
   }
 
-  const clientRows: MetaRow[] = [{ label: 'Nom', value: ascii(client.nom) }]
-  if (client.code) clientRows.push({ label: 'Code', value: client.code })
-  if (client.telephone) clientRows.push({ label: 'Tel.', value: client.telephone })
-  if (client.adresse) clientRows.push({ label: 'Adresse', value: ascii(client.adresse) })
-  if (client.ville) clientRows.push({ label: 'Ville', value: ascii(client.ville) })
+  const leftEnd = drawMetaColumn(doc, leftX, y, colWidth, clientFields)
+  const rightEnd = drawMetaColumn(doc, rightX, y, colWidth, docFields)
+  const blockEnd = Math.max(leftEnd, rightEnd)
 
-  const leftH = drawMetaCard(doc, 'Document', docRows, leftX, y, colWidth)
-  const rightH = drawMetaCard(doc, 'Client', clientRows, rightX, y, colWidth)
-
-  return y + Math.max(leftH, rightH) + 20
+  drawLine(doc, blockEnd + 4)
+  return blockEnd + 12
 }
 
 type TableColumn = {
@@ -451,68 +434,28 @@ function drawTotals(doc: PdfDoc, ctx: VenteImpressionContext, y: number) {
   return y + boxH + 16
 }
 
-function drawFneCertificationBlock(doc: PdfDoc, ctx: VenteImpressionContext, y: number): number {
-  if (!ctx.vente.normalise || ctx.type !== 'facture') return y
+function drawFneVerificationNote(doc: PdfDoc, ctx: VenteImpressionContext, y: number): number {
+  if (!ctx.vente.normalise || ctx.type !== 'facture' || !ctx.fne) return y
 
-  if (y > 620) {
-    doc.addPage()
-    y = PAGE_MARGIN
-  }
+  const title = isFactureRetour(ctx.vente.statut) ? 'Avoir certifie FNE' : 'Facture certifiee FNE'
+  doc.font('Helvetica-Bold').fontSize(7).fillColor(C.muted).text(title, PAGE_MARGIN, y, { width: CONTENT_WIDTH })
 
-  const blockH = 118
-  doc.rect(PAGE_MARGIN, y, CONTENT_WIDTH, blockH).lineWidth(0.75).strokeColor(C.black).stroke()
-
-  const qrSize = 88
-  const textX = PAGE_MARGIN + qrSize + 24
-  const textWidth = CONTENT_WIDTH - qrSize - 36
-
-  if (ctx.qrCodePng) {
-    doc.image(ctx.qrCodePng, PAGE_MARGIN + 12, y + 14, { width: qrSize, height: qrSize })
-  } else {
-    doc
-      .rect(PAGE_MARGIN + 12, y + 14, qrSize, qrSize)
-      .lineWidth(0.5)
-      .strokeColor(C.border)
-      .stroke()
-    doc
-      .font('Helvetica')
-      .fontSize(7)
-      .fillColor(C.muted)
-      .text('QR indisponible', PAGE_MARGIN + 12, y + 52, { width: qrSize, align: 'center' })
-  }
-
-  let textY = y + 16
-  doc.font('Helvetica-Bold').fontSize(9).fillColor(C.black).text(
-    isFactureRetour(ctx.vente.statut) ? 'Verification avoir FNE' : 'Verification FNE',
-    textX,
-    textY,
-    { width: textWidth }
-  )
-  textY += 16
-
-  doc.font('Helvetica').fontSize(8).fillColor(C.text)
-  if (ctx.fne?.reference) {
-    doc.text(`Reference : ${ascii(ctx.fne.reference)}`, textX, textY, { width: textWidth })
-    textY += 12
-  }
-  if (ctx.fne?.invoiceId) {
-    doc.text(`ID facture : ${ascii(ctx.fne.invoiceId)}`, textX, textY, { width: textWidth })
-    textY += 12
-  }
-  if (ctx.fne?.token) {
-    doc.text(`URL : ${ascii(ctx.fne.token)}`, textX, textY, { width: textWidth, lineBreak: true })
-    textY += 24
-  }
-
-  doc
-    .font('Helvetica')
-    .fontSize(7)
-    .fillColor(C.muted)
-    .text('Scannez le QR code pour verifier cette facture aupres de la DGI.', textX, y + blockH - 18, {
-      width: textWidth,
+  let textY = y + 10
+  doc.font('Helvetica').fontSize(6.5).fillColor(C.light)
+  if (ctx.fne.token) {
+    doc.text(`Verification : ${ascii(ctx.fne.token)}`, PAGE_MARGIN, textY, {
+      width: CONTENT_WIDTH,
+      lineBreak: true,
     })
+    textY += 14
+  } else {
+    doc.text('Scannez le QR code en entete pour verifier aupres de la DGI.', PAGE_MARGIN, textY, {
+      width: CONTENT_WIDTH,
+    })
+    textY += 10
+  }
 
-  return y + blockH + 16
+  return textY + 6
 }
 
 function drawFooter(doc: PdfDoc, ctx: VenteImpressionContext, contentBottomY: number) {
@@ -559,13 +502,12 @@ function renderPdf(render: (doc: PdfDoc) => void): Promise<Buffer> {
 export function generateVenteFacturePdf(ctx: VenteImpressionContext): Promise<Buffer> {
   return renderPdf((doc) => {
     let y = drawStatusBanner(doc, ctx, PAGE_MARGIN)
-    y = drawFneCertifiedBanner(doc, ctx, y)
-    y = drawPointDeVenteHeader(doc, ctx, y)
-    y = drawDocumentTitle(doc, ctx, y)
+    y = drawBlackDocumentHeader(doc, ctx, y)
+    y = drawPosContactLine(doc, ctx, y)
     y = drawMetaBlock(doc, ctx, y)
     y = drawFactureLines(doc, ctx, y)
     y = drawTotals(doc, ctx, y)
-    y = drawFneCertificationBlock(doc, ctx, y)
+    y = drawFneVerificationNote(doc, ctx, y)
     drawFooter(doc, ctx, y)
   })
 }
@@ -573,8 +515,8 @@ export function generateVenteFacturePdf(ctx: VenteImpressionContext): Promise<Bu
 export function generateVenteBonSortiePdf(ctx: VenteImpressionContext): Promise<Buffer> {
   return renderPdf((doc) => {
     let y = drawStatusBanner(doc, ctx, PAGE_MARGIN)
-    y = drawPointDeVenteHeader(doc, ctx, y)
-    y = drawDocumentTitle(doc, ctx, y)
+    y = drawBlackDocumentHeader(doc, ctx, y)
+    y = drawPosContactLine(doc, ctx, y)
     y = drawMetaBlock(doc, ctx, y)
     y = drawBonSortieLines(doc, ctx, y)
     drawFooter(doc, ctx, y)
