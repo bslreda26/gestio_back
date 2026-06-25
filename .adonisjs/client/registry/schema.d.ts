@@ -1591,6 +1591,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['valeurStock']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'rapports.quantite_par_depot': {
+    methods: ["POST"]
+    pattern: '/api/v1/rapports/quantite-par-depot'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/rapport_validator').rapportQuantiteParDepotValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/rapport_validator').rapportQuantiteParDepotValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['quantiteParDepot']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/rapports_controller').default['quantiteParDepot']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'rapports.balance_clients': {
     methods: ["POST"]
     pattern: '/api/v1/rapports/balance-clients'

@@ -136,6 +136,7 @@ export type ScannedRoutes = {
     'rapports.mouvements_stock': { paramsTuple?: []; params?: {} }
     'rapports.marge': { paramsTuple?: []; params?: {} }
     'rapports.valeur_stock': { paramsTuple?: []; params?: {} }
+    'rapports.quantite_par_depot': { paramsTuple?: []; params?: {} }
     'rapports.balance_clients': { paramsTuple?: []; params?: {} }
     'rapports.releve_client': { paramsTuple?: []; params?: {} }
     'rapports.depenses': { paramsTuple?: []; params?: {} }
@@ -288,6 +289,7 @@ export type ScannedRoutes = {
     'rapports.mouvements_stock': { paramsTuple?: []; params?: {} }
     'rapports.marge': { paramsTuple?: []; params?: {} }
     'rapports.valeur_stock': { paramsTuple?: []; params?: {} }
+    'rapports.quantite_par_depot': { paramsTuple?: []; params?: {} }
     'rapports.balance_clients': { paramsTuple?: []; params?: {} }
     'rapports.releve_client': { paramsTuple?: []; params?: {} }
     'rapports.depenses': { paramsTuple?: []; params?: {} }

@@ -467,6 +467,10 @@ router
               .as('valeur_stock')
               .use(middleware.role({ permission: 'rapports' }))
             router
+              .post('quantite-par-depot', [RapportsController, 'quantiteParDepot'])
+              .as('quantite_par_depot')
+              .use(middleware.role({ permission: 'rapports' }))
+            router
               .post('balance-clients', [RapportsController, 'balanceClients'])
               .as('balance_clients')
               .use(middleware.role({ permission: 'rapports' }))

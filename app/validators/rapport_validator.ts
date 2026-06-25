@@ -36,6 +36,18 @@ export const rapportValeurStockValidator = vine.compile(
   })
 )
 
+export const rapportQuantiteParDepotValidator = vine.compile(
+  vine.object({
+    categorie_id: vine.number().positive().optional(),
+    depot_id: vine.number().positive().optional(),
+    search: vine.string().trim().optional(),
+    masquer_zero: vine.boolean().optional(),
+    is_active: vine.boolean().optional(),
+    page: vine.number().min(1).optional(),
+    limit: vine.number().min(1).max(100).optional(),
+  })
+)
+
 export const rapportMouvementsStockValidator = vine.compile(
   vine.object({
     date_debut: vine.date({ formats: ['iso8601'] }),

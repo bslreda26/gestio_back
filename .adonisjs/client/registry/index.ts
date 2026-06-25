@@ -798,6 +798,12 @@ const routes = {
     tokens: [{"old":"/api/v1/rapports/valeur-stock","type":0,"val":"api","end":""},{"old":"/api/v1/rapports/valeur-stock","type":0,"val":"v1","end":""},{"old":"/api/v1/rapports/valeur-stock","type":0,"val":"rapports","end":""},{"old":"/api/v1/rapports/valeur-stock","type":0,"val":"valeur-stock","end":""}],
     types: placeholder as Registry['rapports.valeur_stock']['types'],
   },
+  'rapports.quantite_par_depot': {
+    methods: ["POST"],
+    pattern: '/api/v1/rapports/quantite-par-depot',
+    tokens: [{"old":"/api/v1/rapports/quantite-par-depot","type":0,"val":"api","end":""},{"old":"/api/v1/rapports/quantite-par-depot","type":0,"val":"v1","end":""},{"old":"/api/v1/rapports/quantite-par-depot","type":0,"val":"rapports","end":""},{"old":"/api/v1/rapports/quantite-par-depot","type":0,"val":"quantite-par-depot","end":""}],
+    types: placeholder as Registry['rapports.quantite_par_depot']['types'],
+  },
   'rapports.balance_clients': {
     methods: ["POST"],
     pattern: '/api/v1/rapports/balance-clients',

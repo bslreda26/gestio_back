@@ -573,6 +573,50 @@ test.group('API — dépôts & stock multi-dépôt', (group) => {
     assert.equal(depotBreakdown.get(secondaryId), transferQty)
   })
 
+  test('rapport quantite-par-depot returns stock breakdown per depot', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0002')
+    const defaultDepot = await Depot.query().where('is_default', true).firstOrFail()
+
+    const createDepot = await authedPos(client, token).post('/api/v1/depots/create').json({
+      code: 'QTY',
+      nom: 'Dépôt quantités',
+    })
+    const secondaryId = createDepot.body().data.id
+
+    await produit.refresh()
+    const transferQty = Math.min(4, Number(produit.stockActuel))
+    assert.isAtLeast(transferQty, 1)
+
+    const transfert = await authedPos(client, token).post('/api/v1/depots/transfert').json({
+      produit_id: produit.id,
+      quantite: transferQty,
+      depot_source_id: defaultDepot.id,
+      depot_dest_id: secondaryId,
+    })
+    transfert.assertStatus(200)
+
+    const response = await authedPos(client, token).post('/api/v1/rapports/quantite-par-depot').json({
+      search: produit.code,
+      page: 1,
+      limit: 100,
+    })
+    response.assertStatus(200)
+
+    const ligne = response.body().data.lignes.find((row: { code: string }) => row.code === produit.code)
+    assert.exists(ligne)
+    assert.isArray(ligne.quantitesParDepot)
+    assert.isAtLeast(ligne.quantitesParDepot.length, 2)
+
+    const secondary = ligne.quantitesParDepot.find(
+      (row: { depot_id: number; quantite: number }) => row.depot_id === secondaryId
+    )
+    assert.exists(secondary)
+    assert.equal(secondary.quantite, transferQty)
+    assert.isArray(response.body().data.depots)
+    assert.isArray(response.body().data.totaux.quantitesParDepot)
+  })
+
   test('stock mouvements search filters by date_debut and date_fin', async ({ client, assert }) => {
     const token = await loginAsAdmin(client)
     const produit = await Produit.findByOrFail('code', 'PRD-0002')

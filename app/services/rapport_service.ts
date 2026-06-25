@@ -4,6 +4,7 @@ import AchatLigne from '#models/achat_ligne'
 import DepenseCategory from '#models/depense_category'
 import Category from '#models/category'
 import Fournisseur from '#models/fournisseur'
+import Depot from '#models/depot'
 import Produit from '#models/produit'
 import Vente from '#models/vente'
 import Paiement from '#models/paiement'
@@ -18,7 +19,7 @@ import { getStocksParDepotForProduits } from '#services/depot_service'
 import { calcReceptionTtc } from '#services/achat_service'
 import { ACHAT_STATUT } from '#constants/achat_statuts'
 import { VENTE_STATUT } from '#constants/vente_statuts'
-import { resolveStockDisplay } from '#services/vente_unite_service'
+import { fromProduitPrixStockage, resolveStockDisplay } from '#services/vente_unite_service'
 import { getSolde } from '#services/caisse_service'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
@@ -263,6 +264,32 @@ type MouvementStockAgg = {
 
 function roundStockQty(value: number) {
   return Number(value.toFixed(3))
+}
+
+export function serializeValeurStockPlancher(
+  produit: Pick<Produit, 'plancher' | 'contenance' | 'unite' | 'uniteGros' | 'prixAchatHt' | 'prixAchatTtc' | 'frais'>
+) {
+  const prix = fromProduitPrixStockage(produit)
+  if (prix.mode === 'gros') {
+    const unite = produit.uniteGros?.trim() || 'pièce'
+    return {
+      prixUniteStockage: 'gros' as const,
+      plancher: prix.plancher,
+      plancherUnite: unite,
+    }
+  }
+
+  return {
+    prixUniteStockage: 'detail' as const,
+    uniteDetail: prix.uniteDetail,
+    uniteGros: prix.uniteGros,
+    contenance: prix.contenance,
+    plancherDetail: prix.plancherDetail,
+    plancherGros: prix.plancherGros,
+    /** Plancher par unité de stock interne (détail) — base du calcul valeurGlobale */
+    plancher: prix.plancherDetail,
+    plancherUnite: prix.uniteDetail,
+  }
 }
 
 async function aggregateMouvementsStockParProduit(
@@ -771,7 +798,8 @@ export async function rapportValeurStock(filters: {
   const meta = buildMeta(totalArticles, page, limit)
 
   const lignes = produits.map((p) => {
-    const plancher = Number(p.plancher)
+    const plancherFields = serializeValeurStockPlancher(p)
+    const plancherStock = plancherFields.plancher
     const stocksParDepot = stocksMap?.get(p.id) ?? []
     const depotStock = depotId ? stocksParDepot.find((s) => s.depot_id === depotId) : undefined
     const quantiteStock = depotId ? (depotStock?.quantite ?? 0) : Number(p.stockActuel)
@@ -779,12 +807,19 @@ export async function rapportValeurStock(filters: {
 
     const ligne: {
       designation: string
-      plancher: number
       quantite: string
       quantiteStock: number
       stockPieces: number | null
       stockResteDetail: number | null
       valeurGlobale: number
+      prixUniteStockage: 'gros' | 'detail'
+      plancher: number
+      plancherUnite: string
+      plancherDetail?: number
+      plancherGros?: number
+      uniteDetail?: string
+      uniteGros?: string
+      contenance?: number
       valeursParDepot?: Array<{
         depot_id: number
         depot_code: string
@@ -795,12 +830,12 @@ export async function rapportValeurStock(filters: {
       }>
     } = {
       designation: p.nom,
-      plancher,
       quantite: stockDisplay.stockLabel,
       quantiteStock,
       stockPieces: stockDisplay.stockPieces,
       stockResteDetail: stockDisplay.stockResteDetail,
-      valeurGlobale: roundMoney(plancher * quantiteStock),
+      valeurGlobale: roundMoney(plancherStock * quantiteStock),
+      ...plancherFields,
     }
 
     if (includeParDepot) {
@@ -812,7 +847,7 @@ export async function rapportValeurStock(filters: {
           depot_nom: s.depot_nom,
           quantite: s.quantite,
           quantiteLabel: depotDisplay.stockLabel,
-          valeurGlobale: roundMoney(plancher * s.quantite),
+          valeurGlobale: roundMoney(plancherStock * s.quantite),
         }
       })
     }
@@ -821,8 +856,8 @@ export async function rapportValeurStock(filters: {
   })
 
   const formule = depotId
-    ? 'valeur globale = plancher × quantité (stock du dépôt sélectionné)'
-    : 'valeur globale = plancher × quantité (stock interne)'
+    ? 'valeur globale = plancher (unité détail / stock interne) × quantité stock du dépôt'
+    : 'valeur globale = plancher (unité détail / stock interne) × quantité stock interne'
 
   return {
     formule,
@@ -833,6 +868,199 @@ export async function rapportValeurStock(filters: {
       quantiteTotale: roundStockQty(Number(totalsRow?.quantite_totale ?? 0)),
       valeurGlobale: roundMoney(Number(totalsRow?.valeur_globale ?? 0)),
       ...(valeursParDepotTotaux ? { valeursParDepot: valeursParDepotTotaux } : {}),
+    },
+    lignes,
+    meta,
+  }
+}
+
+function mapQuantiteParDepotEntry(
+  produit: Produit,
+  depot: { id: number; code: string; nom: string; isDefault: boolean },
+  quantite: number
+) {
+  const display = resolveStockDisplay(produit, quantite)
+  return {
+    depot_id: depot.id,
+    depot_code: depot.code,
+    depot_nom: depot.nom,
+    is_default: depot.isDefault,
+    quantite,
+    quantiteLabel: display.stockLabel,
+    stockPieces: display.stockPieces,
+    stockResteDetail: display.stockResteDetail,
+  }
+}
+
+function applyRapportQuantiteProduitFilters(
+  query: ReturnType<typeof Produit.query>,
+  filters: {
+    pointDeVenteId: number
+    categorieId?: number
+    search?: string
+    isActive?: boolean
+    masquerZero?: boolean
+    depotId?: number
+  }
+) {
+  query.where('point_de_vente_id', filters.pointDeVenteId)
+  query.where('is_active', filters.isActive ?? true)
+  if (filters.categorieId) query.where('categorie_id', filters.categorieId)
+  if (filters.search) {
+    const term = `%${filters.search}%`
+    query.where((q) => q.whereILike('nom', term).orWhereILike('code', term))
+  }
+  if (filters.masquerZero) {
+    if (filters.depotId) {
+      query.whereIn('id', (sub) => {
+        sub
+          .from('depot_stocks')
+          .select('produit_id')
+          .where('depot_id', filters.depotId!)
+          .where('quantite', '>', 0)
+      })
+    } else {
+      query.where('stock_actuel', '>', 0)
+    }
+  }
+  return query
+}
+
+async function computeTotauxQuantiteParDepot(
+  pointDeVenteId: number,
+  filters: {
+    categorieId?: number
+    search?: string
+    depotId?: number
+    masquerZero?: boolean
+  }
+) {
+  const query = db
+    .from('depots as d')
+    .join('depot_stocks as ds', 'ds.depot_id', 'd.id')
+    .join('produits as p', (join) => {
+      join.on('p.id', 'ds.produit_id').andOn('p.point_de_vente_id', 'd.point_de_vente_id')
+    })
+    .where('d.point_de_vente_id', pointDeVenteId)
+    .where('d.is_active', true)
+    .where('p.is_active', true)
+    .select('d.id as depot_id', 'd.code as depot_code', 'd.nom as depot_nom', 'd.is_default')
+    .select(db.raw('COALESCE(SUM(ds.quantite), 0) as quantite_totale'))
+    .groupBy('d.id', 'd.code', 'd.nom', 'd.is_default')
+    .orderBy('d.code', 'asc')
+
+  if (filters.depotId) query.where('d.id', filters.depotId)
+  if (filters.categorieId) query.where('p.categorie_id', filters.categorieId)
+  if (filters.search) {
+    const term = `%${filters.search}%`
+    query.where((sub) => {
+      sub.whereILike('p.nom', term).orWhereILike('p.code', term)
+    })
+  }
+  if (filters.masquerZero) {
+    if (filters.depotId) {
+      query.where('ds.quantite', '>', 0)
+    } else {
+      query.where('p.stock_actuel', '>', 0)
+    }
+  }
+
+  const rows = await query
+  const quantitesParDepot = rows.map((row) => ({
+    depot_id: Number(row.depot_id),
+    depot_code: String(row.depot_code),
+    depot_nom: String(row.depot_nom),
+    is_default: Boolean(row.is_default),
+    quantiteTotale: roundStockQty(Number(row.quantite_totale)),
+  }))
+
+  return {
+    quantitesParDepot,
+    quantiteTotale: roundStockQty(
+      quantitesParDepot.reduce((sum, row) => sum + row.quantiteTotale, 0)
+    ),
+  }
+}
+
+export async function rapportQuantiteParDepot(filters: {
+  pointDeVenteId: number
+  page?: number
+  limit?: number
+  categorieId?: number
+  depotId?: number
+  search?: string
+  masquerZero?: boolean
+  isActive?: boolean
+}) {
+  const { page, limit, offset } = parsePagination(filters)
+  const { pointDeVenteId, categorieId, depotId, search, masquerZero, isActive } = filters
+
+  const depotsQuery = Depot.query()
+    .where('point_de_vente_id', pointDeVenteId)
+    .where('is_active', true)
+    .orderBy('code', 'asc')
+  if (depotId) depotsQuery.where('id', depotId)
+  const depots = await depotsQuery
+
+  const produitQuery = applyRapportQuantiteProduitFilters(Produit.query(), {
+    pointDeVenteId,
+    categorieId,
+    search,
+    isActive,
+    masquerZero,
+    depotId,
+  }).orderBy('nom', 'asc')
+
+  const [countRow, produits, totaux] = await Promise.all([
+    produitQuery.clone().count('* as total'),
+    produitQuery.offset(offset).limit(limit),
+    computeTotauxQuantiteParDepot(pointDeVenteId, {
+      categorieId,
+      search,
+      depotId,
+      masquerZero,
+    }),
+  ])
+
+  const stocksMap = await getStocksParDepotForProduits(produits.map((p) => p.id))
+  const totalArticles = Number(countRow[0].$extras.total)
+  const meta = buildMeta(totalArticles, page, limit)
+
+  const lignes = produits.map((p) => {
+    const stocksParDepot = stocksMap.get(p.id) ?? []
+    const stockByDepotId = new Map(stocksParDepot.map((s) => [s.depot_id, s]))
+    const quantiteTotale = Number(p.stockActuel)
+    const totalDisplay = resolveStockDisplay(p, quantiteTotale)
+
+    return {
+      id: p.id,
+      code: p.code,
+      designation: p.nom,
+      categorieId: p.categorieId,
+      quantiteTotale,
+      quantiteLabel: totalDisplay.stockLabel,
+      stockPieces: totalDisplay.stockPieces,
+      stockResteDetail: totalDisplay.stockResteDetail,
+      quantitesParDepot: depots.map((depot) => {
+        const row = stockByDepotId.get(depot.id)
+        return mapQuantiteParDepotEntry(p, depot, row?.quantite ?? 0)
+      }),
+    }
+  })
+
+  return {
+    depot_id: depotId ?? null,
+    masquer_zero: masquerZero ?? false,
+    depots: depots.map((depot) => ({
+      id: depot.id,
+      code: depot.code,
+      nom: depot.nom,
+      is_default: depot.isDefault,
+    })),
+    totaux: {
+      nombreProduits: totalArticles,
+      quantiteTotale: totaux.quantiteTotale,
+      quantitesParDepot: totaux.quantitesParDepot,
     },
     lignes,
     meta,
@@ -1319,10 +1547,33 @@ function chiffreAffaireVentesQuery(
   return query
 }
 
+function venteMontantChiffreAffairesSql(alias = '') {
+  const prefix = alias ? `${alias}.` : ''
+  return `CAST(${prefix}total_apres_airsi AS DECIMAL(18,4))`
+}
+
+/** CA = total_apres_airsi (factures validées − retours). */
+export function calcVenteMontantChiffreAffaires(totalApresAirsi: number) {
+  return roundMoney(totalApresAirsi)
+}
+
+export function calcChiffreAffairesFromVentes(
+  ventes: Array<{ statut: string; totalApresAirsi: number }>
+) {
+  let total = 0
+  for (const vente of ventes) {
+    const montant = calcVenteMontantChiffreAffaires(vente.totalApresAirsi)
+    if (vente.statut === 'valide') total += montant
+    else if (vente.statut === 'retour') total -= montant
+  }
+  return roundMoney(total)
+}
+
 function calcChiffreAffairesSql(alias = '') {
   const prefix = alias ? `${alias}.` : ''
+  const montant = venteMontantChiffreAffairesSql(alias)
   return db.raw(
-    `COALESCE(SUM(CASE WHEN ${prefix}statut = 'valide' THEN ${prefix}total_ttc ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN ${prefix}statut = 'retour' THEN ${prefix}total_ttc ELSE 0 END), 0) as chiffre_affaires`
+    `COALESCE(SUM(CASE WHEN ${prefix}statut = 'valide' THEN ${montant} ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN ${prefix}statut = 'retour' THEN ${montant} ELSE 0 END), 0) as chiffre_affaires`
   )
 }
 
@@ -1361,6 +1612,7 @@ export async function rapportChiffreAffaire(filters: {
   const lignes = clients.map((client) => ({
     reference: client.code,
     designation: client.nom,
+    chiffre_affaires_ttc: caMap.get(client.id) ?? 0,
     chiffre_affaires: caMap.get(client.id) ?? 0,
   }))
 
@@ -1375,10 +1627,12 @@ export async function rapportChiffreAffaire(filters: {
           },
         }
       : {}),
+    formule: 'CA = total_apres_airsi (factures validées − retours)',
     lignes,
     meta,
     totaux: {
       nombre_clients: totalClients,
+      chiffre_affaires_global_ttc: chiffreAffairesGlobal,
       chiffre_affaires_global: chiffreAffairesGlobal,
     },
   }

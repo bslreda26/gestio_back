@@ -195,6 +195,7 @@ export interface ApiDefinition {
     mouvementsStock: typeof routes['rapports.mouvements_stock']
     marge: typeof routes['rapports.marge']
     valeurStock: typeof routes['rapports.valeur_stock']
+    quantiteParDepot: typeof routes['rapports.quantite_par_depot']
     balanceClients: typeof routes['rapports.balance_clients']
     releveClient: typeof routes['rapports.releve_client']
     depenses: typeof routes['rapports.depenses']

@@ -15,6 +15,7 @@ import {
   rapportMouvementsStock,
   rapportStockActuel,
   rapportValeurStock,
+  rapportQuantiteParDepot,
   rapportCertification,
 } from '#services/rapport_service'
 import {
@@ -31,6 +32,7 @@ import {
   rapportMouvementsStockValidator,
   rapportStockActuelValidator,
   rapportValeurStockValidator,
+  rapportQuantiteParDepotValidator,
   rapportCertificationValidator,
 } from '#validators/rapport_validator'
 import type { HttpContext } from '@adonisjs/core/http'
@@ -184,6 +186,35 @@ export default class RapportsController {
   }
 
   /**
+   * Quantités stock par dépôt — répartition par produit et totaux par dépôt
+   */
+  async quantiteParDepot(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(rapportQuantiteParDepotValidator)
+    try {
+      const pos = requirePointDeVente(ctx)
+
+      if (payload.depot_id) {
+        const depot = await Depot.find(payload.depot_id)
+        if (!(await assertRecordBelongsToPointDeVente(ctx, depot, 'Dépôt'))) return
+      }
+
+      const data = await rapportQuantiteParDepot({
+        pointDeVenteId: pos.pointDeVenteId,
+        page: payload.page,
+        limit: payload.limit,
+        categorieId: payload.categorie_id,
+        depotId: payload.depot_id,
+        search: payload.search,
+        masquerZero: payload.masquer_zero,
+        isActive: payload.is_active,
+      })
+      return sendSuccess(ctx, data, data.meta)
+    } catch (error) {
+      return handleRapportError(ctx, error)
+    }
+  }
+
+  /**
    * Balance clients — référence, désignation, solde ; total solde clients sur tous les comptes filtrés
    */
   async balanceClients(ctx: HttpContext) {
@@ -242,7 +273,7 @@ export default class RapportsController {
   }
 
   /**
-   * Rapport chiffre d'affaires — CA par client (factures − retours) et total global
+   * Rapport chiffre d'affaires — CA par client (total_apres_airsi, factures − retours)
    */
   async chiffreAffaire(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(rapportChiffreAffaireValidator)
