@@ -1243,6 +1243,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/caisse_controller').default['fermeture']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'caisse.entree_manuelle': {
+    methods: ["POST"]
+    pattern: '/api/v1/caisse/entree-manuelle'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/caisse_validator').caisseEntreeManuelleValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/caisse_validator').caisseEntreeManuelleValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/caisse_controller').default['entreeManuelle']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/caisse_controller').default['entreeManuelle']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'caisse.session': {
     methods: ["POST"]
     pattern: '/api/v1/caisse/session'

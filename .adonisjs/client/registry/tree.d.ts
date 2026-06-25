@@ -152,6 +152,7 @@ export interface ApiDefinition {
     getByCriteria: typeof routes['caisse.get_by_criteria']
     ouverture: typeof routes['caisse.ouverture']
     fermeture: typeof routes['caisse.fermeture']
+    entreeManuelle: typeof routes['caisse.entree_manuelle']
     session: typeof routes['caisse.session']
     sessions: {
       search: typeof routes['caisse.sessions.search']

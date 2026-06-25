@@ -624,6 +624,12 @@ const routes = {
     tokens: [{"old":"/api/v1/caisse/fermeture","type":0,"val":"api","end":""},{"old":"/api/v1/caisse/fermeture","type":0,"val":"v1","end":""},{"old":"/api/v1/caisse/fermeture","type":0,"val":"caisse","end":""},{"old":"/api/v1/caisse/fermeture","type":0,"val":"fermeture","end":""}],
     types: placeholder as Registry['caisse.fermeture']['types'],
   },
+  'caisse.entree_manuelle': {
+    methods: ["POST"],
+    pattern: '/api/v1/caisse/entree-manuelle',
+    tokens: [{"old":"/api/v1/caisse/entree-manuelle","type":0,"val":"api","end":""},{"old":"/api/v1/caisse/entree-manuelle","type":0,"val":"v1","end":""},{"old":"/api/v1/caisse/entree-manuelle","type":0,"val":"caisse","end":""},{"old":"/api/v1/caisse/entree-manuelle","type":0,"val":"entree-manuelle","end":""}],
+    types: placeholder as Registry['caisse.entree_manuelle']['types'],
+  },
   'caisse.session': {
     methods: ["POST"],
     pattern: '/api/v1/caisse/session',

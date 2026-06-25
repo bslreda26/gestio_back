@@ -107,6 +107,7 @@ export type ScannedRoutes = {
     'caisse.mouvements.show': { paramsTuple?: []; params?: {} }
     'caisse.ouverture': { paramsTuple?: []; params?: {} }
     'caisse.fermeture': { paramsTuple?: []; params?: {} }
+    'caisse.entree_manuelle': { paramsTuple?: []; params?: {} }
     'caisse.session': { paramsTuple?: []; params?: {} }
     'caisse.sessions.search': { paramsTuple?: []; params?: {} }
     'caisse.sessions.get_by_criteria': { paramsTuple?: []; params?: {} }
@@ -260,6 +261,7 @@ export type ScannedRoutes = {
     'caisse.mouvements.show': { paramsTuple?: []; params?: {} }
     'caisse.ouverture': { paramsTuple?: []; params?: {} }
     'caisse.fermeture': { paramsTuple?: []; params?: {} }
+    'caisse.entree_manuelle': { paramsTuple?: []; params?: {} }
     'caisse.session': { paramsTuple?: []; params?: {} }
     'caisse.sessions.search': { paramsTuple?: []; params?: {} }
     'caisse.sessions.get_by_criteria': { paramsTuple?: []; params?: {} }

@@ -47,6 +47,15 @@ export const caisseFermetureValidator = vine.compile(
   })
 )
 
+export const caisseEntreeManuelleValidator = vine.compile(
+  vine.object({
+    libelle: vine.string().trim().minLength(1).maxLength(255),
+    montant: vine.number().positive(),
+    caisse_id: vine.number().positive().optional(),
+    notes: vine.string().trim().optional(),
+  })
+)
+
 const caisseSessionsCriteriaFields = {
   page: vine.number().min(1).optional(),
   limit: vine.number().min(1).max(100).optional(),

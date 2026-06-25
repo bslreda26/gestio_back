@@ -372,6 +372,10 @@ router
           .as('caisse.fermeture')
           .use(middleware.role({ permission: 'caisse_write' }))
         router
+          .post('caisse/entree-manuelle', [CaisseController, 'entreeManuelle'])
+          .as('caisse.entree_manuelle')
+          .use(middleware.role({ permission: 'caisse_write' }))
+        router
           .post('caisse/session', [CaisseController, 'sessionCourante'])
           .as('caisse.session')
           .use(middleware.role({ permission: 'caisse' }))

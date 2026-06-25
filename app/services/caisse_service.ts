@@ -26,11 +26,19 @@ type MouvementMotif =
   | 'achat_especes'
   | 'retour_achat_especes'
   | 'depense'
+  | 'entree_manuelle'
   | 'ajustement'
   | 'ouverture'
   | 'annulation'
   | 'reglement_client'
   | 'reglement_fournisseur'
+
+export type EntreeManuelleInput = {
+  libelle: string
+  montant: number
+  caisseId?: number
+  notes?: string | null
+}
 
 export type DepenseInput = {
   libelle: string
@@ -197,7 +205,7 @@ async function enregistrerMouvement(
     sessionId = session.id
   }
 
-  await CaisseMouvement.create(
+  const mouvement = await CaisseMouvement.create(
     {
       caisseId: caisse.id,
       caisseSessionId: sessionId,
@@ -221,7 +229,7 @@ async function enregistrerMouvement(
   if (trx) caisse.useTransaction(trx)
   await caisse.save()
 
-  return { soldeAvant, soldeApres }
+  return { soldeAvant, soldeApres, mouvement }
 }
 
 export async function enregistrerEntree(
@@ -303,6 +311,40 @@ export async function creerDepense(
 
   if (trx) return run(trx)
   return Depense.transaction(run)
+}
+
+export async function creerEntreeManuelle(
+  data: EntreeManuelleInput,
+  userId: number,
+  pointDeVenteId: number,
+  trx?: TransactionClientContract
+) {
+  if (data.montant <= 0) {
+    throw new CaisseBusinessError('Le montant doit être positif')
+  }
+
+  const run = async (client: TransactionClientContract) => {
+    const caisse = data.caisseId
+      ? await Caisse.query({ client }).where('id', data.caisseId).firstOrFail()
+      : await getCaisseForPointDeVente(pointDeVenteId, client)
+
+    const { mouvement, soldeApres } = await enregistrerMouvement(
+      caisse,
+      'entree',
+      'entree_manuelle',
+      data.montant,
+      data.libelle,
+      {},
+      userId,
+      client,
+      data.notes ?? null
+    )
+
+    return { caisse, mouvement, soldeApres }
+  }
+
+  if (trx) return run(trx)
+  return Caisse.transaction(run)
 }
 
 export async function getHistorique(

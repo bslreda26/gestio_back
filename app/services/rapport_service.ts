@@ -2029,6 +2029,20 @@ export async function rapportReglementFournisseurs(
 }
 
 const CERTIFICATION_VENTE_STATUTS = [VENTE_STATUT.VALIDE, VENTE_STATUT.RETOUR] as const
+const CERTIFICATION_TOTAL_TTC_SQL = 'CAST(total_ttc AS DECIMAL(18,4))'
+
+export function certificationMontantsTotaux(row: {
+  total_factures_ttc?: string | number | null
+  total_retours_ttc?: string | number | null
+}) {
+  const totalFacturesTtc = roundMoney(Number(row.total_factures_ttc ?? 0))
+  const totalRetoursTtc = roundMoney(Number(row.total_retours_ttc ?? 0))
+  return {
+    total_factures_ttc: totalFacturesTtc,
+    total_retours_ttc: totalRetoursTtc,
+    total_ttc: roundMoney(totalFacturesTtc - totalRetoursTtc),
+  }
+}
 
 function certificationVentesQuery(filters: {
   pointDeVenteId: number
@@ -2090,16 +2104,45 @@ export async function rapportCertification(filters: {
       .where('date_vente', '>=', toSqlDate(filters.dateDebut))
       .where('date_vente', '<=', toSqlDate(filters.dateFin))
       .select(
-        db.raw('COUNT(*) as nombre_factures'),
+        db.raw('COUNT(*) as nombre_documents'),
+        db.raw(
+          `COALESCE(SUM(CASE WHEN statut = '${VENTE_STATUT.VALIDE}' THEN 1 ELSE 0 END), 0) as nombre_factures`
+        ),
+        db.raw(
+          `COALESCE(SUM(CASE WHEN statut = '${VENTE_STATUT.RETOUR}' THEN 1 ELSE 0 END), 0) as nombre_retours`
+        ),
         db.raw('COALESCE(SUM(CASE WHEN normalise = 1 THEN 1 ELSE 0 END), 0) as nombre_certifiees'),
         db.raw('COALESCE(SUM(CASE WHEN normalise = 0 THEN 1 ELSE 0 END), 0) as nombre_non_certifiees'),
         db.raw(
-          'COALESCE(SUM(CASE WHEN normalise = 1 THEN CAST(total_ttc AS DECIMAL(18,4)) ELSE 0 END), 0) as total_ttc_certifiees'
+          `COALESCE(SUM(CASE WHEN normalise = 1 AND statut = '${VENTE_STATUT.VALIDE}' THEN 1 ELSE 0 END), 0) as nombre_certifiees_factures`
         ),
         db.raw(
-          'COALESCE(SUM(CASE WHEN normalise = 0 THEN CAST(total_ttc AS DECIMAL(18,4)) ELSE 0 END), 0) as total_ttc_non_certifiees'
+          `COALESCE(SUM(CASE WHEN normalise = 1 AND statut = '${VENTE_STATUT.RETOUR}' THEN 1 ELSE 0 END), 0) as nombre_certifiees_retours`
         ),
-        db.raw('COALESCE(SUM(CAST(total_ttc AS DECIMAL(18,4))), 0) as total_ttc')
+        db.raw(
+          `COALESCE(SUM(CASE WHEN normalise = 0 AND statut = '${VENTE_STATUT.VALIDE}' THEN 1 ELSE 0 END), 0) as nombre_non_certifiees_factures`
+        ),
+        db.raw(
+          `COALESCE(SUM(CASE WHEN normalise = 0 AND statut = '${VENTE_STATUT.RETOUR}' THEN 1 ELSE 0 END), 0) as nombre_non_certifiees_retours`
+        ),
+        db.raw(
+          `COALESCE(SUM(CASE WHEN statut = '${VENTE_STATUT.VALIDE}' THEN ${CERTIFICATION_TOTAL_TTC_SQL} ELSE 0 END), 0) as total_factures_ttc`
+        ),
+        db.raw(
+          `COALESCE(SUM(CASE WHEN statut = '${VENTE_STATUT.RETOUR}' THEN ${CERTIFICATION_TOTAL_TTC_SQL} ELSE 0 END), 0) as total_retours_ttc`
+        ),
+        db.raw(
+          `COALESCE(SUM(CASE WHEN normalise = 1 AND statut = '${VENTE_STATUT.VALIDE}' THEN ${CERTIFICATION_TOTAL_TTC_SQL} ELSE 0 END), 0) as total_ttc_certifiees_factures`
+        ),
+        db.raw(
+          `COALESCE(SUM(CASE WHEN normalise = 1 AND statut = '${VENTE_STATUT.RETOUR}' THEN ${CERTIFICATION_TOTAL_TTC_SQL} ELSE 0 END), 0) as total_ttc_certifiees_retours`
+        ),
+        db.raw(
+          `COALESCE(SUM(CASE WHEN normalise = 0 AND statut = '${VENTE_STATUT.VALIDE}' THEN ${CERTIFICATION_TOTAL_TTC_SQL} ELSE 0 END), 0) as total_ttc_non_certifiees_factures`
+        ),
+        db.raw(
+          `COALESCE(SUM(CASE WHEN normalise = 0 AND statut = '${VENTE_STATUT.RETOUR}' THEN ${CERTIFICATION_TOTAL_TTC_SQL} ELSE 0 END), 0) as total_ttc_non_certifiees_retours`
+        )
       )
       .first(),
     baseQuery
@@ -2114,9 +2157,15 @@ export async function rapportCertification(filters: {
   const totalFactures = Number(countRow[0].$extras.total)
   const meta = buildMeta(totalFactures, page, limit)
 
-  const totalTtcCertifiees = roundMoney(Number(totauxRow?.total_ttc_certifiees ?? 0))
-  const totalTtcNonCertifiees = roundMoney(Number(totauxRow?.total_ttc_non_certifiees ?? 0))
-  const totalTtc = roundMoney(Number(totauxRow?.total_ttc ?? 0))
+  const totauxGlobaux = certificationMontantsTotaux(totauxRow ?? {})
+  const totauxCertifies = certificationMontantsTotaux({
+    total_factures_ttc: totauxRow?.total_ttc_certifiees_factures,
+    total_retours_ttc: totauxRow?.total_ttc_certifiees_retours,
+  })
+  const totauxNonCertifies = certificationMontantsTotaux({
+    total_factures_ttc: totauxRow?.total_ttc_non_certifiees_factures,
+    total_retours_ttc: totauxRow?.total_ttc_non_certifiees_retours,
+  })
 
   const clientIds = [...new Set(ventes.map((vente) => vente.clientId))]
   const clients =
@@ -2147,16 +2196,22 @@ export async function rapportCertification(filters: {
     lignes,
     meta,
     totaux: {
+      nombre_documents: Number(totauxRow?.nombre_documents ?? 0),
       nombre_factures: Number(totauxRow?.nombre_factures ?? 0),
+      nombre_retours: Number(totauxRow?.nombre_retours ?? 0),
       factures_certifiees: {
         nombre: Number(totauxRow?.nombre_certifiees ?? 0),
-        total_ttc: totalTtcCertifiees,
+        nombre_factures: Number(totauxRow?.nombre_certifiees_factures ?? 0),
+        nombre_retours: Number(totauxRow?.nombre_certifiees_retours ?? 0),
+        ...totauxCertifies,
       },
       factures_non_certifiees: {
         nombre: Number(totauxRow?.nombre_non_certifiees ?? 0),
-        total_ttc: totalTtcNonCertifiees,
+        nombre_factures: Number(totauxRow?.nombre_non_certifiees_factures ?? 0),
+        nombre_retours: Number(totauxRow?.nombre_non_certifiees_retours ?? 0),
+        ...totauxNonCertifies,
       },
-      total_ttc: totalTtc,
+      ...totauxGlobaux,
     },
   }
 }

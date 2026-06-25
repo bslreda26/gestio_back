@@ -913,6 +913,41 @@ test.group('API — caisse & depenses', (group) => {
     response.assertStatus(422)
     assert.match(response.body().message.toLowerCase(), /caisse n'est pas ouverte/)
   })
+
+  test('entree manuelle augmente le solde caisse', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    await openCaisse(client, token)
+    const caisseBefore = await Caisse.query().where('nom', 'Caisse principale').firstOrFail()
+    const soldeBefore = Number(caisseBefore.soldeActuel)
+
+    const response = await authedPos(client, token).post('/api/v1/caisse/entree-manuelle').json({
+      libelle: 'Apport de fonds',
+      montant: 20_000,
+      notes: 'Renflouement caisse',
+    })
+
+    response.assertStatus(200)
+    assert.equal(response.body().data.mouvement.motif, 'entree_manuelle')
+    assert.equal(response.body().data.mouvement.type, 'entree')
+    assert.equal(response.body().data.mouvement.montant, 20_000)
+
+    await caisseBefore.refresh()
+    assert.equal(Number(caisseBefore.soldeActuel), soldeBefore + 20_000)
+  })
+
+  test('entree manuelle is rejected when caisse session is closed', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    await openCaisse(client, token)
+    await authedPos(client, token).post('/api/v1/caisse/fermeture').json({ montant: 0 })
+
+    const response = await authedPos(client, token).post('/api/v1/caisse/entree-manuelle').json({
+      libelle: 'Apport caisse fermee',
+      montant: 20_000,
+    })
+
+    response.assertStatus(422)
+    assert.match(response.body().message.toLowerCase(), /caisse n'est pas ouverte/)
+  })
 })
 
 test.group('API — reglements', (group) => {

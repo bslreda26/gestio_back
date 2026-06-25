@@ -3,6 +3,7 @@ import { sendError, sendSuccess } from '#helpers/api_response'
 import { requirePointDeVente } from '#helpers/point_de_vente_context'
 import {
   CaisseBusinessError,
+  creerEntreeManuelle,
   fermetureCaisse,
   getHistorique,
   getMouvement,
@@ -13,6 +14,7 @@ import {
   searchSessions,
 } from '#services/caisse_service'
 import {
+  caisseEntreeManuelleValidator,
   caisseFermetureValidator,
   caisseGetByCriteriaValidator,
   caisseMouvementIdValidator,
@@ -128,6 +130,43 @@ export default class CaisseController {
           montantOuverture: Number(session.montantOuverture),
           dateOuverture: session.dateOuverture.toISO(),
           statut: session.statut,
+        },
+      })
+    } catch (error) {
+      return handleCaisseError(ctx, error)
+    }
+  }
+
+  async entreeManuelle(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(caisseEntreeManuelleValidator)
+    try {
+      const pos = requirePointDeVente(ctx)
+      const { caisse, mouvement } = await creerEntreeManuelle(
+        {
+          libelle: payload.libelle,
+          montant: payload.montant,
+          caisseId: payload.caisse_id,
+          notes: payload.notes ?? null,
+        },
+        ctx.auth.getUserOrFail().id,
+        pos.pointDeVenteId
+      )
+      return sendSuccess(ctx, {
+        message: 'Entrée caisse enregistrée',
+        caisse: {
+          id: caisse.id,
+          nom: caisse.nom,
+          soldeActuel: Number(caisse.soldeActuel),
+        },
+        mouvement: {
+          id: mouvement.id,
+          type: mouvement.type,
+          motif: mouvement.motif,
+          montant: Number(mouvement.montant),
+          libelle: mouvement.libelle,
+          soldeAvant: Number(mouvement.soldeAvant),
+          soldeApres: Number(mouvement.soldeApres),
+          dateMouvement: mouvement.dateMouvement.toISO(),
         },
       })
     } catch (error) {
