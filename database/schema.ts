@@ -248,7 +248,7 @@ export class CategorySchema extends BaseModel {
 }
 
 export class ClientSchema extends BaseModel {
-  static $columns = ['adresse', 'code', 'createdAt', 'creditLimit', 'email', 'id', 'isActive', 'ncc', 'nom', 'notes', 'pays', 'pointDeVenteId', 'solde', 'telephone', 'type', 'updatedAt', 'ville'] as const
+  static $columns = ['adresse', 'code', 'createdAt', 'creditLimit', 'email', 'exonereAirsi', 'exonereTva', 'id', 'isActive', 'ncc', 'nom', 'notes', 'pays', 'pointDeVenteId', 'solde', 'telephone', 'type', 'updatedAt', 'ville'] as const
   $columns = ClientSchema.$columns
   @column()
   declare adresse: string | null
@@ -260,6 +260,10 @@ export class ClientSchema extends BaseModel {
   declare creditLimit: string
   @column()
   declare email: string | null
+  @column()
+  declare exonereAirsi: boolean
+  @column()
+  declare exonereTva: boolean
   @column({ isPrimary: true })
   declare id: number
   @column()
@@ -545,7 +549,7 @@ export class RateLimitSchema extends BaseModel {
 }
 
 export class ReglementSchema extends BaseModel {
-  static $columns = ['clientId', 'createdAt', 'dateReglement', 'fournisseurId', 'id', 'modePaiement', 'montant', 'notes', 'pointDeVenteId', 'referenceExterne', 'soldeApres', 'soldeAvant', 'type', 'updatedAt', 'userId'] as const
+  static $columns = ['clientId', 'createdAt', 'dateReglement', 'fournisseurId', 'id', 'modePaiement', 'montant', 'notes', 'paiementId', 'pointDeVenteId', 'referenceExterne', 'soldeApres', 'soldeAvant', 'type', 'updatedAt', 'userId', 'venteId'] as const
   $columns = ReglementSchema.$columns
   @column()
   declare clientId: number | null
@@ -564,6 +568,8 @@ export class ReglementSchema extends BaseModel {
   @column()
   declare notes: string | null
   @column()
+  declare paiementId: number | null
+  @column()
   declare pointDeVenteId: number
   @column()
   declare referenceExterne: string | null
@@ -577,6 +583,8 @@ export class ReglementSchema extends BaseModel {
   declare updatedAt: DateTime | null
   @column()
   declare userId: number
+  @column()
+  declare venteId: number | null
 }
 
 export class StockMouvementSchema extends BaseModel {

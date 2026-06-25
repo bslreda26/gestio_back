@@ -1187,7 +1187,6 @@ test.group('API — retours & caisse', (group) => {
     const recevoir = await authedPos(client, token).post('/api/v1/achats/recevoir').json({
       id: achatId,
       date_reception: '2026-06-10',
-      lignes: [{ ligne_id: ligneId, quantite_recue: 5 }],
     })
     recevoir.assertStatus(200)
 
@@ -1251,7 +1250,6 @@ test.group('API — retours & caisse', (group) => {
 
     const recevoir = await authedPos(client, token).post('/api/v1/achats/recevoir').json({
       id: achatId,
-      lignes: [{ ligne_id: ligne.id, quantite_recue: 2 }],
     })
     recevoir.assertStatus(200)
 
@@ -1288,7 +1286,6 @@ test.group('API — retours & caisse', (group) => {
 
     const recevoir = await authedPos(client, token).post('/api/v1/achats/recevoir').json({
       id: create.body().data.achat.id,
-      lignes: [{ ligne_id: create.body().data.lignes[0].id, quantite_recue: 1 }],
     })
     recevoir.assertStatus(200)
 
@@ -1348,7 +1345,6 @@ test.group('API — retours & caisse', (group) => {
 
     const recevoir = await authedPos(client, token).post('/api/v1/achats/recevoir').json({
       id: create.body().data.achat.id,
-      lignes: [{ ligne_id: create.body().data.lignes[0].id, quantite_recue: 1 }],
     })
     recevoir.assertStatus(200)
 
@@ -1392,7 +1388,6 @@ test.group('API — retours & caisse', (group) => {
 
     await authedPos(client, token).post('/api/v1/achats/recevoir').json({
       id: achatId,
-      lignes: [{ ligne_id: ligneId, quantite_recue: 1 }],
     })
 
     const montant = Number(create.body().data.achat.totalTtc)
@@ -1439,7 +1434,6 @@ test.group('API — achats & plancher', (group) => {
 
     const recevoir = await authedPos(client, token).post('/api/v1/achats/recevoir').json({
       id: achatId,
-      lignes: [{ ligne_id: ligneId, quantite_recue: 5 }],
     })
     recevoir.assertStatus(200)
 
@@ -1473,7 +1467,6 @@ test.group('API — achats & plancher', (group) => {
     const recevoir = await authedPos(client, token).post('/api/v1/achats/recevoir').json({
       id: achatId,
       date_reception: '2026-06-11',
-      lignes: [{ ligne_id: ligneId, quantite_recue: 10 }],
     })
     recevoir.assertStatus(200)
 
@@ -1482,7 +1475,7 @@ test.group('API — achats & plancher', (group) => {
     assert.equal(Number(produit.dernierPrixAchatHt), 13000)
     assert.equal(Number(produit.frais), 533.33)
     assert.equal(Number(produit.prixAchatTtc), 14356.67)
-    assert.equal(Number(produit.plancher), 14872.72)
+    assert.equal(Number(produit.plancher), 14890)
   })
 
   test('achat ligne-info pre-fills product frais over last achat frais', async ({ client, assert }) => {

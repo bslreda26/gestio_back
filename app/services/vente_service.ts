@@ -26,7 +26,7 @@ import {
   getContenance,
   ligneQuantiteStock,
   resolvePlancherLigne,
-  resolvePrixUnitaireLigne,
+  resolvePrixUnitairePourClient,
   resolveStockDisplay,
   toStockQuantite,
   type ModeVente,
@@ -36,6 +36,7 @@ import {
   enregistrerEntree as caisseEntree,
   enregistrerSortie as caisseSortie,
 } from '#services/caisse_service'
+import { enregistrerReglementClientDansTransaction } from '#services/reglement_service'
 import {
   generateRetourNumero,
   generateVenteNumero,
@@ -181,10 +182,29 @@ export function calculerTotauxVente(lignes: CalculatedLigne[], remisePct = 0) {
   }
 }
 
+export type ClientExonerationOptions = {
+  exonereTva: boolean
+  exonereAirsi: boolean
+}
+
+export async function loadClientExoneration(
+  clientId: number,
+  trx?: TransactionClientContract
+): Promise<ClientExonerationOptions> {
+  const query = trx ? Client.query({ client: trx }) : Client.query()
+  const client = await query.where('id', clientId).select('exonereTva', 'exonereAirsi').first()
+  if (!client) throw new VenteBusinessError('Client introuvable')
+  return {
+    exonereTva: Boolean(client.exonereTva),
+    exonereAirsi: Boolean(client.exonereAirsi),
+  }
+}
+
 export async function buildLignesFromPayload(
   lignes: LigneVenteInput[],
   checkPlancher: boolean,
-  trx?: TransactionClientContract
+  trx?: TransactionClientContract,
+  clientExoneration?: ClientExonerationOptions
 ): Promise<Omit<CalculatedLigne, 'depotId'>[]> {
   const result: Omit<CalculatedLigne, 'depotId'>[] = []
 
@@ -200,9 +220,14 @@ export async function buildLignesFromPayload(
 
     const tvaQuery = trx ? TvaGroupe.query({ client: trx }) : TvaGroupe.query()
     const tvaGroupe = await tvaQuery.where('id', produit.tvaGroupeId).first()
-    const tvaPct = Number(tvaGroupe?.taux ?? 0)
+    const tvaPct = clientExoneration?.exonereTva ? 0 : Number(tvaGroupe?.taux ?? 0)
     const plancherLigne = resolvePlancherLigne(produit, mode)
-    const prixUnitaire = resolvePrixUnitaireLigne(produit, mode, ligne.prix_unitaire)
+    const prixUnitaire = resolvePrixUnitairePourClient(
+      produit,
+      mode,
+      ligne.prix_unitaire ?? ligne.prixUnitaire,
+      { exonereTva: clientExoneration?.exonereTva }
+    )
     const quantiteStock = toStockQuantite(mode, ligne.quantite, produit)
 
     if (checkPlancher && mode !== 'detail' && !produit.venteSousPlancher) {
@@ -216,7 +241,7 @@ export async function buildLignesFromPayload(
       tvaPct,
       remisePct
     )
-    const airsiPct = Number(produit.airsiPct ?? 0)
+    const airsiPct = clientExoneration?.exonereAirsi ? 0 : Number(produit.airsiPct ?? 0)
     const airsi = calcLigneAirsi(montantTtc, airsiPct)
 
     result.push({
@@ -271,11 +296,15 @@ export async function getLigneVenteInfo(
   checkPlancher = false,
   modeVente: ModeVente = 'piece',
   depotId?: number,
-  pointDeVenteId?: number
+  pointDeVenteId?: number,
+  clientId?: number
 ) {
+  const clientExoneration = clientId ? await loadClientExoneration(clientId) : undefined
   const [ligne] = await buildLignesFromPayload(
     [{ produit_id: produitId, quantite, remise_pct: remisePct, mode_vente: modeVente }],
-    checkPlancher
+    checkPlancher,
+    undefined,
+    clientExoneration
   )
 
   const produit = await Produit.findOrFail(produitId)
@@ -303,8 +332,16 @@ export async function getLigneVenteInfo(
     quantite_stock: ligne.quantiteStock,
     prix_unitaire: ligne.prixUnitaire,
     prix_vente_ttc: Number(produit.prixVenteTtc),
-    prix_detail:
-      contenance > 1 ? roundMoney(Number(produit.prixVenteTtc) / contenance) : Number(produit.prixVenteTtc),
+    prix_vente_ht: Number(produit.prixVenteHt),
+    exonere_tva: clientExoneration?.exonereTva ?? false,
+    exonere_airsi: clientExoneration?.exonereAirsi ?? false,
+    prix_detail: clientExoneration?.exonereTva
+      ? contenance > 1
+        ? roundMoney(Number(produit.prixVenteHt) / contenance)
+        : Number(produit.prixVenteHt)
+      : contenance > 1
+        ? roundMoney(Number(produit.prixVenteTtc) / contenance)
+        : Number(produit.prixVenteTtc),
     plancher: ligne.plancherLigne,
     marge: ligne.marge,
     remise_pct: ligne.remisePct,
@@ -541,7 +578,7 @@ async function ajusterSoldeClientsFacture(
     .where('id', ancienClientId)
     .forUpdate()
     .firstOrFail()
-  ancienClient.solde = roundMoney(Math.max(0, Number(ancienClient.solde) - ancienTotal))
+  ancienClient.solde = roundMoney(Number(ancienClient.solde) - ancienTotal)
   ancienClient.useTransaction(trx)
   await ancienClient.save()
 
@@ -583,8 +620,9 @@ export async function creerVente(
       trx
     )
     const lignes = normalizeLignesVenteInput(data.lignes)
+    const clientExoneration = await loadClientExoneration(data.client_id, trx)
     const calculated = await withLigneDepots(
-      await buildLignesFromPayload(lignes, checkPlancher, trx),
+      await buildLignesFromPayload(lignes, checkPlancher, trx, clientExoneration),
       lignes,
       pos.pointDeVenteId,
       depot.id,
@@ -708,6 +746,9 @@ export async function mettreAJourVente(
       trx
     )
 
+    const nouveauClientId = data.client_id ?? vente.clientId
+    const clientExoneration = await loadClientExoneration(nouveauClientId, trx)
+
     let calculated: CalculatedLigne[]
 
     if (data.lignes) {
@@ -726,7 +767,7 @@ export async function mettreAJourVente(
 
       await VenteLigne.query({ client: trx }).where('vente_id', vente.id).delete()
       calculated = await withLigneDepots(
-        await buildLignesFromPayload(lignes, isFacture, trx),
+        await buildLignesFromPayload(lignes, isFacture, trx, clientExoneration),
         lignes,
         posId,
         depot.id,
@@ -750,12 +791,30 @@ export async function mettreAJourVente(
       }
 
       await persistLignes(vente.id, calculated, trx)
+    } else if (data.client_id !== undefined && data.client_id !== vente.clientId) {
+      const lignesInput: LigneVenteInput[] = anciennesLignes.map((l) => ({
+        produit_id: l.produitId,
+        quantite: Number(l.quantite),
+        mode_vente: (l.modeVente as ModeVente) || 'piece',
+        prix_unitaire: Number(l.prixUnitaire),
+        remise_pct: Number(l.remisePct),
+        depot_id: l.depotId ?? vente.depotId ?? undefined,
+      }))
+
+      await VenteLigne.query({ client: trx }).where('vente_id', vente.id).delete()
+      calculated = await withLigneDepots(
+        await buildLignesFromPayload(lignesInput, isFacture, trx, clientExoneration),
+        lignesInput,
+        posId,
+        depot.id,
+        trx
+      )
+      await persistLignes(vente.id, calculated, trx)
     } else {
       calculated = anciennesLignes.map((l) => venteLigneToCalculated(l, vente.depotId))
     }
 
     const totaux = calculerTotauxVente(calculated, remisePct)
-    const nouveauClientId = data.client_id ?? vente.clientId
     const modePaiementFne =
       data.mode_paiement_fne !== undefined || data.modePaiementFne !== undefined
         ? resolveModePaiementFneInput(data)
@@ -839,8 +898,9 @@ export async function convertirDevisEnFacture(
       vente.depotId ?? undefined,
       trx
     )
+    const clientExoneration = await loadClientExoneration(vente.clientId, trx)
     const calculated = await withLigneDepots(
-      await buildLignesFromPayload(lignesInput, true, trx),
+      await buildLignesFromPayload(lignesInput, true, trx, clientExoneration),
       lignesInput,
       vente.pointDeVenteId,
       depot.id,
@@ -954,7 +1014,7 @@ export async function supprimerFacture(venteId: number, userId: number) {
     }
 
     const client = await Client.query({ client: trx }).where('id', vente.clientId).firstOrFail()
-    client.solde = roundMoney(Math.max(0, Number(client.solde) - venteTotalAPayer(vente)))
+    client.solde = roundMoney(Number(client.solde) - venteTotalAPayer(vente))
     client.useTransaction(trx)
     await client.save()
 
@@ -1166,7 +1226,7 @@ export async function creerFactureRetour(
     await applyStockEntreeRetour(retour.id, calculated, userId, trx)
 
     const client = await Client.query({ client: trx }).where('id', facture.clientId).firstOrFail()
-    client.solde = roundMoney(Math.max(0, Number(client.solde) - totalAPayer))
+    client.solde = roundMoney(Number(client.solde) - totalAPayer)
     // La facture d'origine conserve ses totaux et son reste (totalApresAirsi − montantPaye).
     // Le crédit client est porté par l'avoir (retour) séparément.
     syncVentePaiement(facture)
@@ -1227,36 +1287,27 @@ export async function enregistrerPaiementVente(data: PaiementVenteInput, userId:
     vente.useTransaction(trx)
     await vente.save()
 
-    if (!isFactureRetour(vente.statut) && affectsClientSolde(vente.statut)) {
-      const client = await Client.query({ client: trx }).where('id', vente.clientId).firstOrFail()
-      client.solde = roundMoney(Math.max(0, Number(client.solde) - data.montant))
-      client.useTransaction(trx)
-      await client.save()
-    }
-
-    if (data.mode_paiement === 'especes') {
+    if (isFactureRetour(vente.statut) || affectsClientSolde(vente.statut)) {
       const isRetour = isFactureRetour(vente.statut)
-      if (isRetour) {
-        await caisseSortie(
-          vente.pointDeVenteId,
-          data.montant,
-          'retour_especes',
-          `Remboursement retour ${vente.numero}`,
-          { referenceId: paiement.id, referenceType: 'paiement' },
-          userId,
-          trx
-        )
-      } else {
-        await caisseEntree(
-          vente.pointDeVenteId,
-          data.montant,
-          'vente_especes',
-          `Encaissement ${vente.numero}`,
-          { referenceId: paiement.id, referenceType: 'paiement' },
-          userId,
-          trx
-        )
-      }
+      await enregistrerReglementClientDansTransaction(
+        {
+          client_id: vente.clientId,
+          montant: isRetour ? -data.montant : data.montant,
+          mode_paiement: data.mode_paiement,
+          date_reglement: data.date_paiement,
+          reference_externe: vente.numero,
+          notes: data.notes ?? data.reference_paiement ?? null,
+          vente_id: vente.id,
+          paiement_id: paiement.id,
+          caisse_motif: isRetour ? 'retour_especes' : 'vente_especes',
+          caisse_libelle: isRetour
+            ? `Remboursement retour ${vente.numero}`
+            : `Encaissement ${vente.numero}`,
+        },
+        userId,
+        vente.pointDeVenteId,
+        trx
+      )
     }
 
     return { vente, paiement }

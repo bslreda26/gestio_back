@@ -100,6 +100,8 @@ export default class ClientsController {
       pays: payload.pays ?? "Côte d'Ivoire",
       creditLimit: payload.credit_limit ?? 0,
       ncc: payload.ncc ?? null,
+      exonereTva: payload.exonere_tva ?? false,
+      exonereAirsi: payload.exonere_airsi ?? false,
       solde: 0,
       notes: payload.notes ?? null,
       isActive: true,
@@ -124,6 +126,8 @@ export default class ClientsController {
       pays: payload.pays ?? client.pays,
       creditLimit: payload.credit_limit ?? client.creditLimit,
       ncc: payload.ncc !== undefined ? payload.ncc ?? null : client.ncc,
+      exonereTva: payload.exonere_tva ?? client.exonereTva,
+      exonereAirsi: payload.exonere_airsi ?? client.exonereAirsi,
       notes: payload.notes !== undefined ? payload.notes ?? null : client.notes,
       isActive: payload.is_active ?? client.isActive,
     })

@@ -108,7 +108,7 @@ export async function adjustFournisseurSoldePdv(
 ): Promise<{ soldeAvant: number; soldeApres: number }> {
   const row = await getOrCreateFournisseurSolde(fournisseurId, pointDeVenteId, trx)
   const soldeAvant = readFournisseurSoldePdv(row)
-  const soldeApres = roundMoney(Math.max(0, soldeAvant + delta))
+  const soldeApres = roundMoney(soldeAvant + delta)
 
   row.solde = String(soldeApres)
   row.useTransaction(trx)

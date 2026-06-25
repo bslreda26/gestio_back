@@ -164,7 +164,8 @@ export default class VentesController {
         false,
         payload.mode_vente ?? payload.modeVente ?? 'piece',
         payload.depot_id ?? payload.depotId,
-        pos.pointDeVenteId
+        pos.pointDeVenteId,
+        payload.client_id ?? payload.clientId
       )
       const visibility = getVenteLigneVisibility(ctx)
       const { marge: _marge, plancher: _plancher, ...publicInfo } = info

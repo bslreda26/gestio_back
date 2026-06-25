@@ -14,10 +14,6 @@ import { applyStockAlertFilter, getStockStatus } from '#helpers/produit_query'
 import { aggregateStockStatus } from '#helpers/depot_stock_serializer'
 import { roundMoney } from '#services/pricing_service'
 import { readClientSolde } from '#services/client_solde_service'
-import FournisseurSolde from '#models/fournisseur_solde'
-import {
-  getFournisseurSoldesPdv,
-} from '#services/fournisseur_solde_service'
 import { getStocksParDepotForProduits } from '#services/depot_service'
 import { calcReceptionTtc } from '#services/achat_service'
 import { ACHAT_STATUT } from '#constants/achat_statuts'
@@ -910,22 +906,31 @@ export async function rapportBalanceClients(filters: {
 
   const clientQuery = clientReportQuery(filters).orderBy('nom', 'asc')
 
-  const [countRow, totalSoldeRow, clients] = await Promise.all([
+  const [countRow, clients, matchingClients] = await Promise.all([
     clientQuery.clone().count('* as total'),
-    clientQuery.clone().sum('solde as total'),
     clientQuery.offset(offset).limit(limit),
+    clientQuery.clone().select('id'),
   ])
 
   const totalClients = Number(countRow[0].$extras.total)
   const meta = buildMeta(totalClients, page, limit)
 
+  const pageIds = clients.map((client) => client.id)
+  const allIds = matchingClients.map((client) => client.id)
+  const [pageSoldes, allSoldes] = await Promise.all([
+    computeClientSoldesPdv(filters.pointDeVenteId, pageIds),
+    computeClientSoldesPdv(filters.pointDeVenteId, allIds),
+  ])
+
   const lignes = clients.map((client) => ({
     reference: client.code,
     designation: client.nom,
-    solde: readClientSolde(client),
+    solde: pageSoldes.get(client.id) ?? 0,
   }))
 
-  const totalSoldeClients = roundMoney(Number(totalSoldeRow[0]?.$extras.total ?? 0))
+  const totalSoldeClients = roundMoney(
+    [...allSoldes.values()].reduce((sum, solde) => sum + solde, 0)
+  )
 
   return {
     lignes,
@@ -966,16 +971,7 @@ async function clientSoldeNetChange(
   const venteBase = () =>
     db.from('ventes').where('client_id', clientId).where('point_de_vente_id', pointDeVenteId)
 
-  const paiementBase = () =>
-    db
-      .from('paiements')
-      .join('ventes', 'paiements.reference_id', 'ventes.id')
-      .where('paiements.type', 'vente')
-      .where('ventes.client_id', clientId)
-      .where('ventes.point_de_vente_id', pointDeVenteId)
-      .whereIn('ventes.statut', ['valide', 'non_valide', 'retour'])
-
-  const [facturesRow, retoursRow, paiementsRow, reglementsRow] = await Promise.all([
+  const [facturesRow, retoursRow, reglementsRow] = await Promise.all([
     applyReleveDateFilter(
       venteBase().whereIn('statut', ['valide', 'non_valide']),
       'date_vente',
@@ -984,9 +980,6 @@ async function clientSoldeNetChange(
     ).sum('total_ttc as total'),
     applyReleveDateFilter(venteBase().where('statut', 'retour'), 'date_vente', dateFrom, dateTo).sum(
       'total_ttc as total'
-    ),
-    applyReleveDateFilter(paiementBase(), 'paiements.date_paiement', dateFrom, dateTo).sum(
-      'paiements.montant as total'
     ),
     applyReleveDateFilter(
       db
@@ -1009,9 +1002,7 @@ async function clientSoldeNetChange(
     Number(facturesRow[0]?.total ?? 0) + Number(reglementsRow?.total_debit ?? 0)
   )
   const totalCredit = roundMoney(
-    Number(retoursRow[0]?.total ?? 0) +
-      Number(paiementsRow[0]?.total ?? 0) +
-      Number(reglementsRow?.total_credit ?? 0)
+    Number(retoursRow[0]?.total ?? 0) + Number(reglementsRow?.total_credit ?? 0)
   )
 
   return { totalDebit, totalCredit }
@@ -1042,16 +1033,23 @@ export async function computeClientSoldesPdv(pointDeVenteId: number, clientIds: 
   const soldes = new Map<number, number>()
   if (clientIds.length === 0) return soldes
 
-  const rows = await Client.query()
-    .where('point_de_vente_id', pointDeVenteId)
-    .whereIn('id', clientIds)
-    .select('id', 'solde')
-
-  for (const row of rows) {
-    soldes.set(row.id, readClientSolde(row))
-  }
+  await Promise.all(
+    clientIds.map(async (clientId) => {
+      soldes.set(clientId, await computeClientSoldePdv(clientId, pointDeVenteId))
+    })
+  )
 
   return soldes
+}
+
+/** Recalcule et persiste clients.solde depuis les mouvements (aligné relevé). */
+export async function backfillClientSoldesFromMovements() {
+  const clients = await Client.query().select('id', 'point_de_vente_id')
+
+  for (const client of clients) {
+    const solde = await computeClientSoldePdv(client.id, client.pointDeVenteId)
+    await Client.query().where('id', client.id).update({ solde })
+  }
 }
 
 async function buildClientReleveOperations(
@@ -1063,7 +1061,7 @@ async function buildClientReleveOperations(
   const from = toSqlDate(dateFrom)
   const to = toSqlDate(dateTo)
 
-  const [ventes, paiements, reglements] = await Promise.all([
+  const [ventes, reglements] = await Promise.all([
     Vente.query()
       .where('client_id', clientId)
       .where('point_de_vente_id', pointDeVenteId)
@@ -1071,21 +1069,6 @@ async function buildClientReleveOperations(
       .where('date_vente', '>=', from)
       .where('date_vente', '<=', to)
       .orderBy('date_vente', 'asc')
-      .orderBy('id', 'asc'),
-    Paiement.query()
-      .where('type', 'vente')
-      .whereIn(
-        'reference_id',
-        db
-          .from('ventes')
-          .select('id')
-          .where('client_id', clientId)
-          .where('point_de_vente_id', pointDeVenteId)
-          .whereIn('statut', ['valide', 'non_valide', 'retour'])
-      )
-      .where('date_paiement', '>=', from)
-      .where('date_paiement', '<=', to)
-      .orderBy('date_paiement', 'asc')
       .orderBy('id', 'asc'),
     Reglement.query()
       .where('type', 'client')
@@ -1097,10 +1080,14 @@ async function buildClientReleveOperations(
       .orderBy('id', 'asc'),
   ])
 
-  const venteIds = [...new Set(paiements.map((p) => p.referenceId))]
-  const ventesForPaiements =
-    venteIds.length > 0 ? await Vente.query().whereIn('id', venteIds) : []
-  const venteMap = new Map(ventesForPaiements.map((v) => [v.id, v]))
+  const venteIdsFromReglements = [
+    ...new Set(reglements.map((r) => r.venteId).filter((id): id is number => id !== null)),
+  ]
+  const ventesForReglements =
+    venteIdsFromReglements.length > 0
+      ? await Vente.query().whereIn('id', venteIdsFromReglements)
+      : []
+  const venteMap = new Map(ventesForReglements.map((v) => [v.id, v]))
 
   const operations: ClientReleveOperation[] = []
 
@@ -1127,26 +1114,21 @@ async function buildClientReleveOperations(
     }
   }
 
-  for (const p of paiements) {
-    const vente = venteMap.get(p.referenceId)
-    operations.push({
-      sortKey: `${toSqlDate(p.datePaiement)}-2-${String(p.id).padStart(10, '0')}`,
-      date: toSqlDate(p.datePaiement),
-      reference: vente?.numero ?? String(p.referenceId),
-      designation: `Paiement ${p.modePaiement} — ${vente?.numero ?? p.referenceId}`,
-      debit: 0,
-      credit: Number(p.montant),
-    })
-  }
-
   for (const r of reglements) {
     const montant = Number(r.montant)
-    const reference = r.referenceExterne ?? `REG-${r.id}`
+    const vente = r.venteId ? venteMap.get(r.venteId) : undefined
+    const reference = vente?.numero ?? r.referenceExterne ?? `REG-${r.id}`
+    const designation =
+      vente?.statut === 'retour'
+        ? `Remboursement ${r.modePaiement} — ${vente.numero}`
+        : vente
+          ? `Règlement ${r.modePaiement} — ${vente.numero}`
+          : `Règlement ${r.modePaiement}`
     operations.push({
       sortKey: `${toSqlDate(r.dateReglement)}-3-${String(r.id).padStart(10, '0')}`,
       date: toSqlDate(r.dateReglement),
       reference,
-      designation: `Règlement ${r.modePaiement}`,
+      designation,
       debit: montant < 0 ? Math.abs(montant) : 0,
       credit: montant > 0 ? montant : 0,
     })
@@ -1541,7 +1523,16 @@ export async function computeFournisseurSoldePdv(fournisseurId: number, pointDeV
 }
 
 export async function computeFournisseurSoldesPdv(pointDeVenteId: number, fournisseurIds: number[]) {
-  return getFournisseurSoldesPdv(pointDeVenteId, fournisseurIds)
+  const soldes = new Map<number, number>()
+  if (fournisseurIds.length === 0) return soldes
+
+  await Promise.all(
+    fournisseurIds.map(async (fournisseurId) => {
+      soldes.set(fournisseurId, await computeFournisseurSoldePdv(fournisseurId, pointDeVenteId))
+    })
+  )
+
+  return soldes
 }
 
 type FournisseurReleveOperation = {
@@ -1696,21 +1687,21 @@ export async function rapportBalanceFournisseurs(filters: {
   const { page, limit, offset } = parsePagination(filters)
   const fournisseurQuery = fournisseurReportQuery(filters).orderBy('nom', 'asc')
 
-  const [countRow, totalSoldeRow, fournisseurs] = await Promise.all([
+  const [countRow, fournisseurs, matchingFournisseurs] = await Promise.all([
     fournisseurQuery.clone().count('* as total'),
-    FournisseurSolde.query()
-      .where('point_de_vente_id', filters.pointDeVenteId)
-      .whereIn('fournisseur_id', fournisseurReportQuery(filters).select('id'))
-      .sum('solde as total'),
     fournisseurQuery.offset(offset).limit(limit),
+    fournisseurQuery.clone().select('id'),
   ])
 
   const totalFournisseurs = Number(countRow[0].$extras.total)
   const meta = buildMeta(totalFournisseurs, page, limit)
-  const pageSoldes = await getFournisseurSoldesPdv(
-    filters.pointDeVenteId,
-    fournisseurs.map((fournisseur) => fournisseur.id)
-  )
+
+  const pageIds = fournisseurs.map((fournisseur) => fournisseur.id)
+  const allIds = matchingFournisseurs.map((fournisseur) => fournisseur.id)
+  const [pageSoldes, allSoldes] = await Promise.all([
+    computeFournisseurSoldesPdv(filters.pointDeVenteId, pageIds),
+    computeFournisseurSoldesPdv(filters.pointDeVenteId, allIds),
+  ])
 
   const lignes = fournisseurs.map((fournisseur) => ({
     reference: fournisseur.code,
@@ -1718,7 +1709,9 @@ export async function rapportBalanceFournisseurs(filters: {
     solde: pageSoldes.get(fournisseur.id) ?? 0,
   }))
 
-  const totalSoldeFournisseurs = roundMoney(Number(totalSoldeRow[0]?.$extras.total ?? 0))
+  const totalSoldeFournisseurs = roundMoney(
+    [...allSoldes.values()].reduce((sum, solde) => sum + solde, 0)
+  )
 
   return {
     lignes,

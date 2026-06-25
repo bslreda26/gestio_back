@@ -17,12 +17,11 @@ import { CaisseBusinessError } from '#services/caisse_service'
 import {
   AchatBusinessError,
   annulerAchat,
-  buildLignesFromPayload,
-  calculerTotauxAchat,
   creerAchat,
   creerAchatRetour,
   enregistrerPaiementAchat,
   getLigneAchatInfo,
+  modifierAchat,
   recevoirMarchandise,
 } from '#services/achat_service'
 import {
@@ -180,60 +179,22 @@ export default class AchatsController {
     const payload = await ctx.request.validateUsing(achatUpdateValidator)
     const achat = await Achat.find(payload.id)
     if (!achat) return sendError(ctx, 'Achat introuvable', 404)
+    if (!(await assertRecordBelongsToPointDeVente(ctx, achat, 'Achat'))) return
     if (!isEditableAchat(achat.statut)) {
       return sendError(ctx, 'Seule une commande peut être modifiée', 422)
     }
 
     try {
-      if (payload.lignes) {
-        await AchatLigne.query().where('achat_id', achat.id).delete()
-        const calculated = await buildLignesFromPayload(payload.lignes)
-        const totaux = calculerTotauxAchat(
-          calculated,
-          payload.remise_montant ?? Number(achat.remiseMontant)
-        )
-
-        for (const l of calculated) {
-          await AchatLigne.create({
-            achatId: achat.id,
-            produitId: l.produitId,
-            designation: l.designation,
-            modeAchat: l.modeAchat,
-            quantite: l.quantite,
-            quantiteStock: l.quantiteStock,
-            quantiteRecue: 0,
-            prixUnitaireHt: l.prixUnitaireHt,
-            frais: l.frais,
-            remisePct: l.remisePct,
-            tvaPct: l.tvaPct,
-            montantHt: l.montantHt,
-            montantTva: l.montantTva,
-            montantTtc: l.montantTtc,
-          })
-        }
-
-        achat.merge({
-          sousTotal: totaux.sousTotal,
-          remiseMontant: totaux.remiseMontant,
-          tvaMontant: totaux.tvaMontant,
-          totalTtc: totaux.totalTtc,
-        })
-      }
-
-      achat.merge({
-        fournisseurId: payload.fournisseur_id ?? achat.fournisseurId,
-        dateAchat: payload.date_achat ?? achat.dateAchat,
-        referenceFournisseur:
-          payload.reference_fournisseur !== undefined
-            ? payload.reference_fournisseur
-            : achat.referenceFournisseur,
-        remiseMontant: payload.remise_montant ?? achat.remiseMontant,
-        notes: payload.notes !== undefined ? payload.notes ?? null : achat.notes,
+      const updated = await modifierAchat(payload.id, {
+        fournisseur_id: payload.fournisseur_id,
+        date_achat: payload.date_achat,
+        reference_fournisseur: payload.reference_fournisseur,
+        remise_montant: payload.remise_montant,
+        notes: payload.notes,
+        lignes: payload.lignes,
       })
-      await achat.save()
-
-      const lignes = await AchatLigne.query().where('achat_id', achat.id)
-      return sendSuccess(ctx, { achat, lignes })
+      const lignes = await AchatLigne.query().where('achat_id', updated.id)
+      return sendSuccess(ctx, { achat: updated, lignes })
     } catch (error) {
       return handleAchatError(ctx, error)
     }
@@ -241,13 +202,17 @@ export default class AchatsController {
 
   async annuler(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(achatAnnulerValidator)
+    const achat = await Achat.find(payload.id)
+    if (!achat) return sendError(ctx, 'Achat introuvable', 404)
+    if (!(await assertRecordBelongsToPointDeVente(ctx, achat, 'Achat'))) return
+
     try {
-      const achat = await annulerAchat(
+      const deleted = await annulerAchat(
         payload.id,
         ctx.auth.getUserOrFail().id,
         payload.notes ?? null
       )
-      return sendSuccess(ctx, { message: 'Achat annulé', achat })
+      return sendSuccess(ctx, { message: 'Achat supprimé', id: deleted.id, achat: deleted })
     } catch (error) {
       return handleAchatError(ctx, error)
     }
@@ -255,18 +220,21 @@ export default class AchatsController {
 
   async recevoir(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(achatRecevoirValidator)
+    const achat = await Achat.find(payload.id)
+    if (!achat) return sendError(ctx, 'Achat introuvable', 404)
+    if (!(await assertRecordBelongsToPointDeVente(ctx, achat, 'Achat'))) return
+
     try {
-      const achat = await recevoirMarchandise(
+      const received = await recevoirMarchandise(
         payload.id,
-        payload.lignes,
         ctx.auth.getUserOrFail().id,
         payload.date_reception,
         payload.depot_id
       )
-      const lignes = await AchatLigne.query().where('achat_id', achat.id)
+      const lignes = await AchatLigne.query().where('achat_id', received.id)
       return sendSuccess(ctx, {
-        message: 'Marchandises réceptionnées — stock mis à jour',
-        achat,
+        message: 'Marchandises réceptionnées — commande intégralement reçue',
+        achat: received,
         lignes,
       })
     } catch (error) {
@@ -276,6 +244,10 @@ export default class AchatsController {
 
   async retour(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(achatRetourValidator)
+    const achatOrigine = await Achat.find(payload.achat_id)
+    if (!achatOrigine) return sendError(ctx, 'Achat introuvable', 404)
+    if (!(await assertRecordBelongsToPointDeVente(ctx, achatOrigine, 'Achat'))) return
+
     try {
       const pos = requirePointDeVente(ctx)
       const { retour, achat } = await creerAchatRetour(
@@ -300,6 +272,10 @@ export default class AchatsController {
 
   async paiement(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(achatPaiementValidator)
+    const achat = await Achat.find(payload.achat_id)
+    if (!achat) return sendError(ctx, 'Achat introuvable', 404)
+    if (!(await assertRecordBelongsToPointDeVente(ctx, achat, 'Achat'))) return
+
     try {
       const result = await enregistrerPaiementAchat(
         {

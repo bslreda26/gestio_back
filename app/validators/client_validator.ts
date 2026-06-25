@@ -14,6 +14,8 @@ const clientFields = {
   pays: vine.string().trim().maxLength(100).optional(),
   credit_limit: vine.number().min(0).optional(),
   ncc: vine.string().trim().maxLength(50).optional(),
+  exonere_tva: vine.boolean().optional(),
+  exonere_airsi: vine.boolean().optional(),
   notes: vine.string().trim().optional(),
 }
 
@@ -47,6 +49,8 @@ export const clientUpdateValidator = vine.compile(
     pays: vine.string().trim().maxLength(100).optional(),
     credit_limit: vine.number().min(0).optional(),
     ncc: vine.string().trim().maxLength(50).nullable().optional(),
+    exonere_tva: vine.boolean().optional(),
+    exonere_airsi: vine.boolean().optional(),
     notes: vine.string().trim().optional(),
     is_active: vine.boolean().optional(),
   })

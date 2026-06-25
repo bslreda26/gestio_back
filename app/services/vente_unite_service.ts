@@ -1,4 +1,4 @@
-import { calcCmupHt, roundMoney } from '#services/pricing_service'
+import { calcCmupHt, calcPlancherFromCmup, roundMoney } from '#services/pricing_service'
 import type Produit from '#models/produit'
 
 export type ModeVente = 'piece' | 'detail'
@@ -57,6 +57,45 @@ export function convertStockWhenEnablingDetailConfig(
   return roundQty(stockActuel / getContenance(before))
 }
 
+type ProduitUniteInput = {
+  unite?: string | null
+  unite_gros?: string | null
+  uniteGros?: string | null
+  contenance?: number | null
+  vente_au_detail?: boolean | null
+  venteAuDetail?: boolean | null
+}
+
+/** Merge create/update payload with existing produit units; mirror unite → uniteGros for simple gros. */
+export function resolveProduitUniteInput(
+  input: ProduitUniteInput,
+  existing?: Pick<Produit, 'unite' | 'uniteGros' | 'contenance' | 'venteAuDetail'>
+) {
+  const hasUniteInInput = input.unite !== undefined && input.unite !== null
+  const hasUniteGrosInInput =
+    (input.unite_gros !== undefined && input.unite_gros !== null) ||
+    (input.uniteGros !== undefined && input.uniteGros !== null)
+
+  const unite = hasUniteInInput ? input.unite!.trim() : (existing?.unite ?? 'pièce')
+  let uniteGros = hasUniteGrosInInput
+    ? (input.unite_gros ?? input.uniteGros)!.trim()
+    : (existing?.uniteGros?.trim() || null)
+  const contenance = input.contenance ?? existing?.contenance ?? 1
+  const venteAuDetail =
+    input.vente_au_detail ?? input.venteAuDetail ?? existing?.venteAuDetail ?? false
+
+  if (hasUniteInInput && !hasUniteGrosInInput && !hasUniteDetailConfig({ unite, uniteGros, contenance })) {
+    uniteGros = input.unite!.trim()
+  }
+
+  return normalizeProduitUniteFields({
+    unite,
+    unite_gros: uniteGros,
+    contenance,
+    vente_au_detail: venteAuDetail,
+  })
+}
+
 export function normalizeProduitUniteFields(input: {
   unite?: string | null
   unite_gros?: string | null
@@ -113,6 +152,25 @@ export function resolvePrixUnitaireLigne(
     return roundMoney(Number(produit.prixVenteTtc) / contenance)
   }
   return override !== undefined ? override : Number(produit.prixVenteTtc)
+}
+
+/** Client exonéré TVA : prix HT catalogue utilisé comme prix TTC (pas de TVA ajoutée). */
+export function resolvePrixUnitairePourClient(
+  produit: Pick<Produit, 'prixVenteTtc' | 'prixVenteHt' | 'contenance'>,
+  mode: ModeVente,
+  override: number | undefined,
+  options?: { exonereTva?: boolean }
+): number {
+  if (!options?.exonereTva) {
+    return resolvePrixUnitaireLigne(produit, mode, override)
+  }
+  if (override !== undefined) return override
+  const contenance = getContenance(produit)
+  const prixHt = Number(produit.prixVenteHt)
+  if (mode === 'detail' && contenance > 1) {
+    return roundMoney(prixHt / contenance)
+  }
+  return prixHt
 }
 
 /**
@@ -193,12 +251,15 @@ export function fromProduitPrixStockage(
 ): ProduitCataloguePrix {
   const prixAchatHtDetail = roundMoney(Number(produit.prixAchatHt))
   const fraisDetail = roundMoney(Number(produit.frais))
-  const plancherDetail = roundMoney(Number(produit.plancher))
   const prixAchatTtcDetail = roundMoney(Number(produit.prixAchatTtc))
   const moyenneAchatHtDetail =
     tauxTva !== undefined
       ? calcCmupHt(prixAchatHtDetail, fraisDetail, tauxTva)
       : prixAchatHtDetail
+  const plancherDetail =
+    tauxTva !== undefined
+      ? calcPlancherFromCmup(moyenneAchatHtDetail, tauxTva)
+      : roundMoney(Number(produit.plancher))
 
   if (isProduitGrosSimple(produit)) {
     return {

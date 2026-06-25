@@ -20,7 +20,7 @@ import {
   AjustementQuantiteError,
   convertPricingWhenEnablingDetailConfig,
   fromProduitPrixStockage,
-  normalizeProduitUniteFields,
+  resolveProduitUniteInput,
   resolveAjustementQuantite,
   toPlancherStockage,
   toProduitPrixStockage,
@@ -90,7 +90,7 @@ function assertManualPricingAllowed(
   return null
 }
 
-function produitUniteShape(unites: ReturnType<typeof normalizeProduitUniteFields>) {
+function produitUniteShape(unites: ReturnType<typeof resolveProduitUniteInput>) {
   return {
     unite: unites.unite,
     uniteGros: unites.uniteGros,
@@ -185,7 +185,7 @@ export default class ProduitsController {
       return sendError(ctx, 'Groupe TVA introuvable', 422)
     }
 
-    const unites = normalizeProduitUniteFields(payload)
+    const unites = resolveProduitUniteInput(payload)
     const uniteProduit = produitUniteShape(unites)
     const moyenneAchatGros = resolveMoyenneAchatHt(payload) ?? 0
     const fraisGros = payload.frais ?? 0
@@ -256,14 +256,7 @@ export default class ProduitsController {
       uniteGros: produit.uniteGros,
       contenance: produit.contenance,
     }
-    const unites = normalizeProduitUniteFields({
-      unite: payload.unite !== undefined ? payload.unite : produit.unite,
-      unite_gros: payload.unite_gros !== undefined ? payload.unite_gros : produit.uniteGros,
-      contenance:
-        payload.contenance !== undefined ? payload.contenance : Number(produit.contenance),
-      vente_au_detail:
-        payload.vente_au_detail !== undefined ? payload.vente_au_detail : produit.venteAuDetail,
-    })
+    const unites = resolveProduitUniteInput(payload, produit)
     const uniteProduit = produitUniteShape(unites)
 
     let prixAchatHt = Number(produit.prixAchatHt)

@@ -72,9 +72,9 @@ export function calcHt(prixTtc: number, tauxTva: number): number {
   return roundMoney(prixTtc / (1 + tauxTva / 100))
 }
 
-/** Frais saisis TTC → composante HT incluse dans le CMUP (retrait du % TVA sur le montant). */
+/** Frais saisis TTC → composante HT incluse dans le CMUP (TTC / (1 + TVA%)). */
 export function calcFraisHt(fraisTtc: number, tauxTva: number): number {
-  return roundMoney(fraisTtc * (1 - tauxTva / 100))
+  return calcHt(fraisTtc, tauxTva)
 }
 
 /** CMUP HT = moyenne achat HT + frais HT */
@@ -82,9 +82,14 @@ export function calcCmupHt(prixAchatHt: number, fraisTtc: number, tauxTva: numbe
   return roundMoney(prixAchatHt + calcFraisHt(fraisTtc, tauxTva))
 }
 
-/** Plancher TTC = CMUP HT + TVA */
+/** Plancher TTC = CMUP HT × (1 + TVA%) — ex. CMUP × 1,18 à 18 %. */
+export function calcPlancherFromCmup(cmupHt: number, tauxTva: number): number {
+  return calcTtc(cmupHt, tauxTva)
+}
+
+/** Plancher TTC à partir de la moyenne achat HT (hors frais) et des frais TTC catalogue. */
 export function calcPlancher(prixAchatHt: number, fraisTtc: number, tauxTva: number): number {
-  return calcTtc(calcCmupHt(prixAchatHt, fraisTtc, tauxTva), tauxTva)
+  return calcPlancherFromCmup(calcCmupHt(prixAchatHt, fraisTtc, tauxTva), tauxTva)
 }
 
 export function calcProduitPricing(input: ProduitPricingInput): ProduitPricingResult {
@@ -160,7 +165,52 @@ export function updateProduitFromAchatReception(input: AchatReceptionPricingInpu
     input.fraisUnitaire
   )
   const prixAchatTtc = calcTtc(prixAchatHt, input.tauxTva)
-  const plancher = calcPlancher(prixAchatHt, frais, input.tauxTva)
+  const cmupHt = calcCmupHt(prixAchatHt, frais, input.tauxTva)
+  const plancher = calcPlancherFromCmup(cmupHt, input.tauxTva)
+
+  return { prixAchatHt, prixAchatTtc, frais, plancher }
+}
+
+/** Inverse du CMUP pondéré lors d'une annulation de réception. */
+export function reverseCmup(
+  stockApresRetrait: number,
+  valeurApres: number,
+  quantiteRetiree: number,
+  valeurRetiree: number
+): number {
+  const stockAvant = stockApresRetrait
+  const stockTotal = stockAvant + quantiteRetiree
+  if (stockAvant <= 0) return roundMoney(valeurRetiree)
+  return roundMoney((stockTotal * valeurApres - quantiteRetiree * valeurRetiree) / stockAvant)
+}
+
+export type AchatAnnulationPricingInput = {
+  stockApresAnnulation: number
+  quantiteRetireeStock: number
+  prixUnitaireHtRetire: number
+  fraisUnitaireRetire: number
+  prixAchatHtActuel: number
+  fraisActuel: number
+  tauxTva: number
+}
+
+/** Recalcule moyenne achat et plancher après retrait de stock reçu (annulation achat). */
+export function reverseProduitFromAchatAnnulation(input: AchatAnnulationPricingInput) {
+  const prixAchatHt = reverseCmup(
+    input.stockApresAnnulation,
+    input.prixAchatHtActuel,
+    input.quantiteRetireeStock,
+    input.prixUnitaireHtRetire
+  )
+  const frais = reverseCmup(
+    input.stockApresAnnulation,
+    input.fraisActuel,
+    input.quantiteRetireeStock,
+    input.fraisUnitaireRetire
+  )
+  const prixAchatTtc = calcTtc(prixAchatHt, input.tauxTva)
+  const cmupHt = calcCmupHt(prixAchatHt, frais, input.tauxTva)
+  const plancher = calcPlancherFromCmup(cmupHt, input.tauxTva)
 
   return { prixAchatHt, prixAchatTtc, frais, plancher }
 }

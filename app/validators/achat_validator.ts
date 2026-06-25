@@ -8,11 +8,6 @@ const ligneAchatSchema = vine.object({
   remise_pct: vine.number().min(0).max(100).optional(),
 })
 
-const ligneRecueSchema = vine.object({
-  ligne_id: vine.number().positive(),
-  quantite_recue: vine.number().positive(),
-})
-
 const modePaiement = vine.enum([
   'especes',
   'cheque',
@@ -95,7 +90,6 @@ export const achatRecevoirValidator = vine.compile(
     id: vine.number().positive(),
     date_reception: vine.date({ formats: ['iso8601'] }).optional(),
     depot_id: vine.number().positive().optional(),
-    lignes: vine.array(ligneRecueSchema).minLength(1),
   })
 )
 

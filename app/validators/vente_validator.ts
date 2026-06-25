@@ -27,6 +27,8 @@ export const venteLigneInfoValidator = vine.compile(
     remisePct: vine.number().min(0).max(100).optional(),
     depot_id: vine.number().positive().optional(),
     depotId: vine.number().positive().optional(),
+    client_id: vine.number().positive().optional(),
+    clientId: vine.number().positive().optional(),
   })
 )
 

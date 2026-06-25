@@ -93,6 +93,15 @@ test.group('calculerTotauxVente remise ligne + remise facture', () => {
   })
 })
 
+test.group('calcLigneMontants exonération TVA', () => {
+  test('tva 0 : montant HT = montant TTC', ({ assert }) => {
+    const { montantHt, montantTva, montantTtc } = calcLigneMontants(2, 10000, 0, 0)
+    assert.equal(montantHt, 20000)
+    assert.equal(montantTva, 0)
+    assert.equal(montantTtc, 20000)
+  })
+})
+
 test.group('syncVentePaiement', () => {
   test('reste = totalApresAirsi - montantPaye', ({ assert }) => {
     const vente = {

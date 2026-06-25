@@ -8,6 +8,7 @@ import {
   fromProduitPrixStockage,
   hasUniteDetailConfig,
   normalizeProduitUniteFields,
+  resolveProduitUniteInput,
   resolveAjustementQuantite,
   resolvePlancherLigne,
   resolveStockDisplay,
@@ -209,6 +210,61 @@ test.group('vente_unite_service — achat pricing', () => {
     assert.equal(normalized.contenance, 50)
   })
 
+  test('resolveProduitUniteInput mirrors unite to unite_gros for simple gros product', ({
+    assert,
+  }) => {
+    const existing = {
+      unite: 'pièce',
+      uniteGros: 'PIECES',
+      contenance: 1,
+      venteAuDetail: false,
+    }
+    const resolved = resolveProduitUniteInput({ unite: 'carton' }, existing)
+    assert.equal(resolved.unite, 'carton')
+    assert.equal(resolved.uniteGros, 'carton')
+    assert.equal(resolved.contenance, 1)
+  })
+
+  test('resolveProduitUniteInput keeps explicit unite_gros on simple product', ({ assert }) => {
+    const existing = {
+      unite: 'pièce',
+      uniteGros: 'PIECES',
+      contenance: 1,
+      venteAuDetail: false,
+    }
+    const resolved = resolveProduitUniteInput(
+      { unite: 'carton', unite_gros: 'CARTON' },
+      existing
+    )
+    assert.equal(resolved.unite, 'carton')
+    assert.equal(resolved.uniteGros, 'CARTON')
+  })
+
+  test('resolveProduitUniteInput accepts uniteGros camelCase', ({ assert }) => {
+    const existing = {
+      unite: 'pièce',
+      uniteGros: 'PIECES',
+      contenance: 1,
+      venteAuDetail: false,
+    }
+    const resolved = resolveProduitUniteInput({ uniteGros: 'LITRE' }, existing)
+    assert.equal(resolved.uniteGros, 'LITRE')
+    assert.equal(resolved.unite, 'pièce')
+  })
+
+  test('resolveProduitUniteInput does not mirror unite when detail config', ({ assert }) => {
+    const existing = {
+      unite: 'kg',
+      uniteGros: 'sac',
+      contenance: 50,
+      venteAuDetail: true,
+    }
+    const resolved = resolveProduitUniteInput({ unite: 'litre' }, existing)
+    assert.equal(resolved.unite, 'litre')
+    assert.equal(resolved.uniteGros, 'sac')
+    assert.equal(resolved.contenance, 50)
+  })
+
   test('normalizes detail line price to gros and back', ({ assert }) => {
     const gros = toPrixAchatGros(200, 10, 'detail', produitSacKg)
     assert.equal(gros.prixUnitaireHt, 10000)
@@ -288,6 +344,23 @@ test.group('vente_unite_service — achat pricing', () => {
     assert.equal(catalogue.moyenneAchatHtGros, 44050)
     assert.equal(catalogue.plancherDetail, 891)
     assert.equal(catalogue.plancherGros, 44550)
+  })
+
+  test('catalogue plancher is CMUP HT times TVA when taux provided', ({ assert }) => {
+    const catalogue = fromProduitPrixStockage(
+      {
+        prixAchatHt: '10588.24',
+        prixAchatTtc: '12494.12',
+        frais: '98.63',
+        plancher: '12589.56',
+        ...produitGrosSimple,
+      },
+      18
+    )
+    assert.equal(catalogue.mode, 'gros')
+    if (catalogue.mode !== 'gros') return
+    assert.equal(catalogue.moyenneAchatHt, 10671.82)
+    assert.equal(catalogue.plancher, 12592.75)
   })
 
   test('catalogue prix stays gros when no contenance', ({ assert }) => {

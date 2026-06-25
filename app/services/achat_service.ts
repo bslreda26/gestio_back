@@ -1,8 +1,11 @@
 import {
   ACHAT_STATUT,
+  canAnnulerAchat,
   canPayerAchat,
   canReceiveMarchandise,
+  isAchatRecu,
   isAchatRetour,
+  isEditableAchat,
 } from '#constants/achat_statuts'
 import Achat from '#models/achat'
 import AchatLigne from '#models/achat_ligne'
@@ -57,6 +60,17 @@ export type LigneRecueInput = {
   quantite_recue: number
 }
 
+function buildReceptionCompleteLignes(
+  lignes: Awaited<ReturnType<typeof AchatLigne.query>>
+): LigneRecueInput[] {
+  return lignes
+    .map((ligne) => {
+      const reste = roundQty(Number(ligne.quantite) - Number(ligne.quantiteRecue))
+      return reste > 0 ? { ligne_id: ligne.id, quantite_recue: reste } : null
+    })
+    .filter((item): item is LigneRecueInput => item !== null)
+}
+
 export type LigneAchatRetourInput = {
   ligne_id: number
   quantite: number
@@ -101,6 +115,40 @@ export function prixHtApresRemiseLigne(prixUnitaireHt: number, remisePct: number
   return roundMoney(prixUnitaireHt * (1 - remisePct / 100))
 }
 
+/** Répartit la remise facture (HT) au prorata du montant HT de chaque ligne. */
+export function calcRemiseFactureHtParLigne(
+  lignes: { montantHt: number }[],
+  remiseMontant: number
+): number[] {
+  const totalHt = roundMoney(lignes.reduce((s, l) => s + Number(l.montantHt), 0))
+  if (totalHt <= 0 || remiseMontant <= 0) return lignes.map(() => 0)
+
+  const remise = roundMoney(Math.min(remiseMontant, totalHt))
+  const parts = lignes.map((l) =>
+    roundMoney(remise * (Number(l.montantHt) / totalHt))
+  )
+  const sum = roundMoney(parts.reduce((a, b) => a + b, 0))
+  if (sum !== remise && parts.length > 0) {
+    parts[parts.length - 1] = roundMoney(parts[parts.length - 1] + (remise - sum))
+  }
+  return parts
+}
+
+/** Prix unitaire HT pour CMUP : remise ligne + part proportionnelle de la remise facture. */
+export function calcPrixHtCmupAchatLigne(
+  ligne: { montantHt: number; quantite: number },
+  remiseFactureHtLigne: number,
+  quantiteRecue: number
+): number {
+  if (quantiteRecue <= 0) return 0
+  const orderedQty = Number(ligne.quantite)
+  const fraction = orderedQty > 0 ? quantiteRecue / orderedQty : 1
+  const htRecu = roundMoney(Number(ligne.montantHt) * fraction)
+  const remiseRecu = roundMoney(remiseFactureHtLigne * fraction)
+  const netHtRecu = roundMoney(Math.max(0, htRecu - remiseRecu))
+  return roundMoney(netHtRecu / quantiteRecue)
+}
+
 export function calcLigneMontants(
   quantite: number,
   prixUnitaireHt: number,
@@ -123,6 +171,71 @@ export function calcReceptionTtc(
 ) {
   const { montantTtc } = calcLigneMontants(quantiteRecue, prixUnitaireHt, tvaPct, remisePct)
   return montantTtc
+}
+
+type LigneReceivedTtcInput = {
+  quantiteRecue: number | string
+  prixUnitaireHt: number | string
+  tvaPct: number | string
+  remisePct?: number | string | null
+}
+
+/** Somme TTC des quantités déjà reçues (remise ligne incluse, remise facture exclue). */
+export function calcTotalReceivedLinesTtc(lignes: LigneReceivedTtcInput[]): number {
+  return roundMoney(
+    lignes.reduce((sum, ligne) => {
+      const qty = Number(ligne.quantiteRecue)
+      if (qty <= 0) return sum
+      return (
+        sum +
+        calcReceptionTtc(
+          qty,
+          Number(ligne.prixUnitaireHt),
+          Number(ligne.tvaPct),
+          Number(ligne.remisePct ?? 0)
+        )
+      )
+    }, 0)
+  )
+}
+
+type LigneOwedInput = {
+  quantite: number | string
+  quantiteRecue: number | string
+  montantHt: number | string
+  montantTva: number | string
+}
+
+/** Dette TTC due au fournisseur après réception (remise facture HT répartie au prorata). */
+export function calcOwedTtcFromReceivedLines(
+  lignes: LigneOwedInput[],
+  remiseMontant: number
+): number {
+  const normalized = lignes.map((l) => ({
+    quantite: Number(l.quantite),
+    quantiteRecue: Number(l.quantiteRecue),
+    montantHt: Number(l.montantHt),
+    montantTva: Number(l.montantTva),
+  }))
+  const remiseParts = calcRemiseFactureHtParLigne(
+    normalized.map((l) => ({ montantHt: l.montantHt })),
+    remiseMontant
+  )
+
+  let netHt = 0
+  let netTva = 0
+  for (const [i, ligne] of normalized.entries()) {
+    const qtyRecue = ligne.quantiteRecue
+    if (qtyRecue <= 0) continue
+    const fraction = ligne.quantite > 0 ? qtyRecue / ligne.quantite : 0
+    const htRecu = roundMoney(ligne.montantHt * fraction)
+    const tvaRecu = roundMoney(ligne.montantTva * fraction)
+    const remiseRecu = roundMoney(remiseParts[i] * fraction)
+    netHt = roundMoney(netHt + htRecu - remiseRecu)
+    netTva = roundMoney(netTva + tvaRecu)
+  }
+
+  return roundMoney(Math.max(0, netHt + netTva))
 }
 
 /** Dernier prix d'achat connu, toujours exprimé en unité gros (pièce / sac…) */
@@ -160,9 +273,11 @@ export async function getDernierPrixAchatGrosForProduit(
 
 export function calculerTotauxAchat(lignes: CalculatedAchatLigne[], remiseMontant = 0) {
   const sousTotal = roundMoney(lignes.reduce((s, l) => s + l.montantTtc, 0))
-  const remise = roundMoney(Math.min(remiseMontant, sousTotal))
-  const totalTtc = roundMoney(Math.max(0, sousTotal - remise))
+  const totalHt = roundMoney(lignes.reduce((s, l) => s + l.montantHt, 0))
+  const remise = roundMoney(Math.min(remiseMontant, totalHt))
+  const netHt = roundMoney(Math.max(0, totalHt - remise))
   const tvaMontant = roundMoney(lignes.reduce((s, l) => s + l.montantTva, 0))
+  const totalTtc = roundMoney(netHt + tvaMontant)
   return { sousTotal, remiseMontant: remise, tvaMontant, totalTtc }
 }
 
@@ -416,9 +531,83 @@ export async function creerAchat(
   })
 }
 
+export type UpdateAchatInput = {
+  fournisseur_id?: number
+  date_achat?: DateTime
+  reference_fournisseur?: string | null
+  remise_montant?: number
+  notes?: string | null
+  lignes?: LigneAchatInput[]
+}
+
+export async function modifierAchat(achatId: number, data: UpdateAchatInput) {
+  return Achat.transaction(async (trx) => {
+    const achat = await Achat.query({ client: trx }).where('id', achatId).forUpdate().firstOrFail()
+
+    if (!isEditableAchat(achat.statut)) {
+      throw new AchatBusinessError('Seule une commande peut être modifiée')
+    }
+
+    if (data.lignes) {
+      await AchatLigne.query({ client: trx }).where('achat_id', achatId).delete()
+      const calculated = await buildLignesFromPayload(data.lignes, trx)
+      const totaux = calculerTotauxAchat(
+        calculated,
+        data.remise_montant ?? Number(achat.remiseMontant)
+      )
+      await persistLignes(achatId, calculated, trx)
+
+      achat.sousTotal = totaux.sousTotal
+      achat.remiseMontant = totaux.remiseMontant
+      achat.tvaMontant = totaux.tvaMontant
+      achat.totalTtc = totaux.totalTtc
+    }
+
+    if (data.fournisseur_id !== undefined) {
+      const fournisseur = await Fournisseur.query({ client: trx })
+        .where('id', data.fournisseur_id)
+        .where('is_active', true)
+        .first()
+      if (!fournisseur) throw new AchatBusinessError('Fournisseur introuvable')
+      achat.fournisseurId = data.fournisseur_id
+    }
+
+    if (data.date_achat !== undefined) achat.dateAchat = data.date_achat
+    if (data.reference_fournisseur !== undefined) {
+      achat.referenceFournisseur = data.reference_fournisseur
+    }
+    if (data.remise_montant !== undefined && !data.lignes) {
+      const lignes = await AchatLigne.query({ client: trx }).where('achat_id', achatId)
+      const calculated = lignes.map((l) => ({
+        produitId: l.produitId,
+        designation: l.designation,
+        modeAchat: achatLigneMode(l),
+        quantite: Number(l.quantite),
+        quantiteStock: Number(l.quantiteStock),
+        prixUnitaireHt: Number(l.prixUnitaireHt),
+        frais: Number(l.frais),
+        remisePct: Number(l.remisePct ?? 0),
+        tvaPct: Number(l.tvaPct),
+        montantHt: Number(l.montantHt),
+        montantTva: Number(l.montantTva),
+        montantTtc: Number(l.montantTtc),
+      }))
+      const totaux = calculerTotauxAchat(calculated, data.remise_montant)
+      achat.sousTotal = totaux.sousTotal
+      achat.remiseMontant = totaux.remiseMontant
+      achat.tvaMontant = totaux.tvaMontant
+      achat.totalTtc = totaux.totalTtc
+    }
+    if (data.notes !== undefined) achat.notes = data.notes
+
+    achat.useTransaction(trx)
+    await achat.save()
+    return achat
+  })
+}
+
 export async function recevoirMarchandise(
   achatId: number,
-  lignesRecues: LigneRecueInput[],
   userId: number,
   dateReception?: DateTime,
   depotId?: number
@@ -427,6 +616,11 @@ export async function recevoirMarchandise(
     const achat = await Achat.query({ client: trx }).where('id', achatId).forUpdate().firstOrFail()
 
     if (!canReceiveMarchandise(achat.statut)) {
+      if (isAchatRecu(achat.statut)) {
+        throw new AchatBusinessError(
+          'Réception déjà effectuée — utilisez Retour pour renvoyer des marchandises au fournisseur'
+        )
+      }
       throw new AchatBusinessError('Réception impossible sur cet achat')
     }
 
@@ -440,16 +634,22 @@ export async function recevoirMarchandise(
     await achat.save()
 
     const lignesAvant = await AchatLigne.query({ client: trx }).where('achat_id', achatId)
-    const hasRemaining = lignesAvant.some(
-      (l) => Number(l.quantiteRecue) < Number(l.quantite)
-    )
-    if (!hasRemaining) {
-      throw new AchatBusinessError('Réception déjà complète sur cet achat')
+    const lignesActives = buildReceptionCompleteLignes(lignesAvant)
+    if (lignesActives.length === 0) {
+      throw new AchatBusinessError('Aucune quantité à recevoir')
     }
 
-    let receptionTtcTotal = 0
+    const remiseMontant = Number(achat.remiseMontant)
+    const remiseFactureParLigne = calcRemiseFactureHtParLigne(
+      lignesAvant.map((l) => ({ montantHt: Number(l.montantHt) })),
+      remiseMontant
+    )
+    const remiseFactureParLigneId = new Map<number, number>()
+    lignesAvant.forEach((l, i) => remiseFactureParLigneId.set(l.id, remiseFactureParLigne[i]))
 
-    for (const item of lignesRecues) {
+    const owedBefore = calcOwedTtcFromReceivedLines(lignesAvant, remiseMontant)
+
+    for (const item of lignesActives) {
       const ligne = await AchatLigne.query({ client: trx })
         .where('id', item.ligne_id)
         .where('achat_id', achatId)
@@ -458,7 +658,7 @@ export async function recevoirMarchandise(
       const dejaRecu = Number(ligne.quantiteRecue)
       const maxRecu = Number(ligne.quantite) - dejaRecu
 
-      if (item.quantite_recue <= 0 || item.quantite_recue > maxRecu + 0.0001) {
+      if (item.quantite_recue > maxRecu + 0.0001) {
         throw new AchatBusinessError(
           `Quantité reçue invalide pour la ligne ${item.ligne_id} (max: ${maxRecu})`
         )
@@ -468,8 +668,12 @@ export async function recevoirMarchandise(
       const stockAvant = Number(produit.stockActuel)
       const mode = achatLigneMode(ligne)
       const quantiteRecueStock = toStockQuantite(mode, item.quantite_recue, produit)
-      const remisePct = Number(ligne.remisePct ?? 0)
-      const prixHtCmup = prixHtApresRemiseLigne(Number(ligne.prixUnitaireHt), remisePct)
+      const remiseFactureHt = remiseFactureParLigneId.get(ligne.id) ?? 0
+      const prixHtCmup = calcPrixHtCmupAchatLigne(
+        { montantHt: Number(ligne.montantHt), quantite: Number(ligne.quantite) },
+        remiseFactureHt,
+        item.quantite_recue
+      )
       const cmup = toAchatCmupUnits(
         mode,
         item.quantite_recue,
@@ -516,32 +720,25 @@ export async function recevoirMarchandise(
       produit.useTransaction(trx)
       await produit.save()
 
-      ligne.quantiteRecue = roundMoney(dejaRecu + item.quantite_recue)
+      ligne.quantiteRecue = roundQty(dejaRecu + item.quantite_recue)
       ligne.useTransaction(trx)
       await ligne.save()
-
-      receptionTtcTotal += calcReceptionTtc(
-        item.quantite_recue,
-        Number(ligne.prixUnitaireHt),
-        Number(ligne.tvaPct),
-        remisePct
-      )
-    }
-
-    receptionTtcTotal = roundMoney(receptionTtcTotal)
-
-    if (receptionTtcTotal > 0) {
-      await adjustFournisseurSoldePdv(
-        achat.fournisseurId,
-        achat.pointDeVenteId,
-        receptionTtcTotal,
-        trx
-      )
-
-      achat.resteAPayer = roundMoney(Number(achat.resteAPayer) + receptionTtcTotal)
     }
 
     const allLignes = await AchatLigne.query({ client: trx }).where('achat_id', achatId)
+    const owedAfter = calcOwedTtcFromReceivedLines(allLignes, remiseMontant)
+    const deltaOwed = roundMoney(owedAfter - owedBefore)
+
+    if (deltaOwed > 0) {
+      await adjustFournisseurSoldePdv(
+        achat.fournisseurId,
+        achat.pointDeVenteId,
+        deltaOwed,
+        trx
+      )
+    }
+
+    achat.resteAPayer = roundMoney(Math.max(0, owedAfter - Number(achat.montantPaye)))
     const anyReceived = allLignes.some((l) => Number(l.quantiteRecue) > 0)
 
     achat.statut = anyReceived ? ACHAT_STATUT.ACHAT : ACHAT_STATUT.COMMANDE
@@ -723,70 +920,23 @@ export async function creerAchatRetour(
   })
 }
 
-export async function annulerAchat(achatId: number, userId: number, notes?: string | null) {
+export async function annulerAchat(achatId: number, _userId: number, _notes?: string | null) {
   return Achat.transaction(async (trx) => {
     const achat = await Achat.query({ client: trx }).where('id', achatId).forUpdate().firstOrFail()
 
-    if (achat.statut === ACHAT_STATUT.ANNULE) {
-      throw new AchatBusinessError('Cet achat est déjà annulé')
-    }
-
-    if (Number(achat.montantPaye) > 0) {
-      throw new AchatBusinessError(
-        'Impossible d\'annuler un achat avec des paiements enregistrés'
-      )
-    }
-
-    const lignes = await AchatLigne.query({ client: trx }).where('achat_id', achatId)
-    let receivedTtcToReverse = 0
-
-    for (const ligne of lignes) {
-      const qtyRecue = Number(ligne.quantiteRecue)
-      if (qtyRecue > 0) {
-        const produit = await Produit.query({ client: trx })
-          .where('id', ligne.produitId)
-          .firstOrFail()
-        const qtyStock = toStockQuantite(achatLigneMode(ligne), qtyRecue, produit)
-
-        await stockSortie(
-          ligne.produitId,
-          qtyStock,
-          'retour_fournisseur',
-          { referenceId: achatId, referenceType: 'achat' },
-          userId,
-          trx,
-          `Annulation achat ${achat.numero}`,
-          achat.depotId ?? undefined
+    if (!canAnnulerAchat(achat.statut)) {
+      if (isAchatRecu(achat.statut)) {
+        throw new AchatBusinessError(
+          'Impossible d\'annuler un achat déjà réceptionné — utilisez Retour'
         )
-        receivedTtcToReverse += calcReceptionTtc(
-          qtyRecue,
-          Number(ligne.prixUnitaireHt),
-          Number(ligne.tvaPct)
-        )
-        ligne.quantiteRecue = 0
-        ligne.useTransaction(trx)
-        await ligne.save()
       }
+      throw new AchatBusinessError('Annulation impossible sur cet achat')
     }
 
-    receivedTtcToReverse = roundMoney(receivedTtcToReverse)
-
-    if (receivedTtcToReverse > 0) {
-      await adjustFournisseurSoldePdv(
-        achat.fournisseurId,
-        achat.pointDeVenteId,
-        -receivedTtcToReverse,
-        trx
-      )
-    }
-
-    achat.statut = ACHAT_STATUT.ANNULE
-    achat.resteAPayer = 0
-    if (notes) achat.notes = notes
+    const deleted = achat.serialize()
     achat.useTransaction(trx)
-    await achat.save()
-
-    return achat
+    await achat.delete()
+    return deleted
   })
 }
 

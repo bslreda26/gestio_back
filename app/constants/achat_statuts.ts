@@ -32,9 +32,13 @@ export function isEditableAchat(statut: string): boolean {
 }
 
 export function canReceiveMarchandise(statut: string): boolean {
-  return isCommande(statut) || isAchatRecu(statut)
+  return isCommande(statut)
 }
 
 export function canPayerAchat(statut: string): boolean {
   return isAchatRecu(statut)
+}
+
+export function canAnnulerAchat(statut: string): boolean {
+  return isCommande(statut)
 }
