@@ -359,6 +359,115 @@ test.group('API — dépôts & stock multi-dépôt', (group) => {
     assert.equal(Number(produit.stockActuel), totalBefore - 3)
   })
 
+  test('saisie inventaire grille returns depot stock columns', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0002')
+    const defaultDepot = await Depot.query().where('is_default', true).firstOrFail()
+
+    const grille = await authedPos(client, token).post('/api/v1/stock/inventaire/grille').json({
+      depot_id: defaultDepot.id,
+      search: produit.code,
+      limit: 10,
+    })
+    grille.assertStatus(200)
+
+    const ligne = grille.body().data.lignes.find((l: { produit_id: number }) => l.produit_id === produit.id)
+    assert.isDefined(ligne)
+    assert.equal(ligne.code, produit.code)
+    assert.equal(ligne.designation, produit.nom)
+    assert.equal(ligne.depot.id, defaultDepot.id)
+    assert.isNumber(ligne.quantite_actuelle)
+    assert.equal(ligne.entree, 0)
+    assert.equal(ligne.sortie, 0)
+  })
+
+  test('inventaire grille shows sac + kg breakdown for detail products', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    const ref = await Produit.findByOrFail('code', 'PRD-0001')
+    const defaultDepot = await Depot.query().where('is_default', true).firstOrFail()
+
+    const created = await authedPos(client, token).post('/api/v1/produits/create').json({
+      nom: 'RIZ SVANNAH 50 KG test',
+      tva_groupe_id: ref.tvaGroupeId,
+      prix_vente_ttc: 25000,
+      unite: 'kg',
+      unite_gros: 'sac',
+      contenance: 50,
+      vente_au_detail: true,
+    })
+    created.assertStatus(200)
+    const produitId = created.body().data.id as number
+
+    await authedPos(client, token).post('/api/v1/produits/ajustement').json({
+      id: produitId,
+      type: 'entree',
+      quantite_pieces: 176,
+      quantite_detail: 30,
+    })
+
+    const grille = await authedPos(client, token).post('/api/v1/stock/inventaire/grille').json({
+      depot_id: defaultDepot.id,
+      search: 'RIZ SVANNAH 50 KG test',
+      limit: 10,
+    })
+    grille.assertStatus(200)
+
+    const ligne = grille.body().data.lignes.find((l: { produit_id: number }) => l.produit_id === produitId)
+    assert.isDefined(ligne)
+    assert.equal(ligne.quantite_actuelle, 8830)
+    assert.equal(ligne.stock_pieces, 176)
+    assert.equal(ligne.stock_reste_detail, 30)
+    assert.equal(ligne.quantite_actuelle_label, '176 sac + 30 kg')
+    assert.equal(ligne.stock_label, '176 sac + 30 kg')
+  })
+
+  test('saisie inventaire applies entree and sortie and saves session', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0002')
+    const defaultDepot = await Depot.query().where('is_default', true).firstOrFail()
+
+    const depotRowBefore = await DepotStock.query()
+      .where('depot_id', defaultDepot.id)
+      .where('produit_id', produit.id)
+      .first()
+    const qtyBefore = depotRowBefore ? Number(depotRowBefore.quantite) : 0
+
+    const saisie = await authedPos(client, token).post('/api/v1/stock/inventaire/saisie').json({
+      depot_id: defaultDepot.id,
+      notes: 'Inventaire test',
+      lignes: [{ produit_id: produit.id, entree: 2, sortie: 0 }],
+    })
+    saisie.assertStatus(200)
+
+    const data = saisie.body().data
+    assert.equal(data.saisie.total_entree, 2)
+    assert.equal(data.saisie.total_sortie, 0)
+    assert.isAbove(data.saisie.valeur_entree, 0)
+    assert.equal(data.saisie.valeur_sortie, 0)
+    assert.equal(data.lignes[0].entree, 2)
+    assert.equal(data.lignes[0].stock_apres, qtyBefore + 2)
+
+    const depotRowAfter = await DepotStock.query()
+      .where('depot_id', defaultDepot.id)
+      .where('produit_id', produit.id)
+      .firstOrFail()
+    assert.equal(Number(depotRowAfter.quantite), qtyBefore + 2)
+
+    const sortie = await authedPos(client, token).post('/api/v1/stock/inventaire/saisie').json({
+      depot_id: defaultDepot.id,
+      lignes: [{ produit_id: produit.id, entree: 0, sortie: 1 }],
+    })
+    sortie.assertStatus(200)
+    assert.equal(sortie.body().data.saisie.total_sortie, 1)
+    assert.isAbove(sortie.body().data.saisie.valeur_sortie, 0)
+
+    const show = await authedPos(client, token)
+      .post('/api/v1/stock/inventaire/saisie/show')
+      .json({ id: data.saisie.id })
+    show.assertStatus(200)
+    assert.equal(show.body().data.lignes[0].entree, 2)
+  })
+
   test('facture retour returns stock to the specified depot', async ({ client, assert }) => {
     const token = await loginAsAdmin(client)
     await openCaisse(client, token)

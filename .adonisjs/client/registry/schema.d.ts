@@ -1483,6 +1483,54 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/stock_controller').default['perte']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'stock.inventaire.grille': {
+    methods: ["POST"]
+    pattern: '/api/v1/stock/inventaire/grille'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/stock_validator').stockInventaireGrilleValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/stock_validator').stockInventaireGrilleValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/stock_controller').default['inventaireGrille']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/stock_controller').default['inventaireGrille']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'stock.inventaire.saisie': {
+    methods: ["POST"]
+    pattern: '/api/v1/stock/inventaire/saisie'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/stock_validator').stockInventaireSaisieValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/stock_validator').stockInventaireSaisieValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/stock_controller').default['inventaireSaisie']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/stock_controller').default['inventaireSaisie']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'stock.inventaire.saisie.search': {
+    methods: ["POST"]
+    pattern: '/api/v1/stock/inventaire/saisie/search'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/stock_validator').stockInventaireSaisieSearchValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/stock_validator').stockInventaireSaisieSearchValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/stock_controller').default['inventaireSaisieSearch']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/stock_controller').default['inventaireSaisieSearch']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'stock.inventaire.saisie.show': {
+    methods: ["POST"]
+    pattern: '/api/v1/stock/inventaire/saisie/show'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/stock_validator').stockInventaireSaisieIdValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/stock_validator').stockInventaireSaisieIdValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/stock_controller').default['inventaireSaisieShow']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/stock_controller').default['inventaireSaisieShow']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'depots.search': {
     methods: ["POST"]
     pattern: '/api/v1/depots/search'

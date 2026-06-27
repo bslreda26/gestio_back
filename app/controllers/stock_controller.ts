@@ -10,9 +10,21 @@ import { serializeProduit } from '#helpers/produit_serializer'
 import { getStocksParDepotForProduits } from '#services/depot_service'
 import { roundMoney } from '#services/pricing_service'
 import { getValorisation, inventaireStock, perteStock, searchMouvements } from '#services/stock_service'
+import {
+  enregistrerSaisieInventaire,
+  getInventaireGrille,
+  getInventaireSaisieDetail,
+  InventaireSaisieError,
+  searchInventaireSaisies,
+  StockInsuffisantError as InventaireStockInsuffisantError,
+} from '#services/inventaire_saisie_service'
 import { resolveStockDisplay } from '#services/vente_unite_service'
 import {
   stockAlertesValidator,
+  stockInventaireGrilleValidator,
+  stockInventaireSaisieIdValidator,
+  stockInventaireSaisieSearchValidator,
+  stockInventaireSaisieValidator,
   stockInventaireValidator,
   stockMouvementsSearchValidator,
   stockPerteValidator,
@@ -236,5 +248,136 @@ export default class StockController {
       }
       throw error
     }
+  }
+
+  /** Grille saisie inventaire : code, désignation, dépôt, quantité actuelle */
+  async inventaireGrille(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(stockInventaireGrilleValidator)
+    const pos = requirePointDeVente(ctx)
+
+    try {
+      const result = await getInventaireGrille(pos.pointDeVenteId, payload)
+      return sendSuccess(ctx, result, result.meta)
+    } catch (error) {
+      if (error instanceof InventaireSaisieError) {
+        return sendError(ctx, error.message, 422)
+      }
+      throw error
+    }
+  }
+
+  /** Enregistre une saisie inventaire (entrées / sorties par ligne) */
+  async inventaireSaisie(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(stockInventaireSaisieValidator)
+    const pos = requirePointDeVente(ctx)
+
+    const depot = await Depot.find(payload.depot_id)
+    if (!(await assertRecordBelongsToPointDeVente(ctx, depot, 'Dépôt'))) return
+
+    try {
+      const { saisie, lignes } = await enregistrerSaisieInventaire(
+        pos.pointDeVenteId,
+        payload.depot_id,
+        payload.lignes,
+        ctx.auth.getUserOrFail().id,
+        payload.notes ?? null,
+        payload.date_saisie
+      )
+
+      return sendSuccess(ctx, {
+        message: 'Saisie inventaire enregistrée',
+        saisie: {
+          ...saisie.serialize(),
+          total_entree: Number(saisie.totalEntree),
+          total_sortie: Number(saisie.totalSortie),
+          valeur_entree: Number(saisie.valeurEntree),
+          valeur_sortie: Number(saisie.valeurSortie),
+        },
+        depot: depot ? { id: depot.id, code: depot.code, nom: depot.nom } : null,
+        lignes: lignes.map((ligne) => ({
+          ...ligne.serialize(),
+          quantite_actuelle: Number(ligne.quantiteActuelle),
+          entree: Number(ligne.entree),
+          sortie: Number(ligne.sortie),
+          stock_apres: Number(ligne.stockApres),
+          valeur_entree: Number(ligne.valeurEntree),
+          valeur_sortie: Number(ligne.valeurSortie),
+        })),
+      })
+    } catch (error) {
+      if (error instanceof InventaireSaisieError) {
+        return sendError(ctx, error.message, 422)
+      }
+      if (error instanceof InventaireStockInsuffisantError) {
+        return sendError(ctx, error.message, 422)
+      }
+      throw error
+    }
+  }
+
+  async inventaireSaisieSearch(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(stockInventaireSaisieSearchValidator)
+    const pos = requirePointDeVente(ctx)
+
+    const result = await searchInventaireSaisies(pos.pointDeVenteId, {
+      page: payload.page,
+      limit: payload.limit,
+      depot_id: payload.depot_id,
+      date_from: payload.date_from,
+      date_to: payload.date_to,
+    })
+
+    const depotIds = [...new Set(result.data.map((s) => s.depotId))]
+    const depots = depotIds.length
+      ? await Depot.query().whereIn('id', depotIds)
+      : []
+    const depotMap = new Map(depots.map((d) => [d.id, d]))
+
+    const data = result.data.map((saisie) => ({
+      ...saisie.serialize(),
+      total_entree: Number(saisie.totalEntree),
+      total_sortie: Number(saisie.totalSortie),
+      valeur_entree: Number(saisie.valeurEntree),
+      valeur_sortie: Number(saisie.valeurSortie),
+      depot: depotMap.get(saisie.depotId)
+        ? {
+            id: depotMap.get(saisie.depotId)!.id,
+            code: depotMap.get(saisie.depotId)!.code,
+            nom: depotMap.get(saisie.depotId)!.nom,
+          }
+        : null,
+    }))
+
+    return sendSuccess(ctx, { saisies: data }, result.meta)
+  }
+
+  async inventaireSaisieShow(ctx: HttpContext) {
+    const { id } = await ctx.request.validateUsing(stockInventaireSaisieIdValidator)
+    const pos = requirePointDeVente(ctx)
+
+    const detail = await getInventaireSaisieDetail(pos.pointDeVenteId, id)
+    if (!detail) return sendError(ctx, 'Saisie inventaire introuvable', 404)
+
+    const { saisie, depot, lignes } = detail
+
+    return sendSuccess(ctx, {
+      saisie: {
+        ...saisie.serialize(),
+        total_entree: Number(saisie.totalEntree),
+        total_sortie: Number(saisie.totalSortie),
+        valeur_entree: Number(saisie.valeurEntree),
+        valeur_sortie: Number(saisie.valeurSortie),
+      },
+      depot: depot ? { id: depot.id, code: depot.code, nom: depot.nom } : null,
+      lignes: lignes.map((ligne) => ({
+        ...ligne.serialize(),
+        quantite_actuelle: Number(ligne.quantiteActuelle),
+        entree: Number(ligne.entree),
+        sortie: Number(ligne.sortie),
+        stock_apres: Number(ligne.stockApres),
+        valeur_entree: Number(ligne.valeurEntree),
+        valeur_sortie: Number(ligne.valeurSortie),
+      })),
+    })
   }
 }

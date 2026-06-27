@@ -685,6 +685,159 @@ test.group('API — ventes & stock', (group) => {
     assert.property(vente, 'margePct')
   })
 
+  test('user without remise permissions does not see remise fields', async ({ client, assert }) => {
+    const adminToken = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0001')
+
+    const create = await authedPos(client, adminToken).post('/api/v1/ventes/create').json({
+      statut: 'devis',
+      client_id: 1,
+      date_vente: '2026-06-10',
+      remise_pct: 10,
+      lignes: [{ produit_id: produit.id, quantite: 1, prix_unitaire: 15000, remise_pct: 5 }],
+    })
+    create.assertStatus(200)
+    const venteId = create.body().data.vente.id
+
+    const facturation = await User.create({
+      email: 'facturation.sans.remise@test.local',
+      password: 'Test@12345',
+      nom: 'Fact',
+      prenom: 'SansRemise',
+      fullName: 'Fact SansRemise',
+      role: 'facturation',
+      pointDeVenteId: DEFAULT_POINT_DE_VENTE_ID,
+      permissions: ['ventes'],
+      isActive: true,
+    })
+
+    const login = await client.post('/api/v1/auth/login').json({
+      email: facturation.email,
+      password: 'Test@12345',
+    })
+    login.assertStatus(200)
+    const token = login.body().data.token
+
+    const show = await authedPos(client, token).post('/api/v1/ventes/show').json({ id: venteId })
+    show.assertStatus(200)
+    const ligne = show.body().data.lignes[0]
+    const vente = show.body().data.vente
+    assert.notProperty(ligne, 'remisePct')
+    assert.notProperty(vente, 'remisePct')
+    assert.notProperty(vente, 'remiseMontant')
+
+    const document = await authedPos(client, token).post('/api/v1/ventes/document').json({ id: venteId })
+    document.assertStatus(200)
+    assert.notProperty(document.body().data.totaux, 'remise')
+    assert.notProperty(document.body().data.totaux, 'remise_pct')
+  })
+
+  test('user with remise permissions sees remise fields and can apply remise', async ({
+    client,
+    assert,
+  }) => {
+    const adminToken = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0001')
+
+    const user = await User.create({
+      email: 'facturation.remise@test.local',
+      password: 'Test@12345',
+      nom: 'Fact',
+      prenom: 'Remise',
+      fullName: 'Fact Remise',
+      role: 'facturation',
+      pointDeVenteId: DEFAULT_POINT_DE_VENTE_ID,
+      permissions: [
+        'ventes',
+        'ventes_write',
+        'ventes_ligne_remise',
+        'ventes_remise_totale',
+        'ventes_remise_montant',
+      ],
+      isActive: true,
+    })
+
+    const login = await client.post('/api/v1/auth/login').json({
+      email: user.email,
+      password: 'Test@12345',
+    })
+    login.assertStatus(200)
+    const token = login.body().data.token
+
+    const create = await authedPos(client, token).post('/api/v1/ventes/create').json({
+      statut: 'devis',
+      client_id: 1,
+      date_vente: '2026-06-10',
+      remise_pct: 10,
+      lignes: [{ produit_id: produit.id, quantite: 1, prix_unitaire: 15000, remise_pct: 5 }],
+    })
+    create.assertStatus(200)
+    const venteId = create.body().data.vente.id
+    assert.equal(create.body().data.vente.remisePct, 10)
+    assert.equal(create.body().data.lignes[0].remisePct, 5)
+    assert.isAbove(Number(create.body().data.vente.remiseMontant), 0)
+
+    const ligneInfo = await authedPos(client, token).post('/api/v1/ventes/ligne-info').json({
+      produit_id: produit.id,
+      quantite: 1,
+      remise_pct: 5,
+    })
+    ligneInfo.assertStatus(200)
+
+    const show = await authedPos(client, token).post('/api/v1/ventes/show').json({ id: venteId })
+    show.assertStatus(200)
+    assert.equal(show.body().data.vente.remisePct, 10)
+    assert.equal(show.body().data.lignes[0].remisePct, 5)
+    assert.isAbove(Number(show.body().data.vente.remiseMontant), 0)
+  })
+
+  test('user without remise permissions cannot apply remise on create', async ({ client }) => {
+    const produit = await Produit.findByOrFail('code', 'PRD-0001')
+
+    const user = await User.create({
+      email: 'facturation.remise.write.denied@test.local',
+      password: 'Test@12345',
+      nom: 'Fact',
+      prenom: 'NoRemiseWrite',
+      fullName: 'Fact NoRemiseWrite',
+      role: 'facturation',
+      pointDeVenteId: DEFAULT_POINT_DE_VENTE_ID,
+      permissions: ['ventes', 'ventes_write'],
+      isActive: true,
+    })
+
+    const login = await client.post('/api/v1/auth/login').json({
+      email: user.email,
+      password: 'Test@12345',
+    })
+    login.assertStatus(200)
+    const token = login.body().data.token
+
+    const ligneRemise = await authedPos(client, token).post('/api/v1/ventes/create').json({
+      statut: 'devis',
+      client_id: 1,
+      date_vente: '2026-06-10',
+      lignes: [{ produit_id: produit.id, quantite: 1, prix_unitaire: 15000, remise_pct: 5 }],
+    })
+    ligneRemise.assertStatus(403)
+
+    const totalRemise = await authedPos(client, token).post('/api/v1/ventes/create').json({
+      statut: 'devis',
+      client_id: 1,
+      date_vente: '2026-06-10',
+      remise_pct: 10,
+      lignes: [{ produit_id: produit.id, quantite: 1, prix_unitaire: 15000 }],
+    })
+    totalRemise.assertStatus(403)
+
+    const ligneInfo = await authedPos(client, token).post('/api/v1/ventes/ligne-info').json({
+      produit_id: produit.id,
+      quantite: 1,
+      remise_pct: 5,
+    })
+    ligneInfo.assertStatus(403)
+  })
+
   test('facture below plancher is rejected', async ({ client, assert }) => {
     const token = await loginAsAdmin(client)
     await openCaisse(client, token)

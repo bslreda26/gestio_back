@@ -52,3 +52,46 @@ export const stockPerteValidator = vine.compile(
     notes: vine.string().trim().optional(),
   })
 )
+
+const inventaireSaisieLigneSchema = vine.object({
+  produit_id: vine.number().positive(),
+  entree: vine.number().min(0).optional(),
+  sortie: vine.number().min(0).optional(),
+  mode_vente_entree: vine.enum(['piece', 'detail'] as const).optional(),
+  mode_vente_sortie: vine.enum(['piece', 'detail'] as const).optional(),
+})
+
+export const stockInventaireGrilleValidator = vine.compile(
+  vine.object({
+    page: vine.number().min(1).optional(),
+    limit: vine.number().min(1).max(500).optional(),
+    depot_id: vine.number().positive(),
+    categorie_id: vine.number().positive().optional(),
+    search: vine.string().trim().optional(),
+  })
+)
+
+export const stockInventaireSaisieValidator = vine.compile(
+  vine.object({
+    depot_id: vine.number().positive(),
+    date_saisie: vine.date({ formats: ['iso8601'] }).optional(),
+    notes: vine.string().trim().optional(),
+    lignes: vine.array(inventaireSaisieLigneSchema).minLength(1),
+  })
+)
+
+export const stockInventaireSaisieSearchValidator = vine.compile(
+  vine.object({
+    page: vine.number().min(1).optional(),
+    limit: vine.number().min(1).max(100).optional(),
+    depot_id: vine.number().positive().optional(),
+    date_from: vine.date({ formats: ['iso8601'] }).optional(),
+    date_to: vine.date({ formats: ['iso8601'] }).optional(),
+  })
+)
+
+export const stockInventaireSaisieIdValidator = vine.compile(
+  vine.object({
+    id: vine.number().positive(),
+  })
+)

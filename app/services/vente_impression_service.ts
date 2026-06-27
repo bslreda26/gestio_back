@@ -48,6 +48,9 @@ export type VenteImpressionContext = {
   generatedAt: DateTime
   includeMarge: boolean
   includeMargePct: boolean
+  includeLigneRemisePct: boolean
+  includeRemiseMontant: boolean
+  includeRemiseTotalePct: boolean
   fne: ParsedFneResponse | null
   qrCodePng: Buffer | null
   factureOrigineNumero?: string | null
@@ -105,7 +108,13 @@ export async function loadVenteImpressionContext(
   pointDeVenteId: number,
   type: VenteImpressionType,
   impression: VenteImpressionLabel,
-  visibility: { includeMarge?: boolean; includeMargePct?: boolean } = {}
+  visibility: {
+    includeMarge?: boolean
+    includeMargePct?: boolean
+    includeLigneRemisePct?: boolean
+    includeRemiseMontant?: boolean
+    includeRemiseTotalePct?: boolean
+  } = {}
 ): Promise<VenteImpressionContext> {
   const vente = await Vente.query()
     .where('id', venteId)
@@ -173,6 +182,9 @@ export async function loadVenteImpressionContext(
     generatedAt: DateTime.now(),
     includeMarge: visibility.includeMarge ?? false,
     includeMargePct: visibility.includeMargePct ?? false,
+    includeLigneRemisePct: visibility.includeLigneRemisePct ?? false,
+    includeRemiseMontant: visibility.includeRemiseMontant ?? false,
+    includeRemiseTotalePct: visibility.includeRemiseTotalePct ?? false,
     fne,
     qrCodePng,
     factureOrigineNumero,

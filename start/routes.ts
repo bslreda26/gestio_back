@@ -448,6 +448,22 @@ router
           .post('stock/perte', [StockController, 'perte'])
           .as('stock.perte')
           .use(middleware.role({ permission: 'stock_write' }))
+        router
+          .post('stock/inventaire/grille', [StockController, 'inventaireGrille'])
+          .as('stock.inventaire.grille')
+          .use(middleware.role({ permission: 'stock_inventaire_saisie' }))
+        router
+          .post('stock/inventaire/saisie', [StockController, 'inventaireSaisie'])
+          .as('stock.inventaire.saisie')
+          .use(middleware.role({ permission: 'stock_inventaire_saisie' }))
+        router
+          .post('stock/inventaire/saisie/search', [StockController, 'inventaireSaisieSearch'])
+          .as('stock.inventaire.saisie.search')
+          .use(middleware.role({ permission: 'stock_inventaire_saisie' }))
+        router
+          .post('stock/inventaire/saisie/show', [StockController, 'inventaireSaisieShow'])
+          .as('stock.inventaire.saisie.show')
+          .use(middleware.role({ permission: 'stock_inventaire_saisie' }))
 
         // Dépôts
         router

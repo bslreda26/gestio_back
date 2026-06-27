@@ -12,6 +12,7 @@ export type VenteLigneSerializeOptions = {
   code?: string
   includeMarge?: boolean
   includePlancher?: boolean
+  includeLigneRemisePct?: boolean
   plancher?: number
   marge?: number
 }
@@ -54,7 +55,7 @@ export function serializeVenteLigne(ligne: VenteLigne, options?: VenteLigneSeria
     quantite: Number(ligne.quantite),
     quantiteStock: ligne.quantiteStock !== null ? Number(ligne.quantiteStock) : Number(ligne.quantite),
     prixUnitaire: Number(ligne.prixUnitaire),
-    remisePct: Number(ligne.remisePct),
+    ...(options?.includeLigneRemisePct ? { remisePct: Number(ligne.remisePct) } : {}),
     tvaPct: Number(ligne.tvaPct),
     montantHt: Number(ligne.montantHt),
     montantTva: Number(ligne.montantTva),
@@ -94,6 +95,7 @@ export function serializeVenteLignes(
     return serializeVenteLigne(ligne, {
       includeMarge: options?.includeMarge,
       includePlancher: options?.includePlancher,
+      includeLigneRemisePct: options?.includeLigneRemisePct,
       code: options?.codes?.get(ligne.produitId),
       plancher: livePricing.plancher,
       marge: livePricing.marge,
@@ -103,7 +105,10 @@ export function serializeVenteLignes(
 
 export async function serializeVenteLignesForApi(
   lignes: VenteLigne[],
-  options?: Pick<VenteLigneSerializeOptions, 'includeMarge' | 'includePlancher'>
+  options?: Pick<
+    VenteLigneSerializeOptions,
+    'includeMarge' | 'includePlancher' | 'includeLigneRemisePct'
+  >
 ) {
   const produitIds = [...new Set(lignes.map((l) => l.produitId))]
   const [codes, produits] = await Promise.all([

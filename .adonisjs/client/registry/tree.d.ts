@@ -182,7 +182,13 @@ export interface ApiDefinition {
     }
     valorisation: typeof routes['stock.valorisation']
     alertes: typeof routes['stock.alertes']
-    inventaire: typeof routes['stock.inventaire']
+    inventaire: typeof routes['stock.inventaire'] & {
+      grille: typeof routes['stock.inventaire.grille']
+      saisie: typeof routes['stock.inventaire.saisie'] & {
+        search: typeof routes['stock.inventaire.saisie.search']
+        show: typeof routes['stock.inventaire.saisie.show']
+      }
+    }
     perte: typeof routes['stock.perte']
   }
   depots: {

@@ -424,6 +424,72 @@ export class FournisseurSchema extends BaseModel {
   declare ville: string | null
 }
 
+export class InventaireSaisieLigneSchema extends BaseModel {
+  static $columns = ['code', 'createdAt', 'designation', 'entree', 'id', 'inventaireSaisieId', 'modeVenteEntree', 'modeVenteSortie', 'prixAchatHt', 'produitId', 'quantiteActuelle', 'sortie', 'stockApres', 'valeurEntree', 'valeurSortie'] as const
+  $columns = InventaireSaisieLigneSchema.$columns
+  @column()
+  declare code: string
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare designation: string
+  @column()
+  declare entree: string
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare inventaireSaisieId: number
+  @column()
+  declare modeVenteEntree: string | null
+  @column()
+  declare modeVenteSortie: string | null
+  @column()
+  declare prixAchatHt: string
+  @column()
+  declare produitId: number
+  @column()
+  declare quantiteActuelle: string
+  @column()
+  declare sortie: string
+  @column()
+  declare stockApres: string
+  @column()
+  declare valeurEntree: string
+  @column()
+  declare valeurSortie: string
+}
+
+export class InventaireSaisySchema extends BaseModel {
+  static $columns = ['createdAt', 'dateSaisie', 'depotId', 'id', 'lignesCount', 'notes', 'pointDeVenteId', 'totalEntree', 'totalSortie', 'updatedAt', 'userId', 'valeurEntree', 'valeurSortie'] as const
+  $columns = InventaireSaisySchema.$columns
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.date()
+  declare dateSaisie: DateTime
+  @column()
+  declare depotId: number
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare lignesCount: number
+  @column()
+  declare notes: string | null
+  @column()
+  declare pointDeVenteId: number
+  @column()
+  declare totalEntree: string
+  @column()
+  declare totalSortie: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: number
+  @column()
+  declare valeurEntree: string
+  @column()
+  declare valeurSortie: string
+}
+
 export class PaiementSchema extends BaseModel {
   static $columns = ['createdAt', 'datePaiement', 'id', 'modePaiement', 'montant', 'notes', 'referenceId', 'referencePaiement', 'type', 'updatedAt', 'userId'] as const
   $columns = PaiementSchema.$columns

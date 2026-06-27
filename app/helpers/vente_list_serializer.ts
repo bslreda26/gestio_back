@@ -1,10 +1,11 @@
 import Client from '#models/client'
 import { serializeVenteForApi } from '#helpers/vente_serializer'
+import type { VenteSerializeOptions } from '#helpers/vente_serializer'
 import type Vente from '#models/vente'
 
 export async function serializeVentesForList(
   ventes: Vente[],
-  options: { includeMarge?: boolean; includeMargePct?: boolean } = {},
+  options: VenteSerializeOptions = {},
 ) {
   if (ventes.length === 0) return []
 

@@ -315,25 +315,29 @@ function formatLigneTaxes(ligne: VenteImpressionContext['lignes'][number]): stri
 }
 
 function drawFactureLines(doc: PdfDoc, ctx: VenteImpressionContext, startY: number) {
+  const showLigneRemise = ctx.includeLigneRemisePct
   const columns: TableColumn[] = [
     { header: 'Code', width: 44 },
-    { header: 'Designation', width: 155 },
+    { header: 'Designation', width: showLigneRemise ? 155 : 189 },
     { header: 'Qte', width: 34, align: 'right' },
     { header: 'P.U.', width: 56, align: 'right' },
-    { header: 'Rem.%', width: 34, align: 'right' },
+    ...(showLigneRemise ? [{ header: 'Rem.%', width: 34, align: 'right' as const }] : []),
     { header: 'Taxes', width: 72, align: 'right' },
     { header: 'Montant TTC', width: 78, align: 'right' },
   ]
 
-  const rows = ctx.lignes.map((ligne) => [
-    ligne.code ?? '—',
-    ascii(ligne.designation),
-    formatQty(ligne.quantite),
-    formatMoney(ligne.prixUnitaire),
-    `${ligne.remisePct}%`,
-    ascii(formatLigneTaxes(ligne)),
-    formatMoney(ligne.airsiMontant > 0 ? ligne.montantApresAirsi : ligne.montantTtc),
-  ])
+  const rows = ctx.lignes.map((ligne) => {
+    const cells: string[] = [
+      ligne.code ?? '—',
+      ascii(ligne.designation),
+      formatQty(ligne.quantite),
+      formatMoney(ligne.prixUnitaire),
+    ]
+    if (showLigneRemise) cells.push(`${ligne.remisePct}%`)
+    cells.push(ascii(formatLigneTaxes(ligne)))
+    cells.push(formatMoney(ligne.airsiMontant > 0 ? ligne.montantApresAirsi : ligne.montantTtc))
+    return cells
+  })
 
   return drawTable(doc, columns, rows, startY)
 }
@@ -378,7 +382,7 @@ function drawTotals(doc: PdfDoc, ctx: VenteImpressionContext, y: number) {
 
   const rows: [string, string, boolean][] = []
 
-  if (remiseMontant > 0) {
+  if (ctx.includeRemiseMontant && remiseMontant > 0) {
     rows.push(['Sous-total HT', formatMoney(Number(vente.totalHt) + remiseMontant), false])
     rows.push(['Remise', `- ${formatMoney(remiseMontant)}`, false])
   }

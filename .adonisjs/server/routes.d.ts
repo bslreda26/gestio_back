@@ -127,6 +127,10 @@ export type ScannedRoutes = {
     'stock.alertes': { paramsTuple?: []; params?: {} }
     'stock.inventaire': { paramsTuple?: []; params?: {} }
     'stock.perte': { paramsTuple?: []; params?: {} }
+    'stock.inventaire.grille': { paramsTuple?: []; params?: {} }
+    'stock.inventaire.saisie': { paramsTuple?: []; params?: {} }
+    'stock.inventaire.saisie.search': { paramsTuple?: []; params?: {} }
+    'stock.inventaire.saisie.show': { paramsTuple?: []; params?: {} }
     'depots.search': { paramsTuple?: []; params?: {} }
     'depots.show': { paramsTuple?: []; params?: {} }
     'depots.create': { paramsTuple?: []; params?: {} }
@@ -283,6 +287,10 @@ export type ScannedRoutes = {
     'stock.alertes': { paramsTuple?: []; params?: {} }
     'stock.inventaire': { paramsTuple?: []; params?: {} }
     'stock.perte': { paramsTuple?: []; params?: {} }
+    'stock.inventaire.grille': { paramsTuple?: []; params?: {} }
+    'stock.inventaire.saisie': { paramsTuple?: []; params?: {} }
+    'stock.inventaire.saisie.search': { paramsTuple?: []; params?: {} }
+    'stock.inventaire.saisie.show': { paramsTuple?: []; params?: {} }
     'depots.search': { paramsTuple?: []; params?: {} }
     'depots.show': { paramsTuple?: []; params?: {} }
     'depots.create': { paramsTuple?: []; params?: {} }

@@ -15,7 +15,7 @@ import {
 import { serializeVentesForList } from '#helpers/vente_list_serializer'
 import { serializeVenteLignesForApi } from '#helpers/vente_ligne_serializer'
 import { serializeVenteForApi } from '#helpers/vente_serializer'
-import { getVenteLigneVisibility } from '#helpers/vente_ligne_visibility'
+import { getVenteLigneVisibility, denyVenteRemiseWrite, denyLigneRemisePreview } from '#helpers/vente_ligne_visibility'
 import { buildMeta, parsePagination, type PaginationInput } from '#helpers/pagination'
 import { CaisseBusinessError } from '#services/caisse_service'
 import {
@@ -144,10 +144,7 @@ export default class VentesController {
     const total = await query.clone().count('* as total')
     const ventes = await query.offset(offset).limit(limit)
     const ligneVisibility = getVenteLigneVisibility(ctx)
-    const data = await serializeVentesForList(ventes, {
-      includeMarge: ligneVisibility.includeMarge,
-      includeMargePct: ligneVisibility.includeMargePct,
-    })
+    const data = await serializeVentesForList(ventes, ligneVisibility)
 
     return sendPaginated(ctx, data, buildMeta(Number(total[0].$extras.total), page, limit))
   }
@@ -155,6 +152,10 @@ export default class VentesController {
   /** Default line price from produit.prix_vente_ttc when adding a ligne in the UI */
   async ligneInfo(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(venteLigneInfoValidator)
+    const remisePct = payload.remise_pct ?? payload.remisePct ?? 0
+    const denied = denyLigneRemisePreview(ctx, remisePct)
+    if (denied) return denied
+
     const pos = requirePointDeVente(ctx)
     try {
       const info = await getLigneVenteInfo(
@@ -168,11 +169,12 @@ export default class VentesController {
         payload.client_id ?? payload.clientId
       )
       const visibility = getVenteLigneVisibility(ctx)
-      const { marge: _marge, plancher: _plancher, ...publicInfo } = info
+      const { marge: _marge, plancher: _plancher, remise_pct: _remisePct, ...publicInfo } = info
       return sendSuccess(ctx, {
         ...publicInfo,
         ...(visibility.includePlancher ? { plancher: info.plancher } : {}),
         ...(visibility.includeMarge ? { marge: info.marge } : {}),
+        ...(visibility.includeLigneRemisePct ? { remise_pct: info.remise_pct } : {}),
       })
     } catch (error) {
       return handleVenteError(ctx, error)
@@ -207,10 +209,7 @@ export default class VentesController {
     const ligneVisibility = getVenteLigneVisibility(ctx)
 
     return sendSuccess(ctx, {
-      vente: serializeVenteForApi(vente, {
-        includeMarge: ligneVisibility.includeMarge,
-        includeMargePct: ligneVisibility.includeMargePct,
-      }),
+      vente: serializeVenteForApi(vente, ligneVisibility),
       lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
       client,
       user: user ? { id: user.id, nom: user.nom, prenom: user.prenom, email: user.email } : null,
@@ -260,6 +259,9 @@ export default class VentesController {
 
   async create(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(venteCreateValidator)
+    const denied = denyVenteRemiseWrite(ctx, payload)
+    if (denied) return denied
+
     const pos = requirePointDeVente(ctx)
     try {
       const vente = await creerVente(
@@ -282,10 +284,7 @@ export default class VentesController {
       const lignes = await VenteLigne.query().where('vente_id', vente.id)
       const ligneVisibility = getVenteLigneVisibility(ctx)
       return sendSuccess(ctx, {
-        vente: serializeVenteForApi(vente, {
-        includeMarge: ligneVisibility.includeMarge,
-        includeMargePct: ligneVisibility.includeMargePct,
-      }),
+        vente: serializeVenteForApi(vente, ligneVisibility),
         lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
       })
     } catch (error) {
@@ -295,6 +294,9 @@ export default class VentesController {
 
   async update(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(venteUpdateValidator)
+    const denied = denyVenteRemiseWrite(ctx, payload)
+    if (denied) return denied
+
     const vente = await Vente.find(payload.id)
     if (!(await assertRecordBelongsToPointDeVente(ctx, vente, 'Vente'))) return
 
@@ -322,10 +324,7 @@ export default class VentesController {
       const lignes = await VenteLigne.query().where('vente_id', updated.id)
       const ligneVisibility = getVenteLigneVisibility(ctx)
       return sendSuccess(ctx, {
-        vente: serializeVenteForApi(updated, {
-          includeMarge: ligneVisibility.includeMarge,
-          includeMargePct: ligneVisibility.includeMargePct,
-        }),
+        vente: serializeVenteForApi(updated, ligneVisibility),
         lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
       })
     } catch (error) {
@@ -492,7 +491,6 @@ export default class VentesController {
 
     const totaux: Record<string, unknown> = {
       sous_total: vente.sousTotal,
-      remise: vente.remiseMontant,
       total_ht: vente.totalHt,
       tva: vente.tvaMontant,
       total_ttc: vente.totalTtc,
@@ -504,6 +502,8 @@ export default class VentesController {
       montant_paye: vente.montantPaye,
       reste_a_payer: vente.resteAPayer,
     }
+    if (ligneVisibility.includeRemiseMontant) totaux.remise = vente.remiseMontant
+    if (ligneVisibility.includeRemiseTotalePct) totaux.remise_pct = Number(vente.remisePct)
     if (ligneVisibility.includeMarge) totaux.marge = Number(vente.marge)
     if (ligneVisibility.includeMargePct) totaux.marge_pct = Number(vente.margePct)
 
@@ -603,10 +603,7 @@ export default class VentesController {
         message: isFactureRetour(vente.statut)
           ? 'Avoir certifié avec succès'
           : 'Facture certifiée avec succès',
-        vente: serializeVenteForApi(vente, {
-          includeMarge: ligneVisibility.includeMarge,
-          includeMargePct: ligneVisibility.includeMargePct,
-        }),
+        vente: serializeVenteForApi(vente, ligneVisibility),
         lignes: await serializeVenteLignesForApi(lignes, ligneVisibility),
         fne: vente.apiResponse ? JSON.parse(vente.apiResponse) : null,
       })

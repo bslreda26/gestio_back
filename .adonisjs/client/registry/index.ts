@@ -744,6 +744,30 @@ const routes = {
     tokens: [{"old":"/api/v1/stock/perte","type":0,"val":"api","end":""},{"old":"/api/v1/stock/perte","type":0,"val":"v1","end":""},{"old":"/api/v1/stock/perte","type":0,"val":"stock","end":""},{"old":"/api/v1/stock/perte","type":0,"val":"perte","end":""}],
     types: placeholder as Registry['stock.perte']['types'],
   },
+  'stock.inventaire.grille': {
+    methods: ["POST"],
+    pattern: '/api/v1/stock/inventaire/grille',
+    tokens: [{"old":"/api/v1/stock/inventaire/grille","type":0,"val":"api","end":""},{"old":"/api/v1/stock/inventaire/grille","type":0,"val":"v1","end":""},{"old":"/api/v1/stock/inventaire/grille","type":0,"val":"stock","end":""},{"old":"/api/v1/stock/inventaire/grille","type":0,"val":"inventaire","end":""},{"old":"/api/v1/stock/inventaire/grille","type":0,"val":"grille","end":""}],
+    types: placeholder as Registry['stock.inventaire.grille']['types'],
+  },
+  'stock.inventaire.saisie': {
+    methods: ["POST"],
+    pattern: '/api/v1/stock/inventaire/saisie',
+    tokens: [{"old":"/api/v1/stock/inventaire/saisie","type":0,"val":"api","end":""},{"old":"/api/v1/stock/inventaire/saisie","type":0,"val":"v1","end":""},{"old":"/api/v1/stock/inventaire/saisie","type":0,"val":"stock","end":""},{"old":"/api/v1/stock/inventaire/saisie","type":0,"val":"inventaire","end":""},{"old":"/api/v1/stock/inventaire/saisie","type":0,"val":"saisie","end":""}],
+    types: placeholder as Registry['stock.inventaire.saisie']['types'],
+  },
+  'stock.inventaire.saisie.search': {
+    methods: ["POST"],
+    pattern: '/api/v1/stock/inventaire/saisie/search',
+    tokens: [{"old":"/api/v1/stock/inventaire/saisie/search","type":0,"val":"api","end":""},{"old":"/api/v1/stock/inventaire/saisie/search","type":0,"val":"v1","end":""},{"old":"/api/v1/stock/inventaire/saisie/search","type":0,"val":"stock","end":""},{"old":"/api/v1/stock/inventaire/saisie/search","type":0,"val":"inventaire","end":""},{"old":"/api/v1/stock/inventaire/saisie/search","type":0,"val":"saisie","end":""},{"old":"/api/v1/stock/inventaire/saisie/search","type":0,"val":"search","end":""}],
+    types: placeholder as Registry['stock.inventaire.saisie.search']['types'],
+  },
+  'stock.inventaire.saisie.show': {
+    methods: ["POST"],
+    pattern: '/api/v1/stock/inventaire/saisie/show',
+    tokens: [{"old":"/api/v1/stock/inventaire/saisie/show","type":0,"val":"api","end":""},{"old":"/api/v1/stock/inventaire/saisie/show","type":0,"val":"v1","end":""},{"old":"/api/v1/stock/inventaire/saisie/show","type":0,"val":"stock","end":""},{"old":"/api/v1/stock/inventaire/saisie/show","type":0,"val":"inventaire","end":""},{"old":"/api/v1/stock/inventaire/saisie/show","type":0,"val":"saisie","end":""},{"old":"/api/v1/stock/inventaire/saisie/show","type":0,"val":"show","end":""}],
+    types: placeholder as Registry['stock.inventaire.saisie.show']['types'],
+  },
   'depots.search': {
     methods: ["POST"],
     pattern: '/api/v1/depots/search',
