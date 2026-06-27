@@ -51,6 +51,9 @@ export type ScannedRoutes = {
     'fournisseurs.fournisseurs.update': { paramsTuple?: []; params?: {} }
     'fournisseurs.fournisseurs.deactivate': { paramsTuple?: []; params?: {} }
     'fournisseurs.fournisseurs.achats': { paramsTuple?: []; params?: {} }
+    'imports.clients': { paramsTuple?: []; params?: {} }
+    'imports.fournisseurs': { paramsTuple?: []; params?: {} }
+    'imports.stock': { paramsTuple?: []; params?: {} }
     'categories.categories.search': { paramsTuple?: []; params?: {} }
     'categories.categories.show': { paramsTuple?: []; params?: {} }
     'categories.categories.create': { paramsTuple?: []; params?: {} }
@@ -208,6 +211,9 @@ export type ScannedRoutes = {
     'fournisseurs.fournisseurs.update': { paramsTuple?: []; params?: {} }
     'fournisseurs.fournisseurs.deactivate': { paramsTuple?: []; params?: {} }
     'fournisseurs.fournisseurs.achats': { paramsTuple?: []; params?: {} }
+    'imports.clients': { paramsTuple?: []; params?: {} }
+    'imports.fournisseurs': { paramsTuple?: []; params?: {} }
+    'imports.stock': { paramsTuple?: []; params?: {} }
     'categories.categories.search': { paramsTuple?: []; params?: {} }
     'categories.categories.show': { paramsTuple?: []; params?: {} }
     'categories.categories.create': { paramsTuple?: []; params?: {} }

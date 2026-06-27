@@ -34,6 +34,7 @@ const DepenseCategoriesController = () => import('#controllers/depense_categorie
 const StockController = () => import('#controllers/stock_controller')
 const DepotsController = () => import('#controllers/depots_controller')
 const RapportsController = () => import('#controllers/rapports_controller')
+const ImportsController = () => import('#controllers/imports_controller')
 const UsersController = () => import('#controllers/users_controller')
 const PointsDeVenteController = () => import('#controllers/points_de_vente_controller')
 const ReglementsController = () => import('#controllers/reglements_controller')
@@ -223,6 +224,25 @@ router
           .prefix('fournisseurs')
           .as('fournisseurs')
 
+        // Import Excel (migration ERP) — admin uniquement
+        router
+          .group(() => {
+            router
+              .post('clients', [ImportsController, 'clients'])
+              .as('clients')
+              .use(middleware.role({ permission: 'imports' }))
+            router
+              .post('fournisseurs', [ImportsController, 'fournisseurs'])
+              .as('fournisseurs')
+              .use(middleware.role({ permission: 'imports' }))
+            router
+              .post('stock', [ImportsController, 'stock'])
+              .as('stock')
+              .use(middleware.role({ permission: 'imports' }))
+          })
+          .prefix('imports')
+          .as('imports')
+
         // Catégories
         router
           .group(() => {
@@ -374,7 +394,7 @@ router
         router
           .post('caisse/entree-manuelle', [CaisseController, 'entreeManuelle'])
           .as('caisse.entree_manuelle')
-          .use(middleware.role({ permission: 'caisse_write' }))
+          .use(middleware.role({ permission: 'caisse_entree' }))
         router
           .post('caisse/session', [CaisseController, 'sessionCourante'])
           .as('caisse.session')

@@ -11,7 +11,7 @@ import {
 import { buildMeta, parsePagination } from '#helpers/pagination'
 import { applyLowStockAlertFilter, applyStockAlertFilter } from '#helpers/produit_query'
 import { serializeProduit } from '#helpers/produit_serializer'
-import { canEditPlancherCmupManually } from '#services/permission_service'
+import { canEditPlancherCmupManually, canViewPlancherCmup } from '#services/permission_service'
 import { generateProduitCode } from '#services/code_generator_service'
 import { calcProduitPricing, calcProduitPricingFromVenteTtc, calcCmupHt } from '#services/pricing_service'
 import { ajustementManuel } from '#services/stock_service'
@@ -44,7 +44,7 @@ async function getTvaGroupeOrFail(tvaGroupeId: number) {
 
 function produitSerializeOptions(ctx: HttpContext) {
   const user = ctx.auth.getUserOrFail()
-  return { hidePlancher: !canEditPlancherCmupManually(user) }
+  return { hidePlancher: !canViewPlancherCmup(user) }
 }
 
 function resolveMoyenneAchatHt(payload: {
@@ -480,7 +480,7 @@ export default class ProduitsController {
       tauxTva,
     })
 
-    const canSeePlancher = canEditPlancherCmupManually(ctx.auth.getUserOrFail())
+    const canSeePlancher = canViewPlancherCmup(ctx.auth.getUserOrFail())
     return sendSuccess(ctx, {
       tva_groupe: tvaGroupe.serialize(),
       prix_achat_ht: prixAchatHt,

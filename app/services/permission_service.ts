@@ -50,11 +50,18 @@ export function hasUserPermission(
   return getEffectivePermissions(user as User).includes(permission)
 }
 
-/** CMUP, plancher, frais catalogue et prix achat — saisie manuelle réservée à l'administrateur. */
-export function canEditPlancherCmupManually(
-  user: User | { role?: string | null }
+/** Voir CMUP, plancher et prix achat catalogue (lecture). */
+export function canViewPlancherCmup(
+  user: User | { role?: string | null; permissions?: string[] | null }
 ): boolean {
-  return user.role === 'admin'
+  return hasUserPermission(user, 'produits_cmup_plancher')
+}
+
+/** CMUP, plancher, frais catalogue et prix achat — saisie manuelle. */
+export function canEditPlancherCmupManually(
+  user: User | { role?: string | null; permissions?: string[] | null }
+): boolean {
+  return hasUserPermission(user, 'produits_plancher')
 }
 
 export function hasRolePermission(role: UserRole | null, permission: PermissionKey): boolean {
@@ -63,7 +70,7 @@ export function hasRolePermission(role: UserRole | null, permission: PermissionK
 }
 
 /** Non assignables via l'écran utilisateur — réservées au rôle admin. */
-const ADMIN_ONLY_PERMISSION_KEYS: PermissionKey[] = ['produits_plancher']
+const ADMIN_ONLY_PERMISSION_KEYS: PermissionKey[] = ['produits_plancher', 'imports']
 
 export function normalizePermissionInput(permissions: string[]): PermissionKey[] {
   const unique = [...new Set(permissions)]

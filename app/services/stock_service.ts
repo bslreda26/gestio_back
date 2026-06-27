@@ -394,6 +394,53 @@ export async function inventaireStock(
   return db.transaction(run)
 }
 
+/** Fixe la quantité d'un produit dans un dépôt donné (import / inventaire ciblé). */
+export async function fixerStockDepot(
+  produitId: number,
+  depotId: number,
+  quantiteCible: number,
+  userId: number,
+  notes: string | null = null,
+  trx?: TransactionClientContract
+) {
+  const run = async (t: TransactionClientContract) => {
+    const { quantite: actuel } = await getStockDisponible(produitId, depotId, t)
+    const delta = quantiteCible - actuel
+
+    if (delta === 0) {
+      return getProduitOrFail(produitId, t)
+    }
+
+    if (delta > 0) {
+      return enregistrerEntree(
+        produitId,
+        delta,
+        'inventaire',
+        { referenceType: 'import' },
+        userId,
+        t,
+        notes,
+        depotId
+      )
+    }
+
+    await enregistrerSortie(
+      produitId,
+      Math.abs(delta),
+      'inventaire',
+      { referenceType: 'import' },
+      userId,
+      t,
+      notes,
+      depotId
+    )
+    return getProduitOrFail(produitId, t)
+  }
+
+  if (trx) return run(trx)
+  return db.transaction(run)
+}
+
 export async function perteStock(
   produitId: number,
   quantite: number,

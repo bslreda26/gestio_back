@@ -20,6 +20,8 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
   { key: 'fournisseurs_solde', label: 'Solde fournisseur', group: 'Fournisseurs' },
   { key: 'produits', label: 'Produits (consultation)', group: 'Produits' },
   { key: 'produits_write', label: 'Modifier produit', group: 'Produits' },
+  { key: 'produits_cmup_plancher', label: 'Voir CMUP et plancher (catalogue)', group: 'Produits' },
+  { key: 'produits_plancher', label: 'Modifier plancher et CMUP manuellement', group: 'Produits' },
   { key: 'ventes', label: 'Ventes (consultation)', group: 'Ventes' },
   { key: 'ventes_write', label: 'Créer / modifier vente', group: 'Ventes' },
   { key: 'ventes_ligne_marge', label: 'Marge ligne vente', group: 'Ventes' },
@@ -41,6 +43,7 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
   { key: 'categories_write', label: 'Modifier catégories', group: 'Produits' },
   { key: 'caisse', label: 'Caisse (consultation)', group: 'Caisse' },
   { key: 'caisse_write', label: 'Caisse (opérations)', group: 'Caisse' },
+  { key: 'caisse_entree', label: 'Entrée caisse manuelle', group: 'Caisse' },
   { key: 'reglements', label: 'Règlements (consultation)', group: 'Caisse' },
   { key: 'reglements_write', label: 'Saisir règlement', group: 'Caisse' },
   { key: 'rapports', label: 'Rapports', group: 'Rapports' },
@@ -53,6 +56,7 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
   { key: 'tva_admin', label: 'Gérer les groupes TVA', group: 'Administration' },
   { key: 'categories_admin', label: 'Gérer les catégories produits', group: 'Administration' },
   { key: 'depense_categories_admin', label: 'Gérer les catégories de dépenses', group: 'Administration' },
+  { key: 'imports', label: 'Import Excel (clients, fournisseurs, stock)', group: 'Administration' },
 ]
 
 /**
@@ -76,7 +80,9 @@ export const ROLE_PERMISSIONS = {
   categories_write: ['admin', 'gerant'],
   produits: ['admin', 'gerant', 'caissier', 'facturation'],
   produits_write: ['admin', 'gerant'],
+  produits_cmup_plancher: ['admin', 'gerant'],
   produits_plancher: ['admin'],
+  caisse_entree: ['admin', 'gerant', 'caissier'],
   ventes: ['admin', 'gerant', 'caissier', 'facturation'],
   ventes_write: ['admin', 'gerant', 'caissier', 'facturation'],
   ventes_ligne_marge: ['admin', 'gerant'],
@@ -106,6 +112,7 @@ export const ROLE_PERMISSIONS = {
   tva_admin: ['admin'],
   categories_admin: ['admin'],
   depense_categories_admin: ['admin'],
+  imports: ['admin'],
 } as const satisfies Record<string, UserRole[]>
 
 export type PermissionKey = keyof typeof ROLE_PERMISSIONS

@@ -288,6 +288,24 @@ const routes = {
     tokens: [{"old":"/api/v1/fournisseurs/achats","type":0,"val":"api","end":""},{"old":"/api/v1/fournisseurs/achats","type":0,"val":"v1","end":""},{"old":"/api/v1/fournisseurs/achats","type":0,"val":"fournisseurs","end":""},{"old":"/api/v1/fournisseurs/achats","type":0,"val":"achats","end":""}],
     types: placeholder as Registry['fournisseurs.fournisseurs.achats']['types'],
   },
+  'imports.clients': {
+    methods: ["POST"],
+    pattern: '/api/v1/imports/clients',
+    tokens: [{"old":"/api/v1/imports/clients","type":0,"val":"api","end":""},{"old":"/api/v1/imports/clients","type":0,"val":"v1","end":""},{"old":"/api/v1/imports/clients","type":0,"val":"imports","end":""},{"old":"/api/v1/imports/clients","type":0,"val":"clients","end":""}],
+    types: placeholder as Registry['imports.clients']['types'],
+  },
+  'imports.fournisseurs': {
+    methods: ["POST"],
+    pattern: '/api/v1/imports/fournisseurs',
+    tokens: [{"old":"/api/v1/imports/fournisseurs","type":0,"val":"api","end":""},{"old":"/api/v1/imports/fournisseurs","type":0,"val":"v1","end":""},{"old":"/api/v1/imports/fournisseurs","type":0,"val":"imports","end":""},{"old":"/api/v1/imports/fournisseurs","type":0,"val":"fournisseurs","end":""}],
+    types: placeholder as Registry['imports.fournisseurs']['types'],
+  },
+  'imports.stock': {
+    methods: ["POST"],
+    pattern: '/api/v1/imports/stock',
+    tokens: [{"old":"/api/v1/imports/stock","type":0,"val":"api","end":""},{"old":"/api/v1/imports/stock","type":0,"val":"v1","end":""},{"old":"/api/v1/imports/stock","type":0,"val":"imports","end":""},{"old":"/api/v1/imports/stock","type":0,"val":"stock","end":""}],
+    types: placeholder as Registry['imports.stock']['types'],
+  },
   'categories.categories.search': {
     methods: ["POST"],
     pattern: '/api/v1/categories/search',

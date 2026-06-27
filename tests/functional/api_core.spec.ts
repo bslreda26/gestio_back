@@ -948,6 +948,27 @@ test.group('API — caisse & depenses', (group) => {
     response.assertStatus(422)
     assert.match(response.body().message.toLowerCase(), /caisse n'est pas ouverte/)
   })
+
+  test('caissier with caisse_entree can record manual cash entry', async ({ client, assert }) => {
+    const adminToken = await loginAsAdmin(client)
+    await openCaisse(client, adminToken)
+
+    const login = await client.post('/api/v1/auth/login').json({
+      email: 'caissier@gestion.com',
+      password: 'Caissier@123456',
+    })
+    login.assertStatus(200)
+    const token = login.body().data.token
+
+    const response = await authedPos(client, token).post('/api/v1/caisse/entree-manuelle').json({
+      libelle: 'Apport caissier',
+      montant: 5_000,
+    })
+
+    response.assertStatus(200)
+    assert.equal(response.body().data.mouvement.motif, 'entree_manuelle')
+    assert.equal(response.body().data.mouvement.montant, 5_000)
+  })
 })
 
 test.group('API — reglements', (group) => {
@@ -1654,6 +1675,24 @@ test.group('API — achats & plancher', (group) => {
     })
     response.assertStatus(200)
     assert.isTrue(response.body().data.venteSousPlancher)
+  })
+
+  test('gerant can see plancher and cmup on produit catalogue', async ({ client, assert }) => {
+    const produit = await Produit.findByOrFail('code', 'PRD-0001')
+
+    const login = await client.post('/api/v1/auth/login').json({
+      email: 'gerant@gestion.com',
+      password: 'Gerant@123456',
+    })
+    login.assertStatus(200)
+    const token = login.body().data.token
+
+    const show = await authedPos(client, token).post('/api/v1/produits/show').json({ id: produit.id })
+    show.assertStatus(200)
+    const data = show.body().data.produit
+    assert.property(data, 'plancher')
+    assert.property(data, 'moyenneAchatHt')
+    assert.isAbove(Number(data.plancher), 0)
   })
 
   test('non-admin cannot manually set plancher on produit', async ({ client, assert }) => {

@@ -571,6 +571,42 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/fournisseurs_controller').default['achats']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'imports.clients': {
+    methods: ["POST"]
+    pattern: '/api/v1/imports/clients'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['clients']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['clients']>>>
+    }
+  }
+  'imports.fournisseurs': {
+    methods: ["POST"]
+    pattern: '/api/v1/imports/fournisseurs'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['fournisseurs']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['fournisseurs']>>>
+    }
+  }
+  'imports.stock': {
+    methods: ["POST"]
+    pattern: '/api/v1/imports/stock'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['stock']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['stock']>>>
+    }
+  }
   'categories.categories.search': {
     methods: ["POST"]
     pattern: '/api/v1/categories/search'

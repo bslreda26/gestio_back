@@ -73,6 +73,11 @@ export interface ApiDefinition {
       achats: typeof routes['fournisseurs.fournisseurs.achats']
     }
   }
+  imports: {
+    clients: typeof routes['imports.clients']
+    fournisseurs: typeof routes['imports.fournisseurs']
+    stock: typeof routes['imports.stock']
+  }
   categories: {
     categories: {
       search: typeof routes['categories.categories.search']
