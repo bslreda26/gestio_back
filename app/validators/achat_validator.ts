@@ -97,11 +97,31 @@ export const achatRetourValidator = vine.compile(
   vine.object({
     achat_id: vine.number().positive(),
     notes: vine.string().trim().optional(),
+    depot_id: vine.number().positive().optional(),
     lignes: vine
       .array(
         vine.object({
           ligne_id: vine.number().positive(),
           quantite: vine.number().positive(),
+          depot_id: vine.number().positive().optional(),
+        })
+      )
+      .minLength(1),
+  })
+)
+
+export const achatRetourCreateValidator = vine.compile(
+  vine.object({
+    fournisseur_id: vine.number().positive(),
+    date_achat: vine.date({ formats: ['iso8601'] }).optional(),
+    notes: vine.string().trim().optional(),
+    depot_id: vine.number().positive().optional(),
+    lignes: vine
+      .array(
+        vine.object({
+          produit_id: vine.number().positive(),
+          quantite: vine.number().positive(),
+          depot_id: vine.number().positive().optional(),
         })
       )
       .minLength(1),

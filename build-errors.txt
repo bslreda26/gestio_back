@@ -1,0 +1,1133 @@
+﻿
+> gestio_backend@0.0.0 build
+> node ace build
+
+[ info ] loading hooks...
+[ info ] generating indexes...
+[ info ] codegen: created 5 file(s)
+[ info ] cleaning up output directory (build)
+[ info ] compiling typescript source (tsc)
+app/controllers/achats_controller.ts(114,24): error TS18047: 'achat' is possibly 'null'.
+app/controllers/achats_controller.ts(115,17): error TS18047: 'achat' is possibly 'null'.
+app/controllers/categories_controller.ts(115,5): error TS18047: 'categorie' is possibly 'null'.
+app/controllers/categories_controller.ts(116,27): error TS18047: 'categorie' is possibly 'null'.
+app/controllers/categories_controller.ts(118,75): error TS18047: 'categorie' is possibly 'null'.
+app/controllers/categories_controller.ts(120,11): error TS18047: 'categorie' is possibly 'null'.
+app/controllers/categories_controller.ts(122,48): error TS2345: Argument of type 'Category | null' is not assignable to parameter of type 'Category'.
+  Type 'null' is not assignable to type 'Category'.
+app/controllers/categories_controller.ts(142,11): error TS18047: 'categorie' is possibly 'null'.
+app/controllers/clients_controller.ts(4,10): error TS6133: 'sendError' is declared but its value is never read.
+app/controllers/clients_controller.ts(71,11): error TS6133: 'pos' is declared but its value is never read.
+app/controllers/clients_controller.ts(101,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/clients_controller.ts(105,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/clients_controller.ts(120,27): error TS18047: 'client' is possibly 'null'.
+app/controllers/clients_controller.ts(121,29): error TS18047: 'client' is possibly 'null'.
+app/controllers/clients_controller.ts(122,68): error TS18047: 'client' is possibly 'null'.
+app/controllers/clients_controller.ts(123,80): error TS18047: 'client' is possibly 'null'.
+app/controllers/clients_controller.ts(124,74): error TS18047: 'client' is possibly 'null'.
+app/controllers/clients_controller.ts(125,68): error TS18047: 'client' is possibly 'null'.
+app/controllers/clients_controller.ts(126,29): error TS18047: 'client' is possibly 'null'.
+app/controllers/clients_controller.ts(127,7): error TS2322: Type 'string | number' is not assignable to type 'string | undefined'.
+  Type 'number' is not assignable to type 'string'.
+app/controllers/clients_controller.ts(127,44): error TS18047: 'client' is possibly 'null'.
+app/controllers/clients_controller.ts(128,62): error TS18047: 'client' is possibly 'null'.
+app/controllers/clients_controller.ts(129,42): error TS18047: 'client' is possibly 'null'.
+app/controllers/clients_controller.ts(130,46): error TS18047: 'client' is possibly 'null'.
+app/controllers/clients_controller.ts(131,68): error TS18047: 'client' is possibly 'null'.
+app/controllers/clients_controller.ts(132,38): error TS18047: 'client' is possibly 'null'.
+app/controllers/clients_controller.ts(145,5): error TS18047: 'client' is possibly 'null'.
+app/controllers/clients_controller.ts(146,11): error TS18047: 'client' is possibly 'null'.
+app/controllers/depenses_controller.ts(62,19): error TS18047: 'depense' is possibly 'null'.
+app/controllers/depenses_controller.ts(63,17): error TS18047: 'depense' is possibly 'null'.
+app/controllers/depenses_controller.ts(80,11): error TS2322: Type 'string' is not assignable to type '"transport" | "fournitures" | "salaire" | "loyer" | "autre"'.
+app/controllers/depenses_controller.ts(102,11): error TS2322: Type 'string | undefined' is not assignable to type '"transport" | "fournitures" | "salaire" | "loyer" | "autre" | undefined'.
+  Type 'string' is not assignable to type '"transport" | "fournitures" | "salaire" | "loyer" | "autre" | undefined'.
+app/controllers/fournisseurs_controller.ts(105,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(152,7): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(152,43): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(153,22): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(165,9): error TS2345: Argument of type 'Produit | null' is not assignable to parameter of type 'Produit'.
+  Type 'null' is not assignable to type 'ProduitSchema'.
+app/controllers/produits_controller.ts(192,77): error TS2345: Argument of type '{ unite: string; uniteGros: string | null; contenance: number; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(210,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(211,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(212,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(213,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(214,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(215,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(216,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(219,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(222,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(223,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(224,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(226,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(255,14): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(256,18): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(257,19): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(259,54): error TS2345: Argument of type 'Produit | null' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros" | "venteAuDetail"> | undefined'.
+  Type 'null' is not assignable to type 'Pick<Produit, "contenance" | "unite" | "uniteGros" | "venteAuDetail"> | undefined'.
+app/controllers/produits_controller.ts(262,30): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(263,24): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(264,27): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(271,7): error TS2345: Argument of type '{ unite: string; uniteGros: string | null; contenance: number; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(278,49): error TS2345: Argument of type '{ prixAchatHt: string; frais: string; plancher: string; contenance: string; unite: string; uniteGros: string | null; $columns?: readonly ["airsiPct", "categorieId", "code", "contenance", "createdAt", ... 20 more ..., "venteSousPlancher"] | undefined; ... 69 more ...; related?: (<Name extends undefined>(relation: Nam...' is not assignable to parameter of type 'Pick<Produit, "frais" | "prixAchatHt" | "contenance" | "plancher" | "prixAchatTtc" | "unite" | "uniteGros">'.
+  Types of property 'prixAchatTtc' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(292,9): error TS2345: Argument of type '{ unite: string; uniteGros: string | null; contenance: number; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(299,55): error TS2345: Argument of type '{ unite: string; uniteGros: string | null; contenance: number; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(302,5): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(303,27): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(304,29): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(306,75): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(308,69): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(310,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(311,7): error TS2322: Type 'string | number' is not assignable to type 'string | undefined'.
+  Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(314,13): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(315,7): error TS2322: Type 'string | number' is not assignable to type 'string | undefined'.
+  Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(317,13): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(318,39): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(319,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(320,7): error TS2322: Type 'string | number' is not assignable to type 'string | undefined'.
+  Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(320,46): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(321,7): error TS2322: Type 'string | number' is not assignable to type 'string | undefined'.
+  Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(321,46): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(322,38): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(323,7): error TS2322: Type 'string | number' is not assignable to type 'string | undefined'.
+  Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(323,38): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(327,13): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(330,5): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(331,5): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(332,5): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(333,5): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(335,7): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(337,7): error TS2345: Argument of type '{ unite: string; uniteGros: string | null; contenance: number; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(341,27): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(342,21): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(354,33): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(357,5): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(358,54): error TS2551: Property 'prixVenteHt' does not exist on type 'ProduitPricingResult'. Did you mean 'prixVenteTtc'?
+app/controllers/produits_controller.ts(358,68): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(359,5): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(359,5): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(360,5): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(360,5): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(361,5): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(361,5): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(363,48): error TS2345: Argument of type '{ unite: string; uniteGros: string | null; contenance: number; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+app/controllers/produits_controller.ts(365,11): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(367,46): error TS2345: Argument of type 'Produit | null' is not assignable to parameter of type 'Produit'.
+  Type 'null' is not assignable to type 'ProduitSchema'.
+app/controllers/produits_controller.ts(379,11): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(430,50): error TS2345: Argument of type 'Produit | null' is not assignable to parameter of type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Type 'null' is not assignable to type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+app/controllers/produits_controller.ts(455,11): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(456,48): error TS18047: 'produit' is possibly 'null'.
+app/controllers/produits_controller.ts(457,46): error TS2345: Argument of type 'Produit | null' is not assignable to parameter of type 'Produit'.
+  Type 'null' is not assignable to type 'ProduitSchema'.
+app/controllers/tva_groupes_controller.ts(75,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/tva_groupes_controller.ts(96,37): error TS2322: Type 'number' is not assignable to type 'string'.
+app/controllers/ventes_controller.ts(4,1): error TS6133: 'PointDeVente' is declared but its value is never read.
+app/controllers/ventes_controller.ts(593,11): error TS6133: 'pos' is declared but its value is never read.
+app/helpers/excel_import.ts(53,28): error TS2352: Conversion of type 'Buffer<ArrayBufferLike>' to type 'Buffer' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Buffer<ArrayBufferLike>' is missing the following properties from type 'Buffer': maxByteLength, resizable, resize, detached, and 2 more.
+app/helpers/vente_ligne_serializer.ts(7,3): error TS6133: 'resolvePrixUnitaireLigne' is declared but its value is never read.
+app/helpers/vente_list_serializer.ts(8,3): error TS2739: Type '{}' is missing the following properties from type 'VenteSerializeOptions': includeMarge, includeMargePct, includeRemiseTotalePct, includeRemiseMontant
+app/helpers/vente_serializer.ts(9,52): error TS2739: Type '{}' is missing the following properties from type 'VenteSerializeOptions': includeMarge, includeMargePct, includeRemiseTotalePct, includeRemiseMontant
+app/services/achat_service.ts(68,37): error TS18046: 'ligne' is of type 'unknown'.
+app/services/achat_service.ts(68,62): error TS18046: 'ligne' is of type 'unknown'.
+app/services/achat_service.ts(69,38): error TS18046: 'ligne' is of type 'unknown'.
+app/services/achat_service.ts(464,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(465,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(466,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(467,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(468,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(469,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(470,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(471,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(472,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(473,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(517,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(518,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(519,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(520,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(521,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(522,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(560,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(561,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(562,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(563,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(596,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(597,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(598,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(599,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(715,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(716,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(717,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(718,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(719,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(723,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(741,5): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(831,28): error TS2345: Argument of type '{ produitId: number; designation: string; modeAchat: ModeVente; quantite: number; quantiteStock: number; prixUnitaireHt: number; frais: number; tvaPct: number; montantHt: number; montantTva: number; montantTtc: number; }' is not assignable to parameter of type 'CalculatedAchatLigne'.
+  Property 'remisePct' is missing in type '{ produitId: number; designation: string; modeAchat: ModeVente; quantite: number; quantiteStock: number; prixUnitaireHt: number; frais: number; tvaPct: number; montantHt: number; montantTva: number; montantTtc: number; }' but required in type 'CalculatedAchatLigne'.
+app/services/achat_service.ts(845,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(863,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(864,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(865,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(866,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(867,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(868,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(884,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(885,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(886,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(887,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(888,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(889,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(890,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(891,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(892,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(893,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(915,5): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(983,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(993,5): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(994,5): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/achat_service.ts(996,9): error TS2365: Operator '<=' cannot be applied to types 'string' and 'number'.
+app/services/achat_service.ts(997,14): error TS2365: Operator '>' cannot be applied to types 'string' and 'number'.
+app/services/caisse_service.ts(102,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/caisse_service.ts(214,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/caisse_service.ts(215,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/caisse_service.ts(216,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/caisse_service.ts(228,3): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/caisse_service.ts(289,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/caisse_service.ts(414,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/caisse_service.ts(502,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/caisse_service.ts(503,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/caisse_service.ts(504,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/caisse_service.ts(682,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/client_import_service.ts(49,68): error TS2322: Type '{ readonly field: "code"; readonly aliases: readonly ["code", "ref", "reference", "code_client"]; readonly message: "Code obligatoire"; } | { readonly field: "nom"; readonly aliases: readonly ["nom", "name", "raison_sociale", "client", "libelle", "designation"]; readonly message: "Nom obligatoire"; } | { ...; }' is not assignable to type 'ImportRequiredField'.
+  Type '{ readonly field: "code"; readonly aliases: readonly ["code", "ref", "reference", "code_client"]; readonly message: "Code obligatoire"; }' is not assignable to type 'ImportRequiredField'.
+    Types of property 'aliases' are incompatible.
+      The type 'readonly ["code", "ref", "reference", "code_client"]' is 'readonly' and cannot be assigned to the mutable type 'string[]'.
+app/services/fournisseur_import_service.ts(34,68): error TS2322: Type '{ readonly field: "code"; readonly aliases: readonly ["code", "ref", "reference", "code_fournisseur"]; readonly message: "Code obligatoire"; } | { readonly field: "nom"; readonly aliases: readonly ["nom", ... 4 more ..., "designation"]; readonly message: "Nom obligatoire"; }' is not assignable to type 'ImportRequiredField'.
+  Type '{ readonly field: "code"; readonly aliases: readonly ["code", "ref", "reference", "code_fournisseur"]; readonly message: "Code obligatoire"; }' is not assignable to type 'ImportRequiredField'.
+    Types of property 'aliases' are incompatible.
+      The type 'readonly ["code", "ref", "reference", "code_fournisseur"]' is 'readonly' and cannot be assigned to the mutable type 'string[]'.
+app/services/permission_service.ts(78,96): error TS2345: Argument of type 'string' is not assignable to parameter of type '"achats" | "produits" | "ventes" | "categories" | "depots" | "points_de_vente" | "caisse" | "clients" | "reglements" | "depenses" | "fournisseurs" | "users" | "dashboard" | "clients_write" | ... 35 more ... | "imports"'.
+app/services/point_de_vente_service.ts(49,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/rapport_service.ts(228,5): error TS2322: Type '{ stockActuel: number; stockStatus: string; id: number; code: string; nom: string; categorieId: number | null; stockPieces: number; stockResteDetail: number; stockLabel: string; venteAuDetail: boolean; ... 5 more ...; isActive: boolean; }[]' is not assignable to type '{ id: number; code: string; nom: string; categorieId: number | null; stockActuel: number; stockPieces: number; stockResteDetail: number; stockLabel: string; venteAuDetail: boolean; stockMinimum: number; ... 5 more ...; isActive: boolean; }[]'.
+  Type '{ stockActuel: number; stockStatus: string; id: number; code: string; nom: string; categorieId: number | null; stockPieces: number; stockResteDetail: number; stockLabel: string; venteAuDetail: boolean; ... 5 more ...; isActive: boolean; }' is not assignable to type '{ id: number; code: string; nom: string; categorieId: number | null; stockActuel: number; stockPieces: number; stockResteDetail: number; stockLabel: string; venteAuDetail: boolean; stockMinimum: number; ... 5 more ...; isActive: boolean; }'.
+    Types of property 'stockStatus' are incompatible.
+      Type 'string' is not assignable to type '"rupture" | "alerte" | "normal" | "surstock"'.
+app/services/rapport_service.ts(1025,76): error TS18046: 'p' is of type 'unknown'.
+app/services/rapport_service.ts(1026,32): error TS2571: Object is of type 'unknown'.
+app/services/rapport_service.ts(1030,42): error TS18046: 'p' is of type 'unknown'.
+app/services/rapport_service.ts(1032,35): error TS18046: 'p' is of type 'unknown'.
+app/services/rapport_service.ts(1033,46): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+app/services/rapport_service.ts(1036,11): error TS18046: 'p' is of type 'unknown'.
+app/services/rapport_service.ts(1037,13): error TS18046: 'p' is of type 'unknown'.
+app/services/rapport_service.ts(1038,20): error TS18046: 'p' is of type 'unknown'.
+app/services/rapport_service.ts(1039,20): error TS18046: 'p' is of type 'unknown'.
+app/services/rapport_service.ts(1046,41): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'Produit'.
+app/services/reglement_service.ts(118,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/reglement_service.ts(119,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/reglement_service.ts(120,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/reglement_service.ts(130,3): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/reglement_service.ts(199,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/reglement_service.ts(200,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/reglement_service.ts(201,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/stock_import_service.ts(64,58): error TS2322: Type '{ readonly field: "code"; readonly aliases: readonly ["code", "ref", "reference", "code_produit", "article"]; readonly message: "Code obligatoire"; } | { readonly field: "designation"; readonly aliases: readonly [...]; readonly message: "D├⌐signation obligatoire"; } | { ...; } | { ...; }' is not assignable to type 'ImportRequiredField'.
+  Type '{ readonly field: "code"; readonly aliases: readonly ["code", "ref", "reference", "code_produit", "article"]; readonly message: "Code obligatoire"; }' is not assignable to type 'ImportRequiredField'.
+    Types of property 'aliases' are incompatible.
+      The type 'readonly ["code", "ref", "reference", "code_produit", "article"]' is 'readonly' and cannot be assigned to the mutable type 'string[]'.
+app/services/stock_import_service.ts(201,5): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/stock_import_service.ts(256,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/stock_import_service.ts(320,5): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/stock_service.ts(66,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/stock_service.ts(67,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/stock_service.ts(68,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/stock_service.ts(126,23): error TS7023: 'enregistrerSortie' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+app/services/stock_service.ts(140,27): error TS7024: Function implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+app/services/stock_service.ts(174,23): error TS7023: 'enregistrerEntree' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+app/services/stock_service.ts(188,27): error TS7024: Function implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+app/services/stock_service.ts(269,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/stock_service.ts(270,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/stock_service.ts(271,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/stock_service.ts(293,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/stock_service.ts(294,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/stock_service.ts(295,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(36,24): error TS6133: 'caisseEntree' is declared but its value is never read.
+app/services/vente_service.ts(37,24): error TS6133: 'caisseSortie' is declared but its value is never read.
+app/services/vente_service.ts(396,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(398,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(399,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(400,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(401,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(402,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(403,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(404,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(405,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(406,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(407,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(408,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(409,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(410,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(571,5): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(581,3): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(595,3): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(672,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(673,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(674,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(675,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(676,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(677,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(678,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(679,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(680,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(681,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(682,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(683,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(684,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(685,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(697,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(844,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(845,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(846,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(847,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(849,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(850,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(851,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(852,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(853,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(854,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(855,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(856,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(857,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(932,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(933,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(934,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(935,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(936,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(937,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(938,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(939,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(940,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(941,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(942,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(943,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(953,5): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1017,5): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1145,7): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1176,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1177,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1178,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1179,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1180,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1181,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1182,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1183,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1184,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1185,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1186,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1187,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1188,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1190,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1204,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1206,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1207,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1208,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1209,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1210,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1211,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1212,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1213,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1214,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1215,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1216,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1217,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1218,11): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1229,5): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1274,9): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_service.ts(1284,5): error TS2322: Type 'number' is not assignable to type 'string'.
+app/services/vente_unite_service.ts(87,92): error TS2322: Type 'string | number' is not assignable to type 'string'.
+  Type 'number' is not assignable to type 'string'.
+app/services/vente_unite_service.ts(94,5): error TS2322: Type 'string | number' is not assignable to type 'number | null | undefined'.
+  Type 'string' is not assignable to type 'number'.
+app/services/vente_unite_service.ts(149,36): error TS2345: Argument of type 'Pick<Produit, "contenance" | "prixVenteTtc">' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Type 'Pick<Produit, "contenance" | "prixVenteTtc">' is missing the following properties from type 'Pick<Produit, "contenance" | "unite" | "uniteGros">': unite, uniteGros
+app/services/vente_unite_service.ts(168,36): error TS2345: Argument of type 'Pick<Produit, "contenance" | "prixVenteHt" | "prixVenteTtc">' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Type 'Pick<Produit, "contenance" | "prixVenteHt" | "prixVenteTtc">' is missing the following properties from type 'Pick<Produit, "contenance" | "unite" | "uniteGros">': unite, uniteGros
+app/services/vente_unite_service.ts(583,46): error TS2345: Argument of type 'Pick<Produit, "nom" | "contenance" | "venteAuDetail">' is not assignable to parameter of type 'ProduitUniteFields'.
+  Type 'Pick<Produit, "nom" | "contenance" | "venteAuDetail">' is missing the following properties from type 'ProduitUniteFields': unite, uniteGros
+app/services/vente_unite_service.ts(592,46): error TS2345: Argument of type 'Pick<Produit, "nom" | "contenance" | "venteAuDetail">' is not assignable to parameter of type 'ProduitUniteFields'.
+  Type 'Pick<Produit, "nom" | "contenance" | "venteAuDetail">' is missing the following properties from type 'ProduitUniteFields': unite, uniteGros
+app/services/vente_unite_service.ts(604,36): error TS2345: Argument of type 'Pick<Produit, "contenance">' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Type 'Pick<Produit, "contenance">' is missing the following properties from type 'Pick<Produit, "contenance" | "unite" | "uniteGros">': unite, uniteGros
+app/services/vente_unite_service.ts(624,36): error TS2345: Argument of type 'Pick<Produit, "contenance">' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Type 'Pick<Produit, "contenance">' is missing the following properties from type 'Pick<Produit, "contenance" | "unite" | "uniteGros">': unite, uniteGros
+tests/functional/admin_catalog.spec.ts(17,30): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { __response: ApiSuccessEnvelope<{ id: number; code: string; libelle: string; taux: number; is_active: boolean; created_at: DateTime<boolean>; updated_at: DateTime<boolean> | null; }>; __status: 200; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/admin_catalog.spec.ts(18,32): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { __response: ApiSuccessEnvelope<{ id: number; code: string; libelle: string; taux: number; is_active: boolean; created_at: DateTime<boolean>; updated_at: DateTime<boolean> | null; }>; __status: 200; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/admin_catalog.spec.ts(25,32): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { __response: ApiSuccessEnvelope<{ id: number; code: string; libelle: string; taux: number; is_active: boolean; created_at: DateTime<boolean>; updated_at: DateTime<boolean> | null; }>; __status: 200; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/admin_catalog.spec.ts(45,30): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { __response: ApiSuccessEnvelope<{ id: number; nom: string; description: string | null; point_de_vente_id: number; created_at: DateTime<boolean>; updated_at: DateTime<boolean> | null; }>; __status: 200; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/admin_catalog.spec.ts(52,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/admin_catalog.spec.ts(60,36): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { __response: ApiSuccessEnvelope<{ id: number; nom: string; description: string | null; point_de_vente_id: number; created_at: DateTime<boolean>; updated_at: DateTime<boolean> | null; }[]>; __status: 200; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/admin_catalog.spec.ts(77,30): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { __response: ApiSuccessEnvelope<{ id: number; code: string; libelle: string; is_active: boolean; created_at: DateTime<boolean>; updated_at: DateTime<boolean> | null; }>; __status: 200; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/admin_catalog.spec.ts(78,32): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { __response: ApiSuccessEnvelope<{ id: number; code: string; libelle: string; is_active: boolean; created_at: DateTime<boolean>; updated_at: DateTime<boolean> | null; }>; __status: 200; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/admin_catalog.spec.ts(88,32): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { __response: ApiSuccessEnvelope<{ id: number; code: string; libelle: string; is_active: boolean; created_at: DateTime<boolean>; updated_at: DateTime<boolean> | null; }>; __status: 200; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/admin_catalog.spec.ts(92,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/admin_catalog.spec.ts(92,31): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(47,18): error TS2352: Conversion of type 'ExtractResponse<void | { data: { user: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; token: string; }; }>' to type '{ message: string; }' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property 'message' is missing in type '{ data: { user: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; token: string; }; }' but required in type '{ message: string; }'.
+tests/functional/api_core.spec.ts(69,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(69,34): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(93,7): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(93,23): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(174,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(174,34): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(192,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(192,37): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(193,29): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(193,43): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(226,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(226,37): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(235,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(235,40): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(253,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(253,37): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(297,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(297,37): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(312,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(312,34): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(319,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(319,33): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(337,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(337,38): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(353,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(353,32): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(362,15): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(362,27): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(383,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(383,38): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(406,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(406,32): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(427,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(427,38): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(442,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(442,31): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(458,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(458,42): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(467,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(467,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(471,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(471,37): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(478,11): error TS6133: 'prixVenteTtc' is declared but its value is never read.
+tests/functional/api_core.spec.ts(491,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(491,33): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(512,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(512,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(516,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(516,31): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(526,11): error TS6133: 'prixVenteTtc' is declared but its value is never read.
+tests/functional/api_core.spec.ts(536,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(536,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(554,32): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { data: { user: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; token: string; }; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/api_core.spec.ts(558,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(558,31): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(574,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(574,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(593,32): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { data: { user: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; token: string; }; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/api_core.spec.ts(597,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(597,31): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(600,24): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(600,36): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(601,24): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(601,36): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(620,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(620,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(639,32): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { data: { user: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; token: string; }; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/api_core.spec.ts(643,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(643,31): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(660,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(660,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(679,32): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { data: { user: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; token: string; }; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/api_core.spec.ts(683,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(683,31): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(700,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(700,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(719,32): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { data: { user: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; token: string; }; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/api_core.spec.ts(723,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(723,31): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(724,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(724,31): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(731,24): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(731,40): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(732,24): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(732,40): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(739,11): error TS6133: 'adminToken' is declared but its value is never read.
+tests/functional/api_core.spec.ts(765,32): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { data: { user: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; token: string; }; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/api_core.spec.ts(775,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(775,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(776,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(776,32): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(777,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(777,32): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(778,27): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(778,41): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(789,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(789,30): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(790,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(790,30): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(791,27): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(791,39): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(814,32): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { data: { user: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; token: string; }; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/api_core.spec.ts(884,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(884,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(903,20): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(903,36): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(919,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(919,37): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(989,20): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(989,36): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(990,22): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(990,38): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(992,22): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(992,38): error TS2339: Property 'meta' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'meta' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; }'.
+tests/functional/api_core.spec.ts(1002,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1002,40): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1016,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1016,47): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1017,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1017,47): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1023,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1023,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1024,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1024,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1025,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1025,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1026,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1026,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1032,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1032,39): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1033,22): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1033,43): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1067,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1067,34): error TS2339: Property 'message' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'message' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; }'.
+tests/functional/api_core.spec.ts(1083,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1083,34): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1084,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1084,34): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1085,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1085,34): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1102,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1102,34): error TS2339: Property 'message' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'message' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; }'.
+tests/functional/api_core.spec.ts(1114,32): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { data: { user: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; token: string; }; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/api_core.spec.ts(1122,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1122,34): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1123,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1123,34): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1134,5): error TS2322: Type 'number' is not assignable to type 'string'.
+tests/functional/api_core.spec.ts(1158,5): error TS2322: Type 'number' is not assignable to type 'string'.
+tests/functional/api_core.spec.ts(1185,5): error TS2322: Type 'number' is not assignable to type 'string'.
+tests/functional/api_core.spec.ts(1219,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1219,34): error TS2339: Property 'message' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'message' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; }'.
+tests/functional/api_core.spec.ts(1238,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1238,34): error TS2339: Property 'message' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'message' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; }'.
+tests/functional/api_core.spec.ts(1259,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1259,38): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1269,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1269,32): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1270,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1270,32): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1271,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1271,32): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1272,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1272,32): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1281,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1281,32): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1282,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1282,32): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1283,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1283,32): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1300,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1300,38): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1309,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1309,36): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1310,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1310,36): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1319,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1319,38): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1320,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1320,38): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1321,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1321,38): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1329,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1329,34): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1352,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1352,38): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1353,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1353,36): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1360,22): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1360,36): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1361,34): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1361,48): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1393,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1393,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1394,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1394,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1407,22): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1407,36): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1408,34): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1408,48): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1444,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1444,41): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1454,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1454,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1455,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1455,33): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1487,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1487,41): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1497,11): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1497,25): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1506,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1506,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1540,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1540,41): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1556,11): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1556,25): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1573,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1573,37): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1574,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1574,37): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1575,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1575,37): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1576,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1576,37): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1577,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1577,37): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1595,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1595,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1596,11): error TS6133: 'ligneId' is declared but its value is never read.
+tests/functional/api_core.spec.ts(1596,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1596,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1602,28): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1602,42): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1632,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1632,44): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1641,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1641,40): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1642,11): error TS6133: 'ligneId' is declared but its value is never read.
+tests/functional/api_core.spec.ts(1642,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1642,40): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1673,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1673,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1674,11): error TS6133: 'ligneId' is declared but its value is never read.
+tests/functional/api_core.spec.ts(1674,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1674,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1704,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1704,41): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1719,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1719,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1747,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1747,34): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1766,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1766,34): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1796,32): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { data: { user: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; token: string; }; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/api_core.spec.ts(1806,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1806,37): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1818,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1818,41): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1830,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1830,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1841,32): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { data: { user: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; token: string; }; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/api_core.spec.ts(1845,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1845,30): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1871,32): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { data: { user: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; token: string; }; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/api_core.spec.ts(1881,28): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1881,40): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/api_core.spec.ts(1905,32): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { data: { user: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; token: string; }; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/api_core.spec.ts(1915,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/api_core.spec.ts(1915,37): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(21,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(21,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(38,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(38,44): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(76,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(76,44): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(88,20): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(88,32): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(110,26): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(110,45): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(174,26): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(174,45): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(221,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(221,33): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(238,26): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(238,45): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(269,20): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(269,39): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(283,20): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(283,38): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(307,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(307,40): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(339,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(339,40): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(374,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(374,33): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(399,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(399,38): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(415,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(415,33): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(442,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(442,32): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(461,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(461,32): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(462,20): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(462,34): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(468,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(468,30): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(482,27): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(482,46): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(500,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(500,38): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(501,21): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(501,36): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(552,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(552,44): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(568,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(568,32): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(587,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(587,44): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(604,17): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(604,31): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(620,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(620,44): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(646,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(646,40): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(654,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(654,33): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(655,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(655,33): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(666,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(666,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(667,20): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(667,36): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(668,22): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(668,38): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(670,27): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(670,43): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(694,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(694,44): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(715,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(715,35): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(725,20): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(725,36): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(726,20): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(726,36): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(738,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(738,44): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(763,22): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(763,37): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(774,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(774,36): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(799,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(799,44): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(821,19): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(821,34): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(839,24): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(839,44): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(859,23): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(859,38): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(873,25): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(873,42): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(883,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(883,39): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(884,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(884,39): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(885,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(885,39): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(886,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(886,39): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(887,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(887,39): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(897,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(897,41): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(898,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(898,41): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(899,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(899,41): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(900,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(900,41): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/depots.spec.ts(901,18): error TS2532: Object is possibly 'undefined'.
+tests/functional/depots.spec.ts(901,41): error TS2339: Property 'data' does not exist on type '{ data: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; } | ApiSuccessEnvelope<Record<string, unknown>[]> | ... 90 more ... | ApiSuccessEnvelope<...>'.
+  Property 'data' does not exist on type '{ message: string; }'.
+tests/functional/imports.spec.ts(182,34): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { data: { user: { createdAt: string | null; id: number; updatedAt: string | null; email: string; fullName: string | null; initials: string; }; token: string; }; }>'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/users_and_lock.spec.ts(23,35): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { __response: ApiSuccessEnvelope<{ id: number; nom: string | null; prenom: string | null; full_name: string | null; email: string; role: string; is_active: boolean; point_de_vente_id: number | null; permissions: ("achats" | ... 48 more ... | "imports")[]; permissions_granted: ("achats" | ... 4...'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/users_and_lock.spec.ts(57,34): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { __response: ApiSuccessEnvelope<{ id: number; nom: string | null; prenom: string | null; full_name: string | null; email: string; role: string; is_active: boolean; point_de_vente_id: number | null; permissions: ("achats" | ... 48 more ... | "imports")[]; permissions_granted: ("achats" | ... 4...'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/users_and_lock.spec.ts(64,38): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { __response: ApiSuccessEnvelope<{ message: string; user: { id: number; nom: string | null; prenom: string | null; full_name: string | null; email: string; role: string; is_active: boolean; point_de_vente_id: number | null; permissions: ("achats" | ... 48 more ... | "imports")[]; permissions_g...'.
+  Property 'data' does not exist on type 'void'.
+tests/functional/users_and_lock.spec.ts(75,36): error TS2339: Property 'data' does not exist on type 'ExtractResponse<void | { __response: ApiSuccessEnvelope<{ user_id: number; role: string; effective: ("achats" | "produits" | "ventes" | "categories" | "depots" | "points_de_vente" | "caisse" | "clients" | "reglements" | ... 40 more ... | "imports")[]; granted: ("achats" | ... 48 more ... | "imports")[] | null; role_...'.
+  Property 'data' does not exist on type 'void'.
+tests/unit/fne_certification_service.spec.ts(581,47): error TS2352: Conversion of type '{ modePaiementFne: null; }' to type 'Vente' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ modePaiementFne: null; }' is missing the following properties from type 'VenteSchema': $columns, airsiMontant, airsiPct, apiResponse, and 84 more.
+tests/unit/rapport_valeur_stock.spec.ts(29,7): error TS2322: Type 'null' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(52,41): error TS2345: Argument of type '{ unite: string; uniteGros: string | null; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(60,41): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(65,41): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(74,41): error TS2345: Argument of type '{ venteAuDetail: boolean; unite: string; uniteGros: string; contenance: number; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(81,35): error TS2345: Argument of type '{ venteAuDetail: boolean; unite: string; uniteGros: string; contenance: number; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(82,35): error TS2345: Argument of type '{ venteAuDetail: boolean; unite: string; uniteGros: string; contenance: number; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(86,46): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(87,48): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(94,33): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Property 'nom' is missing in type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' but required in type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+tests/unit/vente_unite_service.spec.ts(101,33): error TS2345: Argument of type '{ venteAuDetail: boolean; unite: string; uniteGros: string; contenance: number; }' is not assignable to parameter of type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Property 'nom' is missing in type '{ venteAuDetail: boolean; unite: string; uniteGros: string; contenance: number; }' but required in type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+tests/unit/vente_unite_service.spec.ts(109,35): error TS2345: Argument of type '{ venteAuDetail: boolean; unite: string; uniteGros: string; contenance: number; }' is not assignable to parameter of type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Property 'nom' is missing in type '{ venteAuDetail: boolean; unite: string; uniteGros: string; contenance: number; }' but required in type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+tests/unit/vente_unite_service.spec.ts(120,35): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Property 'nom' is missing in type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' but required in type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+tests/unit/vente_unite_service.spec.ts(127,33): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Property 'nom' is missing in type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' but required in type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+tests/unit/vente_unite_service.spec.ts(134,33): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Property 'nom' is missing in type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' but required in type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+tests/unit/vente_unite_service.spec.ts(140,44): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Property 'nom' is missing in type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' but required in type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+tests/unit/vente_unite_service.spec.ts(146,35): error TS2345: Argument of type '{ venteAuDetail: boolean; unite: string; uniteGros: string; contenance: number; }' is not assignable to parameter of type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Property 'nom' is missing in type '{ venteAuDetail: boolean; unite: string; uniteGros: string; contenance: number; }' but required in type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+tests/unit/vente_unite_service.spec.ts(158,32): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Property 'nom' is missing in type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' but required in type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+tests/unit/vente_unite_service.spec.ts(165,32): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Property 'nom' is missing in type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' but required in type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+tests/unit/vente_unite_service.spec.ts(172,32): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Property 'nom' is missing in type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' but required in type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+tests/unit/vente_unite_service.spec.ts(178,43): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Property 'nom' is missing in type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' but required in type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+tests/unit/vente_unite_service.spec.ts(179,43): error TS2345: Argument of type '{ unite: string; uniteGros: string | null; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Property 'nom' is missing in type '{ unite: string; uniteGros: string | null; contenance: number; venteAuDetail: boolean; }' but required in type 'Pick<Produit, "nom" | "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+tests/unit/vente_unite_service.spec.ts(185,41): error TS2345: Argument of type '{ unite: string; uniteGros: string | null; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(186,46): error TS2345: Argument of type '{ unite: string; uniteGros: string | null; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(222,68): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(237,7): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(250,71): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(262,67): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros" | "venteAuDetail">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(269,53): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(273,58): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(277,60): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(285,59): error TS2345: Argument of type '{ unite: string; uniteGros: string | null; contenance: number; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(286,58): error TS2345: Argument of type '{ unite: string; uniteGros: string | null; contenance: number; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(287,59): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(293,61): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(294,60): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(298,56): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(302,55): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(310,81): error TS2345: Argument of type '{ unite: string; uniteGros: string | null; contenance: number; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(319,76): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(327,39): error TS2345: Argument of type '{ plancher: number; unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "plancher" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(328,39): error TS2345: Argument of type '{ plancher: number; unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "plancher" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(329,43): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(330,44): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; }' is not assignable to parameter of type 'Pick<Produit, "contenance" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(334,47): error TS2345: Argument of type '{ unite: string; uniteGros: string; contenance: number; venteAuDetail: boolean; prixAchatHt: string; prixAchatTtc: string; frais: string; plancher: string; }' is not assignable to parameter of type 'Pick<Produit, "frais" | "prixAchatHt" | "contenance" | "plancher" | "prixAchatTtc" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(351,7): error TS2345: Argument of type '{ unite: string; uniteGros: string | null; contenance: number; venteAuDetail: boolean; prixAchatHt: string; prixAchatTtc: string; frais: string; plancher: string; }' is not assignable to parameter of type 'Pick<Produit, "frais" | "prixAchatHt" | "contenance" | "plancher" | "prixAchatTtc" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+tests/unit/vente_unite_service.spec.ts(367,47): error TS2345: Argument of type '{ unite: string; uniteGros: string | null; contenance: number; venteAuDetail: boolean; prixAchatHt: string; prixAchatTtc: string; frais: string; plancher: string; }' is not assignable to parameter of type 'Pick<Produit, "frais" | "prixAchatHt" | "contenance" | "plancher" | "prixAchatTtc" | "unite" | "uniteGros">'.
+  Types of property 'contenance' are incompatible.
+    Type 'number' is not assignable to type 'string'.
+[ info ] created ace file (build/ace.js)
+node.exe : Γò¡ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö
+ÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓò«
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Users\bslri\AppData\Roaming\ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Γò¡ΓöÇΓöÇΓöÇΓöÇ...ΓöÇΓöÇΓöÇΓöÇΓò«:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Γöé                                                                                             Γöé
+Γöé    Cannot complete the build process as there are TypeScript errors.                        Γöé
+Γöé    Use "--ignore-ts-errors" flag to ignore TypeScript errors and continue the build.        Γöé
+Γöé                                                                                             Γöé
+Γò░ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö
+ÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓ
+öÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓò»

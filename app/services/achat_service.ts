@@ -74,6 +74,21 @@ function buildReceptionCompleteLignes(
 export type LigneAchatRetourInput = {
   ligne_id: number
   quantite: number
+  depot_id?: number
+}
+
+export type LigneRetourDirectInput = {
+  produit_id: number
+  quantite: number
+  depot_id?: number
+}
+
+export type CreateRetourDirectInput = {
+  fournisseur_id: number
+  date_achat?: DateTime
+  notes?: string | null
+  depot_id?: number
+  lignes: LigneRetourDirectInput[]
 }
 
 export type CalculatedAchatLigne = {
@@ -89,6 +104,7 @@ export type CalculatedAchatLigne = {
   montantHt: number
   montantTva: number
   montantTtc: number
+  depotId?: number
 }
 
 export class AchatBusinessError extends Error {
@@ -755,8 +771,7 @@ async function applyStockSortieAchatRetour(
   numero: string,
   lignes: CalculatedAchatLigne[],
   userId: number,
-  trx: TransactionClientContract,
-  depotId?: number | null
+  trx: TransactionClientContract
 ) {
   for (const l of lignes) {
     await stockSortie(
@@ -767,9 +782,16 @@ async function applyStockSortieAchatRetour(
       userId,
       trx,
       `Retour achat ${numero}`,
-      depotId ?? undefined
+      l.depotId
     )
   }
+}
+
+function resolveRetourAchatDepotId(lignes: CalculatedAchatLigne[]): number | null {
+  if (lignes.length === 0) return null
+  const first = lignes[0].depotId
+  if (first === undefined) return null
+  return lignes.every((l) => l.depotId === first) ? first : null
 }
 
 /**
@@ -782,7 +804,8 @@ export async function creerAchatRetour(
   userId: number,
   pointDeVenteId: number,
   posCode: string,
-  notes?: string | null
+  notes?: string | null,
+  defaultDepotId?: number
 ) {
   const numeroRetour = await generateAchatRetourNumero(posCode)
 
@@ -828,6 +851,12 @@ export async function creerAchatRetour(
         Number(ligneOrigine.tvaPct)
       )
 
+      const ligneDepot = await resolveDepotForPointDeVente(
+        pointDeVenteId,
+        item.depot_id ?? defaultDepotId ?? achat.depotId ?? undefined,
+        trx
+      )
+
       lignesCalculees.push({
         produitId: ligneOrigine.produitId,
         designation: ligneOrigine.designation,
@@ -840,6 +869,7 @@ export async function creerAchatRetour(
         montantHt,
         montantTva,
         montantTtc,
+        depotId: ligneDepot.id,
       })
 
       ligneOrigine.quantiteRetournee = roundMoney(dejaRetourne + item.quantite)
@@ -853,6 +883,7 @@ export async function creerAchatRetour(
       {
         numero: numeroRetour,
         pointDeVenteId,
+        depotId: resolveRetourAchatDepotId(lignesCalculees),
         fournisseurId: achat.fournisseurId,
         userId,
         achatOrigineId: achat.id,
@@ -892,6 +923,7 @@ export async function creerAchatRetour(
           montantTtc: l.montantTtc,
           quantiteRetournee: 0,
           ligneOrigineId: origine.ligne_id,
+          depotId: l.depotId ?? null,
         },
         { client: trx }
       )
@@ -902,8 +934,7 @@ export async function creerAchatRetour(
       retour.numero,
       lignesCalculees,
       userId,
-      trx,
-      achat.depotId
+      trx
     )
 
     await adjustFournisseurSoldePdv(
@@ -917,6 +948,108 @@ export async function creerAchatRetour(
     await achat.save()
 
     return { retour, achat }
+  })
+}
+
+/**
+ * Retour fournisseur libre — sans achat d'origine.
+ * Prix catalogue / dernier achat ; sortie stock immédiate par dépôt.
+ */
+export async function creerRetourDirect(
+  data: CreateRetourDirectInput,
+  userId: number,
+  pointDeVenteId: number,
+  posCode: string
+) {
+  const numero = await generateAchatRetourNumero(posCode)
+
+  return Achat.transaction(async (trx) => {
+    const fournisseur = await Fournisseur.query({ client: trx })
+      .where('id', data.fournisseur_id)
+      .where('is_active', true)
+      .first()
+    if (!fournisseur) throw new AchatBusinessError('Fournisseur introuvable')
+
+    const calculated = await buildLignesFromPayload(
+      data.lignes.map((l) => ({
+        produit_id: l.produit_id,
+        quantite: l.quantite,
+      })),
+      trx
+    )
+
+    const lignesCalculees: CalculatedAchatLigne[] = []
+    for (let i = 0; i < calculated.length; i++) {
+      const item = data.lignes[i]
+      const ligneDepot = await resolveDepotForPointDeVente(
+        pointDeVenteId,
+        item.depot_id ?? data.depot_id ?? undefined,
+        trx
+      )
+      lignesCalculees.push({ ...calculated[i], depotId: ligneDepot.id })
+    }
+
+    const totaux = calculerTotauxAchat(lignesCalculees)
+
+    const retour = await Achat.create(
+      {
+        numero,
+        pointDeVenteId,
+        depotId: resolveRetourAchatDepotId(lignesCalculees),
+        fournisseurId: data.fournisseur_id,
+        userId,
+        achatOrigineId: null,
+        dateAchat: data.date_achat ?? DateTime.now(),
+        dateReception: DateTime.now(),
+        statut: ACHAT_STATUT.RETOUR,
+        statutPaiement: 'non_paye',
+        sousTotal: totaux.sousTotal,
+        remiseMontant: 0,
+        tvaMontant: totaux.tvaMontant,
+        totalTtc: totaux.totalTtc,
+        montantPaye: 0,
+        resteAPayer: totaux.totalTtc,
+        referenceFournisseur: null,
+        notes: data.notes ?? 'Retour fournisseur',
+      },
+      { client: trx }
+    )
+
+    for (const l of lignesCalculees) {
+      await AchatLigne.create(
+        {
+          achatId: retour.id,
+          produitId: l.produitId,
+          designation: l.designation,
+          modeAchat: l.modeAchat,
+          quantite: l.quantite,
+          quantiteStock: l.quantiteStock,
+          quantiteRecue: l.quantite,
+          prixUnitaireHt: l.prixUnitaireHt,
+          frais: l.frais,
+          remisePct: l.remisePct,
+          tvaPct: l.tvaPct,
+          montantHt: l.montantHt,
+          montantTva: l.montantTva,
+          montantTtc: l.montantTtc,
+          quantiteRetournee: 0,
+          ligneOrigineId: null,
+          depotId: l.depotId ?? null,
+        },
+        { client: trx }
+      )
+    }
+
+    await applyStockSortieAchatRetour(retour.id, retour.numero, lignesCalculees, userId, trx)
+
+    await adjustFournisseurSoldePdv(
+      data.fournisseur_id,
+      pointDeVenteId,
+      -totaux.totalTtc,
+      trx
+    )
+
+    return retour
   })
 }
 

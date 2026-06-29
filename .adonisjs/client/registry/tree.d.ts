@@ -76,7 +76,7 @@ export interface ApiDefinition {
   imports: {
     clients: typeof routes['imports.clients']
     fournisseurs: typeof routes['imports.fournisseurs']
-    stock: typeof routes['imports.stock']
+    articles: typeof routes['imports.articles']
   }
   categories: {
     categories: {
@@ -145,7 +145,9 @@ export interface ApiDefinition {
     update: typeof routes['achats.update']
     annuler: typeof routes['achats.annuler']
     recevoir: typeof routes['achats.recevoir']
-    retour: typeof routes['achats.retour']
+    retour: typeof routes['achats.retour'] & {
+      create: typeof routes['achats.retour.create']
+    }
     paiement: typeof routes['achats.paiement']
   }
   caisse: {

@@ -595,16 +595,16 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['fournisseurs']>>>
     }
   }
-  'imports.stock': {
+  'imports.articles': {
     methods: ["POST"]
-    pattern: '/api/v1/imports/stock'
+    pattern: '/api/v1/imports/articles'
     types: {
       body: {}
       paramsTuple: []
       params: {}
       query: {}
-      response: ExtractResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['stock']>>>
-      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['stock']>>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['articles']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['articles']>>>
     }
   }
   'categories.categories.search': {
@@ -1181,6 +1181,18 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/achat_validator').achatRecevoirValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/achats_controller').default['recevoir']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/achats_controller').default['recevoir']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'achats.retour.create': {
+    methods: ["POST"]
+    pattern: '/api/v1/achats/retour/create'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/achat_validator').achatRetourCreateValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/achat_validator').achatRetourCreateValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/achats_controller').default['retourCreate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/achats_controller').default['retourCreate']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'achats.retour': {

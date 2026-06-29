@@ -60,7 +60,7 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
   { key: 'tva_admin', label: 'Gérer les groupes TVA', group: 'Administration' },
   { key: 'categories_admin', label: 'Gérer les catégories produits', group: 'Administration' },
   { key: 'depense_categories_admin', label: 'Gérer les catégories de dépenses', group: 'Administration' },
-  { key: 'imports', label: 'Import Excel (clients, fournisseurs, stock)', group: 'Administration' },
+  { key: 'imports', label: 'Import Excel (clients, fournisseurs, articles)', group: 'Administration' },
 ]
 
 /**

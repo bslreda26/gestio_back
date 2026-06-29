@@ -8,12 +8,14 @@ import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
 export class AchatLigneSchema extends BaseModel {
-  static $columns = ['achatId', 'createdAt', 'designation', 'frais', 'id', 'ligneOrigineId', 'modeAchat', 'montantHt', 'montantTtc', 'montantTva', 'prixUnitaireHt', 'produitId', 'quantite', 'quantiteRecue', 'quantiteRetournee', 'quantiteStock', 'remisePct', 'tvaPct', 'updatedAt'] as const
+  static $columns = ['achatId', 'createdAt', 'depotId', 'designation', 'frais', 'id', 'ligneOrigineId', 'modeAchat', 'montantHt', 'montantTtc', 'montantTva', 'prixUnitaireHt', 'produitId', 'quantite', 'quantiteRecue', 'quantiteRetournee', 'quantiteStock', 'remisePct', 'tvaPct', 'updatedAt'] as const
   $columns = AchatLigneSchema.$columns
   @column()
   declare achatId: number
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
+  @column()
+  declare depotId: number | null
   @column()
   declare designation: string
   @column()

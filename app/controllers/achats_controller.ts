@@ -19,6 +19,7 @@ import {
   annulerAchat,
   creerAchat,
   creerAchatRetour,
+  creerRetourDirect,
   enregistrerPaiementAchat,
   getLigneAchatInfo,
   modifierAchat,
@@ -33,6 +34,7 @@ import {
   achatPaiementValidator,
   achatRecevoirValidator,
   achatRetourValidator,
+  achatRetourCreateValidator,
   achatSearchValidator,
   achatUpdateValidator,
 } from '#validators/achat_validator'
@@ -242,6 +244,34 @@ export default class AchatsController {
     }
   }
 
+  async retourCreate(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(achatRetourCreateValidator)
+
+    try {
+      const pos = requirePointDeVente(ctx)
+      const retour = await creerRetourDirect(
+        {
+          fournisseur_id: payload.fournisseur_id,
+          date_achat: payload.date_achat,
+          notes: payload.notes ?? null,
+          depot_id: payload.depot_id,
+          lignes: payload.lignes,
+        },
+        ctx.auth.getUserOrFail().id,
+        pos.pointDeVenteId,
+        pos.pointDeVenteCode
+      )
+      const lignes = await AchatLigne.query().where('achat_id', retour.id)
+      return sendSuccess(ctx, {
+        message: 'Retour fournisseur créé — stock sorti',
+        retour,
+        lignes,
+      })
+    } catch (error) {
+      return handleAchatError(ctx, error)
+    }
+  }
+
   async retour(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(achatRetourValidator)
     const achatOrigine = await Achat.find(payload.achat_id)
@@ -256,7 +286,8 @@ export default class AchatsController {
         ctx.auth.getUserOrFail().id,
         pos.pointDeVenteId,
         pos.pointDeVenteCode,
-        payload.notes ?? null
+        payload.notes ?? null,
+        payload.depot_id
       )
       const lignes = await AchatLigne.query().where('achat_id', retour.id)
       return sendSuccess(ctx, {

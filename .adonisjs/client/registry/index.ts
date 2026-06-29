@@ -300,11 +300,11 @@ const routes = {
     tokens: [{"old":"/api/v1/imports/fournisseurs","type":0,"val":"api","end":""},{"old":"/api/v1/imports/fournisseurs","type":0,"val":"v1","end":""},{"old":"/api/v1/imports/fournisseurs","type":0,"val":"imports","end":""},{"old":"/api/v1/imports/fournisseurs","type":0,"val":"fournisseurs","end":""}],
     types: placeholder as Registry['imports.fournisseurs']['types'],
   },
-  'imports.stock': {
+  'imports.articles': {
     methods: ["POST"],
-    pattern: '/api/v1/imports/stock',
-    tokens: [{"old":"/api/v1/imports/stock","type":0,"val":"api","end":""},{"old":"/api/v1/imports/stock","type":0,"val":"v1","end":""},{"old":"/api/v1/imports/stock","type":0,"val":"imports","end":""},{"old":"/api/v1/imports/stock","type":0,"val":"stock","end":""}],
-    types: placeholder as Registry['imports.stock']['types'],
+    pattern: '/api/v1/imports/articles',
+    tokens: [{"old":"/api/v1/imports/articles","type":0,"val":"api","end":""},{"old":"/api/v1/imports/articles","type":0,"val":"v1","end":""},{"old":"/api/v1/imports/articles","type":0,"val":"imports","end":""},{"old":"/api/v1/imports/articles","type":0,"val":"articles","end":""}],
+    types: placeholder as Registry['imports.articles']['types'],
   },
   'categories.categories.search': {
     methods: ["POST"],
@@ -593,6 +593,12 @@ const routes = {
     pattern: '/api/v1/achats/recevoir',
     tokens: [{"old":"/api/v1/achats/recevoir","type":0,"val":"api","end":""},{"old":"/api/v1/achats/recevoir","type":0,"val":"v1","end":""},{"old":"/api/v1/achats/recevoir","type":0,"val":"achats","end":""},{"old":"/api/v1/achats/recevoir","type":0,"val":"recevoir","end":""}],
     types: placeholder as Registry['achats.recevoir']['types'],
+  },
+  'achats.retour.create': {
+    methods: ["POST"],
+    pattern: '/api/v1/achats/retour/create',
+    tokens: [{"old":"/api/v1/achats/retour/create","type":0,"val":"api","end":""},{"old":"/api/v1/achats/retour/create","type":0,"val":"v1","end":""},{"old":"/api/v1/achats/retour/create","type":0,"val":"achats","end":""},{"old":"/api/v1/achats/retour/create","type":0,"val":"retour","end":""},{"old":"/api/v1/achats/retour/create","type":0,"val":"create","end":""}],
+    types: placeholder as Registry['achats.retour.create']['types'],
   },
   'achats.retour': {
     methods: ["POST"],

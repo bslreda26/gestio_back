@@ -53,7 +53,7 @@ export type ScannedRoutes = {
     'fournisseurs.fournisseurs.achats': { paramsTuple?: []; params?: {} }
     'imports.clients': { paramsTuple?: []; params?: {} }
     'imports.fournisseurs': { paramsTuple?: []; params?: {} }
-    'imports.stock': { paramsTuple?: []; params?: {} }
+    'imports.articles': { paramsTuple?: []; params?: {} }
     'categories.categories.search': { paramsTuple?: []; params?: {} }
     'categories.categories.show': { paramsTuple?: []; params?: {} }
     'categories.categories.create': { paramsTuple?: []; params?: {} }
@@ -102,6 +102,7 @@ export type ScannedRoutes = {
     'achats.update': { paramsTuple?: []; params?: {} }
     'achats.annuler': { paramsTuple?: []; params?: {} }
     'achats.recevoir': { paramsTuple?: []; params?: {} }
+    'achats.retour.create': { paramsTuple?: []; params?: {} }
     'achats.retour': { paramsTuple?: []; params?: {} }
     'achats.paiement': { paramsTuple?: []; params?: {} }
     'caisse.solde': { paramsTuple?: []; params?: {} }
@@ -217,7 +218,7 @@ export type ScannedRoutes = {
     'fournisseurs.fournisseurs.achats': { paramsTuple?: []; params?: {} }
     'imports.clients': { paramsTuple?: []; params?: {} }
     'imports.fournisseurs': { paramsTuple?: []; params?: {} }
-    'imports.stock': { paramsTuple?: []; params?: {} }
+    'imports.articles': { paramsTuple?: []; params?: {} }
     'categories.categories.search': { paramsTuple?: []; params?: {} }
     'categories.categories.show': { paramsTuple?: []; params?: {} }
     'categories.categories.create': { paramsTuple?: []; params?: {} }
@@ -265,6 +266,7 @@ export type ScannedRoutes = {
     'achats.update': { paramsTuple?: []; params?: {} }
     'achats.annuler': { paramsTuple?: []; params?: {} }
     'achats.recevoir': { paramsTuple?: []; params?: {} }
+    'achats.retour.create': { paramsTuple?: []; params?: {} }
     'achats.retour': { paramsTuple?: []; params?: {} }
     'achats.paiement': { paramsTuple?: []; params?: {} }
     'caisse.mouvements.search': { paramsTuple?: []; params?: {} }

@@ -236,8 +236,8 @@ router
               .as('fournisseurs')
               .use(middleware.role({ permission: 'imports' }))
             router
-              .post('stock', [ImportsController, 'stock'])
-              .as('stock')
+              .post('articles', [ImportsController, 'articles'])
+              .as('articles')
               .use(middleware.role({ permission: 'imports' }))
           })
           .prefix('imports')
@@ -360,6 +360,10 @@ router
             router.post('update', [AchatsController, 'update']).as('update').use(middleware.role({ permission: 'achats_write' }))
             router.post('annuler', [AchatsController, 'annuler']).as('annuler').use(middleware.role({ permission: 'achats_write' }))
             router.post('recevoir', [AchatsController, 'recevoir']).as('recevoir').use(middleware.role({ permission: 'achats_write' }))
+            router
+              .post('retour/create', [AchatsController, 'retourCreate'])
+              .as('retour.create')
+              .use(middleware.role({ permission: 'achats_write' }))
             router.post('retour', [AchatsController, 'retour']).as('retour').use(middleware.role({ permission: 'achats_write' }))
             router.post('paiement', [AchatsController, 'paiement']).as('paiement').use(middleware.role({ permission: 'achats_paiement' }))
           })

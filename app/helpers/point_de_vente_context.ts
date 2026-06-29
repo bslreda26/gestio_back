@@ -1,6 +1,7 @@
 import PointDeVente from '#models/point_de_vente'
 import { sendError } from '#helpers/api_response'
 import type { HttpContext } from '@adonisjs/core/http'
+import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 
 export type PointDeVenteContext = {
   pointDeVenteId: number
@@ -20,10 +21,10 @@ export function requirePointDeVente(ctx: HttpContext): PointDeVenteContext {
   return ctx.pointDeVente
 }
 
-export function scopeByPointDeVente<T extends { where: (column: string, value: unknown) => T }>(
-  query: T,
+export function scopeByPointDeVente<Model extends LucidModel>(
+  query: ModelQueryBuilderContract<Model>,
   pointDeVenteId: number
-): T {
+): ModelQueryBuilderContract<Model> {
   return query.where('point_de_vente_id', pointDeVenteId)
 }
 

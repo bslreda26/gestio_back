@@ -4,7 +4,7 @@ import { parseImportBooleanField, parseImportNumberField, readImportExcelFile } 
 import { requirePointDeVente } from '#helpers/point_de_vente_context'
 import { importClientsFromRows } from '#services/client_import_service'
 import { importFournisseursFromRows } from '#services/fournisseur_import_service'
-import { importStockFromRows } from '#services/stock_import_service'
+import { importArticlesFromRows } from '#services/article_import_service'
 import type { HttpContext } from '@adonisjs/core/http'
 
 export default class ImportsController {
@@ -45,25 +45,19 @@ export default class ImportsController {
     }
   }
 
-  async stock(ctx: HttpContext) {
+  async articles(ctx: HttpContext) {
     const buffer = await readImportExcelFile(ctx)
     if (!buffer) return
 
     const updateExisting = parseImportBooleanField(ctx.request.input('update_existing'), true)
-    const createMissingProducts = parseImportBooleanField(
-      ctx.request.input('create_missing_products'),
-      true
-    )
     const tvaGroupeId = parseImportNumberField(ctx.request.input('tva_groupe_id'))
 
     try {
       const rows = await parseExcelRows(buffer)
       const pos = requirePointDeVente(ctx)
-      const summary = await importStockFromRows(rows, {
+      const summary = await importArticlesFromRows(rows, {
         pointDeVenteId: pos.pointDeVenteId,
-        userId: ctx.auth.getUserOrFail().id,
         updateExisting,
-        createMissingProducts,
         tvaGroupeId,
       })
       return sendSuccess(ctx, summary)

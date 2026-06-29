@@ -1,6 +1,7 @@
 import { test } from '@japa/runner'
 import Depot from '#models/depot'
 import DepotStock from '#models/depot_stock'
+import Fournisseur from '#models/fournisseur'
 import Produit from '#models/produit'
 import { authedPos, loginAsAdmin, openCaisse } from '../helpers/auth.js'
 import { withIsolatedTest } from '../helpers/setup.js'
@@ -538,6 +539,91 @@ test.group('API — dépôts & stock multi-dépôt', (group) => {
 
     assert.equal(defaultAfterRetour, defaultBefore - 2)
     assert.equal(Number(returnDepotRow.quantite), 1)
+  })
+
+  test('achat retour removes stock from the selected depot per line', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0002')
+    const fournisseur = await Fournisseur.findByOrFail('code', 'FRN-0001')
+    const defaultDepot = await Depot.query().where('is_default', true).firstOrFail()
+
+    const createDepot = await authedPos(client, token).post('/api/v1/depots/create').json({
+      code: 'RETACH',
+      nom: 'Dépôt retour achat',
+    })
+    const secondaryDepotId = createDepot.body().data.id
+
+    const create = await authedPos(client, token).post('/api/v1/achats/create').json({
+      fournisseur_id: fournisseur.id,
+      date_achat: '2026-06-10',
+      lignes: [{ produit_id: produit.id, quantite: 100, prix_unitaire_ht: 1000 }],
+    })
+    create.assertStatus(200)
+    const achatId = create.body().data.achat.id
+    const ligneId = create.body().data.lignes[0].id
+
+    const recevoir = await authedPos(client, token).post('/api/v1/achats/recevoir').json({
+      id: achatId,
+      date_reception: '2026-06-10',
+      depot_id: defaultDepot.id,
+    })
+    recevoir.assertStatus(200)
+
+    const transfert = await authedPos(client, token).post('/api/v1/depots/transfert').json({
+      produit_id: produit.id,
+      quantite: 50,
+      depot_source_id: defaultDepot.id,
+      depot_dest_id: secondaryDepotId,
+    })
+    transfert.assertStatus(200)
+
+    const defaultBefore = Number(
+      (
+        await DepotStock.query()
+          .where('depot_id', defaultDepot.id)
+          .where('produit_id', produit.id)
+          .firstOrFail()
+      ).quantite
+    )
+    const secondaryBefore = Number(
+      (
+        await DepotStock.query()
+          .where('depot_id', secondaryDepotId)
+          .where('produit_id', produit.id)
+          .firstOrFail()
+      ).quantite
+    )
+    assert.equal(defaultBefore, 50)
+    assert.equal(secondaryBefore, 50)
+
+    const retour = await authedPos(client, token).post('/api/v1/achats/retour').json({
+      achat_id: achatId,
+      lignes: [
+        { ligne_id: ligneId, quantite: 50, depot_id: defaultDepot.id },
+        { ligne_id: ligneId, quantite: 20, depot_id: secondaryDepotId },
+      ],
+    })
+    retour.assertStatus(200)
+
+    const defaultAfter = Number(
+      (
+        await DepotStock.query()
+          .where('depot_id', defaultDepot.id)
+          .where('produit_id', produit.id)
+          .firstOrFail()
+      ).quantite
+    )
+    const secondaryAfter = Number(
+      (
+        await DepotStock.query()
+          .where('depot_id', secondaryDepotId)
+          .where('produit_id', produit.id)
+          .firstOrFail()
+      ).quantite
+    )
+
+    assert.equal(defaultAfter, 0)
+    assert.equal(secondaryAfter, 30)
   })
 
   test('stock search exposes per-depot breakdown', async ({ client, assert }) => {

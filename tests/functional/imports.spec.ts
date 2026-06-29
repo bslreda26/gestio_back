@@ -1,7 +1,5 @@
 import { test } from '@japa/runner'
 import Client from '#models/client'
-import Depot from '#models/depot'
-import DepotStock from '#models/depot_stock'
 import Fournisseur from '#models/fournisseur'
 import Produit from '#models/produit'
 import TvaGroupe from '#models/tva_groupe'
@@ -77,25 +75,34 @@ test.group('API — import Excel', (group) => {
     }
   })
 
-  test('imports stock with depot code quantity plancher and designation', async ({
+  test('imports articles with code designation tva prices and stock thresholds', async ({
     client,
     assert,
   }) => {
     const token = await loginAsAdmin(client)
-    const defaultDepot = await Depot.query().where('is_default', true).firstOrFail()
     const ref = await Produit.findByOrFail('code', 'PRD-0001')
 
     const filePath = await buildExcelFile(
-      ['Code', 'Désignation', 'Dépôt', 'Quantité', 'Plancher', 'TVA', 'AIRSI'],
       [
-        ['PRD-ERP-100', 'Produit import test', defaultDepot.code, 25, 1500, 18, 1.5],
-        [ref.code, ref.nom, defaultDepot.code, 42, 999, 9, 2],
+        'Code',
+        'Désignation',
+        'TVA',
+        'Plancher',
+        'Prix vente TTC',
+        'Prix achat HT',
+        'Stock min',
+        'Stock max',
+        'AIRSI',
+      ],
+      [
+        ['PRD-ERP-100', 'Produit import test', 18, 1500, 2500, 1200, 5, 100, 1.5],
+        [ref.code, 'Produit mis à jour', 9, 999, 1800, 900, 2, 50, 2],
       ]
     )
 
     try {
       const response = await authedPos(client, token)
-        .post('/api/v1/imports/stock')
+        .post('/api/v1/imports/articles')
         .file('file', filePath)
 
       response.assertStatus(200)
@@ -115,25 +122,23 @@ test.group('API — import Excel', (group) => {
 
       assert.equal(imported.nom, 'Produit import test')
       assert.equal(Number(imported.plancher), 1500)
+      assert.equal(Number(imported.prixVenteTtc), 2500)
+      assert.equal(Number(imported.prixAchatHt), 1200)
+      assert.equal(Number(imported.stockMinimum), 5)
+      assert.equal(Number(imported.stockMaximum), 100)
 
       const tva18 = await TvaGroupe.findByOrFail('code', 'TVA18')
       const tva9 = await TvaGroupe.findByOrFail('code', 'TVA9')
       assert.equal(imported.tvaGroupeId, tva18.id)
       assert.equal(Number(imported.airsiPct), 1.5)
 
-      const depotStock = await DepotStock.query()
-        .where('produit_id', imported.id)
-        .where('depot_id', defaultDepot.id)
-        .firstOrFail()
-      assert.equal(Number(depotStock.quantite), 25)
-
       await ref.refresh()
-      const refDepotStock = await DepotStock.query()
-        .where('produit_id', ref.id)
-        .where('depot_id', defaultDepot.id)
-        .firstOrFail()
-      assert.equal(Number(refDepotStock.quantite), 42)
+      assert.equal(ref.nom, 'Produit mis à jour')
       assert.equal(Number(ref.plancher), 999)
+      assert.equal(Number(ref.prixVenteTtc), 1800)
+      assert.equal(Number(ref.prixAchatHt), 900)
+      assert.equal(Number(ref.stockMinimum), 2)
+      assert.equal(Number(ref.stockMaximum), 50)
       assert.equal(ref.tvaGroupeId, tva9.id)
       assert.equal(Number(ref.airsiPct), 2)
     } finally {

@@ -1422,6 +1422,40 @@ test.group('API — retours & caisse', (group) => {
     assert.equal(Number(caisse.soldeActuel), soldeAfterOpen + montantRetour)
   })
 
+  test('standalone achat retour create decreases stock without origin achat', async ({
+    client,
+    assert,
+  }) => {
+    const token = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0001')
+    const fournisseur = await Fournisseur.findByOrFail('code', 'FRN-0001')
+    const stockBefore = Number(produit.stockActuel)
+
+    const response = await authedPos(client, token).post('/api/v1/achats/retour/create').json({
+      fournisseur_id: fournisseur.id,
+      date_achat: '2026-06-10',
+      lignes: [{ produit_id: produit.id, quantite: 3 }],
+    })
+    response.assertStatus(200)
+
+    const body = response.body() as {
+      data: {
+        retour: { statut: string; achatOrigineId: number | null; totalTtc: string }
+        lignes: Array<{ produitId: number; quantite: string }>
+      }
+    }
+
+    assert.equal(body.data.retour.statut, 'retour')
+    assert.isNull(body.data.retour.achatOrigineId)
+    assert.equal(body.data.lignes.length, 1)
+    assert.equal(body.data.lignes[0].produitId, produit.id)
+    assert.equal(Number(body.data.lignes[0].quantite), 3)
+    assert.isAbove(Number(body.data.retour.totalTtc), 0)
+
+    await produit.refresh()
+    assert.equal(Number(produit.stockActuel), stockBefore - 3)
+  })
+
   test('achat en gros increments stock in detail units', async ({ client, assert }) => {
     const token = await loginAsAdmin(client)
     const fournisseur = await Fournisseur.findByOrFail('code', 'FRN-0001')
