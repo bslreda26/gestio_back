@@ -929,6 +929,7 @@ export async function convertirDevisEnFacture(
       statut: VENTE_STATUT.NON_VALIDE,
       numero: nouveauNumero,
       depotId: depot.id,
+      factureImpressionCount: 0,
       sousTotal: totaux.sousTotal,
       remiseMontant: totaux.remiseMontant,
       totalHt: totaux.totalHt,

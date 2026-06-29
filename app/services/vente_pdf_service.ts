@@ -1,7 +1,7 @@
 import type { VenteImpressionContext } from '#services/vente_impression_service'
 import { statutPaiementLabel } from '#services/vente_impression_service'
 import { venteTotalAPayer } from '#helpers/timbre'
-import { VENTE_STATUT, isFactureRetour } from '#constants/vente_statuts'
+import { VENTE_STATUT, isDevis, isFactureRetour } from '#constants/vente_statuts'
 import PDFDocument from 'pdfkit'
 
 const PAGE_MARGIN = 48
@@ -479,16 +479,16 @@ function drawFooter(doc: PdfDoc, ctx: VenteImpressionContext, contentBottomY: nu
   }
 
   drawLine(doc, footerY)
+  const footerMeta = `Genere le ${ctx.generatedAt.toFormat('dd/MM/yyyy a HH:mm')}`
+  const footerText =
+    ctx.type === 'facture' && !isDevis(ctx.vente.statut) && ctx.impression.impression_numero > 0
+      ? `Impression n°${ctx.impression.impression_numero}  ·  ${footerMeta}`
+      : footerMeta
   doc
     .font('Helvetica')
     .fontSize(7)
     .fillColor(C.light)
-    .text(
-      `Impression n°${ctx.impression.impression_numero}  ·  Genere le ${ctx.generatedAt.toFormat('dd/MM/yyyy a HH:mm')}`,
-      PAGE_MARGIN,
-      footerY + 8,
-      { width: CONTENT_WIDTH, align: 'center' }
-    )
+    .text(footerText, PAGE_MARGIN, footerY + 8, { width: CONTENT_WIDTH, align: 'center' })
 }
 
 function renderPdf(render: (doc: PdfDoc) => void): Promise<Buffer> {

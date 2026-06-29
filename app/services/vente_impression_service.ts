@@ -1,4 +1,4 @@
-import { isFactureValide, VENTE_STATUT, VENTE_STATUT_LABELS } from '#constants/vente_statuts'
+import { isFactureValide, isDevis, VENTE_STATUT, VENTE_STATUT_LABELS } from '#constants/vente_statuts'
 import { parseFneApiResponse, type ParsedFneResponse } from '#helpers/fne_response_parser'
 import { loadProduitCodeMap } from '#helpers/produit_codes'
 import { generateQrCodePng } from '#helpers/qr_code'
@@ -81,6 +81,17 @@ function assertImpressionAllowed(vente: Vente, type: VenteImpressionType) {
   }
 }
 
+/** Compteur facture / duplicata : uniquement hors devis. */
+function isDevisFacturePrint(vente: Vente, type: VenteImpressionType): boolean {
+  return type === 'facture' && isDevis(vente.statut)
+}
+
+const DEVIS_IMPRESSION_LABEL: VenteImpressionLabel = {
+  impression_numero: 0,
+  is_duplicata: false,
+  label: '1',
+}
+
 export async function recordVenteImpression(
   venteId: number,
   type: VenteImpressionType
@@ -88,6 +99,10 @@ export async function recordVenteImpression(
   return db.transaction(async (trx) => {
     const vente = await Vente.query({ client: trx }).where('id', venteId).forUpdate().firstOrFail()
     assertImpressionAllowed(vente, type)
+
+    if (isDevisFacturePrint(vente, type)) {
+      return DEVIS_IMPRESSION_LABEL
+    }
 
     const field = type === 'facture' ? 'factureImpressionCount' : 'bonSortieImpressionCount'
     const next = Number(vente[field] ?? 0) + 1

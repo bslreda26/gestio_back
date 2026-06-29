@@ -957,6 +957,60 @@ test.group('API — ventes & stock', (group) => {
     assert.equal(vente.factureImpressionCount, 2)
     assert.equal(vente.bonSortieImpressionCount, 1)
   })
+
+  test('devis impressions do not count toward facture duplicata', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0002')
+
+    const create = await authedPos(client, token).post('/api/v1/ventes/create').json({
+      statut: 'devis',
+      client_id: 1,
+      date_vente: '2026-06-10',
+      lignes: [{ produit_id: produit.id, quantite: 1, prix_unitaire: 15000 }],
+    })
+    create.assertStatus(200)
+    const devisId = create.body().data.vente.id
+
+    for (let i = 0; i < 3; i++) {
+      const print = await authedPos(client, token).post('/api/v1/ventes/imprimer').json({
+        id: devisId,
+        type: 'facture',
+      })
+      print.assertStatus(200)
+      assert.equal(print.headers()['x-impression-label'], '1')
+      assert.equal(print.headers()['x-impression-duplicata'], 'false')
+    }
+
+    let vente = await Vente.findOrFail(devisId)
+    assert.equal(vente.factureImpressionCount, 0)
+
+    await openCaisse(client, token)
+    const convert = await authedPos(client, token)
+      .post('/api/v1/ventes/convertir-facture')
+      .json({ id: devisId })
+    convert.assertStatus(200)
+
+    const firstFacture = await authedPos(client, token).post('/api/v1/ventes/imprimer').json({
+      id: devisId,
+      type: 'facture',
+    })
+    firstFacture.assertStatus(200)
+    assert.equal(firstFacture.headers()['x-impression-numero'], '1')
+    assert.equal(firstFacture.headers()['x-impression-label'], '1')
+    assert.equal(firstFacture.headers()['x-impression-duplicata'], 'false')
+
+    const secondFacture = await authedPos(client, token).post('/api/v1/ventes/imprimer').json({
+      id: devisId,
+      type: 'facture',
+    })
+    secondFacture.assertStatus(200)
+    assert.equal(secondFacture.headers()['x-impression-numero'], '2')
+    assert.equal(secondFacture.headers()['x-impression-label'], 'DUPLICATA')
+    assert.equal(secondFacture.headers()['x-impression-duplicata'], 'true')
+
+    vente = await Vente.findOrFail(devisId)
+    assert.equal(vente.factureImpressionCount, 2)
+  })
 })
 
 test.group('API — caisse & depenses', (group) => {

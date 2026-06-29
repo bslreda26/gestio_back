@@ -13,6 +13,7 @@ import CaisseMouvement from '#models/caisse_mouvement'
 import { buildMeta, parsePagination, type PaginationInput } from '#helpers/pagination'
 import { applyStockAlertFilter, getStockStatus } from '#helpers/produit_query'
 import { aggregateStockStatus } from '#helpers/depot_stock_serializer'
+import { venteTotalAPayer } from '#helpers/timbre'
 import { roundMoney } from '#services/pricing_service'
 import { readClientSolde } from '#services/client_solde_service'
 import { getStocksParDepotForProduits } from '#services/depot_service'
@@ -1190,6 +1191,25 @@ function applyReleveDateFilter(
   return query
 }
 
+/** Montant facture/avoir sur le compte client (= total_apres_airsi + timbre). */
+export function clientVenteMontantCompte(vente: {
+  totalApresAirsi: number | string
+  montantTimbre?: number | string | null
+}) {
+  return venteTotalAPayer(vente)
+}
+
+function clientVenteTotalAPayerSql(alias = '') {
+  const prefix = alias ? `${alias}.` : ''
+  return `CAST(${prefix}total_apres_airsi AS DECIMAL(18,4)) + CAST(COALESCE(${prefix}montant_timbre, 0) AS DECIMAL(18,4))`
+}
+
+function sumClientVenteTotalAPayer(query: ReturnType<typeof db.from>) {
+  return query
+    .select(db.raw(`COALESCE(SUM(${clientVenteTotalAPayerSql()}), 0) as total`))
+    .first()
+}
+
 async function clientSoldeNetChange(
   clientId: number,
   pointDeVenteId: number,
@@ -1200,14 +1220,16 @@ async function clientSoldeNetChange(
     db.from('ventes').where('client_id', clientId).where('point_de_vente_id', pointDeVenteId)
 
   const [facturesRow, retoursRow, reglementsRow] = await Promise.all([
-    applyReleveDateFilter(
-      venteBase().whereIn('statut', ['valide', 'non_valide']),
-      'date_vente',
-      dateFrom,
-      dateTo
-    ).sum('total_ttc as total'),
-    applyReleveDateFilter(venteBase().where('statut', 'retour'), 'date_vente', dateFrom, dateTo).sum(
-      'total_ttc as total'
+    sumClientVenteTotalAPayer(
+      applyReleveDateFilter(
+        venteBase().whereIn('statut', ['valide', 'non_valide']),
+        'date_vente',
+        dateFrom,
+        dateTo
+      )
+    ),
+    sumClientVenteTotalAPayer(
+      applyReleveDateFilter(venteBase().where('statut', 'retour'), 'date_vente', dateFrom, dateTo)
     ),
     applyReleveDateFilter(
       db
@@ -1227,10 +1249,10 @@ async function clientSoldeNetChange(
   ])
 
   const totalDebit = roundMoney(
-    Number(facturesRow[0]?.total ?? 0) + Number(reglementsRow?.total_debit ?? 0)
+    Number(facturesRow?.total ?? 0) + Number(reglementsRow?.total_debit ?? 0)
   )
   const totalCredit = roundMoney(
-    Number(retoursRow[0]?.total ?? 0) + Number(reglementsRow?.total_credit ?? 0)
+    Number(retoursRow?.total ?? 0) + Number(reglementsRow?.total_credit ?? 0)
   )
 
   return { totalDebit, totalCredit }
@@ -1320,7 +1342,7 @@ async function buildClientReleveOperations(
   const operations: ClientReleveOperation[] = []
 
   for (const v of ventes) {
-    const montant = Number(v.totalTtc)
+    const montant = clientVenteMontantCompte(v)
     if (v.statut === 'retour') {
       operations.push({
         sortKey: `${toSqlDate(v.dateVente)}-1-${String(v.id).padStart(10, '0')}`,
