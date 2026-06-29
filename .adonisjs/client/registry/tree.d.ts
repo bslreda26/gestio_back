@@ -202,6 +202,7 @@ export interface ApiDefinition {
     transfert: typeof routes['depots.transfert']
     stocks: typeof routes['depots.stocks']
   }
+  dashboard: typeof routes['dashboard']
   rapports: {
     caisse: typeof routes['rapports.caisse']
     stockActuel: typeof routes['rapports.stock_actuel']

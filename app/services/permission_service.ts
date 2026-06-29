@@ -1,6 +1,7 @@
 import {
   ALL_PERMISSION_KEYS,
   PERMISSION_CATALOG,
+  ROLE_LOCKED_PERMISSION_KEYS,
   ROLE_PERMISSIONS,
   type PermissionDefinition,
   type PermissionKey,
@@ -47,6 +48,12 @@ export function hasUserPermission(
   permission: PermissionKey
 ): boolean {
   if (user.role === 'admin') return true
+
+  const role = getUserRole(user)
+  if (ROLE_LOCKED_PERMISSION_KEYS.includes(permission)) {
+    return hasRolePermission(role, permission)
+  }
+
   return getEffectivePermissions(user as User).includes(permission)
 }
 
@@ -74,8 +81,11 @@ const ADMIN_ONLY_PERMISSION_KEYS: PermissionKey[] = ['produits_plancher', 'impor
 
 export function normalizePermissionInput(permissions: string[]): PermissionKey[] {
   const unique = [...new Set(permissions)]
-  return unique.filter((key): key is PermissionKey =>
-    ALL_PERMISSION_KEYS.includes(key as PermissionKey) && !ADMIN_ONLY_PERMISSION_KEYS.includes(key)
+  return unique.filter(
+    (key): key is PermissionKey =>
+      ALL_PERMISSION_KEYS.includes(key as PermissionKey) &&
+      !ADMIN_ONLY_PERMISSION_KEYS.includes(key) &&
+      !ROLE_LOCKED_PERMISSION_KEYS.includes(key)
   )
 }
 
@@ -83,8 +93,13 @@ export function getPermissionsCatalog(): {
   groups: { group: string; permissions: PermissionDefinition[] }[]
 } {
   const groups = new Map<string, PermissionDefinition[]>()
+  const nonAssignable = new Set<PermissionKey>([
+    ...ADMIN_ONLY_PERMISSION_KEYS,
+    ...ROLE_LOCKED_PERMISSION_KEYS,
+  ])
 
   for (const item of PERMISSION_CATALOG) {
+    if (nonAssignable.has(item.key)) continue
     const list = groups.get(item.group) ?? []
     list.push(item)
     groups.set(item.group, list)

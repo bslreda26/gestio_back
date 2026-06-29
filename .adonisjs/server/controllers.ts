@@ -10,6 +10,7 @@ export const controllers = {
   Caisse: () => import('#controllers/caisse_controller'),
   Categories: () => import('#controllers/categories_controller'),
   Clients: () => import('#controllers/clients_controller'),
+  Dashboard: () => import('#controllers/dashboard_controller'),
   DepenseCategories: () => import('#controllers/depense_categories_controller'),
   Depenses: () => import('#controllers/depenses_controller'),
   Depots: () => import('#controllers/depots_controller'),

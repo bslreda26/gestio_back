@@ -1627,6 +1627,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/depots_controller').default['stocks']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'dashboard': {
+    methods: ["POST"]
+    pattern: '/api/v1/dashboard'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/dashboard_validator').dashboardValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/dashboard_validator').dashboardValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/dashboard_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/dashboard_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'rapports.caisse': {
     methods: ["POST"]
     pattern: '/api/v1/rapports/caisse'

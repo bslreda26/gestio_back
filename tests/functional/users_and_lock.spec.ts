@@ -62,7 +62,6 @@ test.group('API — users', (group) => {
     })
     update.assertStatus(200)
     assert.sameMembers(update.body().data.user.permissions, [
-      'dashboard',
       'ventes',
       'ventes_paiement',
       'caisse',
@@ -73,7 +72,6 @@ test.group('API — users', (group) => {
     })
     show.assertStatus(200)
     assert.sameMembers(show.body().data.effective, [
-      'dashboard',
       'ventes',
       'ventes_paiement',
       'caisse',

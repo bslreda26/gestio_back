@@ -73,7 +73,7 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
 export const ROLE_PERMISSIONS = {
   points_de_vente: ['admin'],
   users: ['admin'],
-  dashboard: ['admin'],
+  dashboard: ['admin', 'gerant'],
   clients: ['admin', 'gerant', 'caissier', 'facturation'],
   clients_write: ['admin', 'gerant'],
   clients_solde: ['admin', 'gerant', 'caissier'],
@@ -124,5 +124,8 @@ export const ROLE_PERMISSIONS = {
 } as const satisfies Record<string, UserRole[]>
 
 export type PermissionKey = keyof typeof ROLE_PERMISSIONS
+
+/** Not assignable via user permissions UI — effective only for roles listed in ROLE_PERMISSIONS. */
+export const ROLE_LOCKED_PERMISSION_KEYS: PermissionKey[] = ['dashboard']
 
 export const ALL_PERMISSION_KEYS = Object.keys(ROLE_PERMISSIONS) as PermissionKey[]

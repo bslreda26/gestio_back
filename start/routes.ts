@@ -34,6 +34,7 @@ const DepenseCategoriesController = () => import('#controllers/depense_categorie
 const StockController = () => import('#controllers/stock_controller')
 const DepotsController = () => import('#controllers/depots_controller')
 const RapportsController = () => import('#controllers/rapports_controller')
+const DashboardController = () => import('#controllers/dashboard_controller')
 const ImportsController = () => import('#controllers/imports_controller')
 const UsersController = () => import('#controllers/users_controller')
 const PointsDeVenteController = () => import('#controllers/points_de_vente_controller')
@@ -482,6 +483,12 @@ router
           })
           .prefix('depots')
           .as('depots')
+
+        // Tableau de bord
+        router
+          .post('dashboard', [DashboardController, 'index'])
+          .as('dashboard')
+          .use(middleware.role({ permission: 'dashboard' }))
 
         // Rapports (tous par critères)
         router

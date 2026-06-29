@@ -816,6 +816,12 @@ const routes = {
     tokens: [{"old":"/api/v1/depots/stocks","type":0,"val":"api","end":""},{"old":"/api/v1/depots/stocks","type":0,"val":"v1","end":""},{"old":"/api/v1/depots/stocks","type":0,"val":"depots","end":""},{"old":"/api/v1/depots/stocks","type":0,"val":"stocks","end":""}],
     types: placeholder as Registry['depots.stocks']['types'],
   },
+  'dashboard': {
+    methods: ["POST"],
+    pattern: '/api/v1/dashboard',
+    tokens: [{"old":"/api/v1/dashboard","type":0,"val":"api","end":""},{"old":"/api/v1/dashboard","type":0,"val":"v1","end":""},{"old":"/api/v1/dashboard","type":0,"val":"dashboard","end":""}],
+    types: placeholder as Registry['dashboard']['types'],
+  },
   'rapports.caisse': {
     methods: ["POST"],
     pattern: '/api/v1/rapports/caisse',
