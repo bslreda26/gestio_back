@@ -1,5 +1,6 @@
 import { test } from '@japa/runner'
 import Client from '#models/client'
+import DepotStock from '#models/depot_stock'
 import Fournisseur from '#models/fournisseur'
 import Produit from '#models/produit'
 import TvaGroupe from '#models/tva_groupe'
@@ -167,6 +168,60 @@ test.group('API — import Excel', (group) => {
       assert.equal(summary.skipped, 2)
       assert.isTrue(summary.errors.some((e) => e.field === 'code'))
       assert.isTrue(summary.errors.some((e) => e.field === 'type'))
+    } finally {
+      await cleanupExcelFile(filePath)
+    }
+  })
+
+  test('imports inventaire quantities per depot', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0001')
+
+    const createDepot = await authedPos(client, token).post('/api/v1/depots/create').json({
+      code: 'IMP-INV',
+      nom: 'Dépôt import inventaire',
+    })
+    const depotId = createDepot.body().data.id
+
+    const filePath = await buildExcelFile(
+      ['Code', 'Quantité'],
+      [
+        [produit.code, 25],
+        ['ARTICLE-INCONNU', 10],
+      ]
+    )
+
+    try {
+      const response = await authedPos(client, token)
+        .post('/api/v1/imports/inventaire')
+        .field('depot_id', String(depotId))
+        .field('notes', 'Test import inventaire')
+        .file('file', filePath)
+
+      response.assertStatus(200)
+      const body = response.body() as {
+        data: {
+          total_rows: number
+          created: number
+          skipped: number
+          errors: { field?: string; message: string }[]
+          saisies: { depot_id: number; saisie_id: number; lignes: number }[]
+        }
+      }
+      const summary = body.data
+      assert.equal(summary.total_rows, 2)
+      assert.equal(summary.created, 1)
+      assert.equal(summary.skipped, 1)
+      assert.isTrue(summary.errors.some((e) => e.field === 'code'))
+      assert.equal(summary.saisies.length, 1)
+      assert.equal(summary.saisies[0].depot_id, depotId)
+
+      const depotStock = await DepotStock.query()
+        .where('depot_id', depotId)
+        .where('produit_id', produit.id)
+        .firstOrFail()
+
+      assert.equal(Number(depotStock.quantite), 25)
     } finally {
       await cleanupExcelFile(filePath)
     }

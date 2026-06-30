@@ -77,6 +77,7 @@ export interface ApiDefinition {
     clients: typeof routes['imports.clients']
     fournisseurs: typeof routes['imports.fournisseurs']
     articles: typeof routes['imports.articles']
+    inventaire: typeof routes['imports.inventaire']
   }
   categories: {
     categories: {

@@ -240,6 +240,10 @@ router
               .post('articles', [ImportsController, 'articles'])
               .as('articles')
               .use(middleware.role({ permission: 'imports' }))
+            router
+              .post('inventaire', [ImportsController, 'inventaire'])
+              .as('inventaire')
+              .use(middleware.role({ permission: 'stock_inventaire_saisie' }))
           })
           .prefix('imports')
           .as('imports')

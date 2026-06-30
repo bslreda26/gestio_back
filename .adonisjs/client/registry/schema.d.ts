@@ -607,6 +607,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['articles']>>>
     }
   }
+  'imports.inventaire': {
+    methods: ["POST"]
+    pattern: '/api/v1/imports/inventaire'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['inventaire']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/imports_controller').default['inventaire']>>>
+    }
+  }
   'categories.categories.search': {
     methods: ["POST"]
     pattern: '/api/v1/categories/search'

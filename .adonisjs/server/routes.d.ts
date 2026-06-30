@@ -54,6 +54,7 @@ export type ScannedRoutes = {
     'imports.clients': { paramsTuple?: []; params?: {} }
     'imports.fournisseurs': { paramsTuple?: []; params?: {} }
     'imports.articles': { paramsTuple?: []; params?: {} }
+    'imports.inventaire': { paramsTuple?: []; params?: {} }
     'categories.categories.search': { paramsTuple?: []; params?: {} }
     'categories.categories.show': { paramsTuple?: []; params?: {} }
     'categories.categories.create': { paramsTuple?: []; params?: {} }
@@ -222,6 +223,7 @@ export type ScannedRoutes = {
     'imports.clients': { paramsTuple?: []; params?: {} }
     'imports.fournisseurs': { paramsTuple?: []; params?: {} }
     'imports.articles': { paramsTuple?: []; params?: {} }
+    'imports.inventaire': { paramsTuple?: []; params?: {} }
     'categories.categories.search': { paramsTuple?: []; params?: {} }
     'categories.categories.show': { paramsTuple?: []; params?: {} }
     'categories.categories.create': { paramsTuple?: []; params?: {} }

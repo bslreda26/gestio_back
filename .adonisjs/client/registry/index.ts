@@ -306,6 +306,12 @@ const routes = {
     tokens: [{"old":"/api/v1/imports/articles","type":0,"val":"api","end":""},{"old":"/api/v1/imports/articles","type":0,"val":"v1","end":""},{"old":"/api/v1/imports/articles","type":0,"val":"imports","end":""},{"old":"/api/v1/imports/articles","type":0,"val":"articles","end":""}],
     types: placeholder as Registry['imports.articles']['types'],
   },
+  'imports.inventaire': {
+    methods: ["POST"],
+    pattern: '/api/v1/imports/inventaire',
+    tokens: [{"old":"/api/v1/imports/inventaire","type":0,"val":"api","end":""},{"old":"/api/v1/imports/inventaire","type":0,"val":"v1","end":""},{"old":"/api/v1/imports/inventaire","type":0,"val":"imports","end":""},{"old":"/api/v1/imports/inventaire","type":0,"val":"inventaire","end":""}],
+    types: placeholder as Registry['imports.inventaire']['types'],
+  },
   'categories.categories.search': {
     methods: ["POST"],
     pattern: '/api/v1/categories/search',
