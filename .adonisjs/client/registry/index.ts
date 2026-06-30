@@ -900,6 +900,18 @@ const routes = {
     tokens: [{"old":"/api/v1/rapports/reglement-clients","type":0,"val":"api","end":""},{"old":"/api/v1/rapports/reglement-clients","type":0,"val":"v1","end":""},{"old":"/api/v1/rapports/reglement-clients","type":0,"val":"rapports","end":""},{"old":"/api/v1/rapports/reglement-clients","type":0,"val":"reglement-clients","end":""}],
     types: placeholder as Registry['rapports.reglement_clients']['types'],
   },
+  'rapports.lettrage_clients': {
+    methods: ["POST"],
+    pattern: '/api/v1/rapports/lettrage-clients',
+    tokens: [{"old":"/api/v1/rapports/lettrage-clients","type":0,"val":"api","end":""},{"old":"/api/v1/rapports/lettrage-clients","type":0,"val":"v1","end":""},{"old":"/api/v1/rapports/lettrage-clients","type":0,"val":"rapports","end":""},{"old":"/api/v1/rapports/lettrage-clients","type":0,"val":"lettrage-clients","end":""}],
+    types: placeholder as Registry['rapports.lettrage_clients']['types'],
+  },
+  'rapports.lettrage_fournisseurs': {
+    methods: ["POST"],
+    pattern: '/api/v1/rapports/lettrage-fournisseurs',
+    tokens: [{"old":"/api/v1/rapports/lettrage-fournisseurs","type":0,"val":"api","end":""},{"old":"/api/v1/rapports/lettrage-fournisseurs","type":0,"val":"v1","end":""},{"old":"/api/v1/rapports/lettrage-fournisseurs","type":0,"val":"rapports","end":""},{"old":"/api/v1/rapports/lettrage-fournisseurs","type":0,"val":"lettrage-fournisseurs","end":""}],
+    types: placeholder as Registry['rapports.lettrage_fournisseurs']['types'],
+  },
   'rapports.reglement_fournisseurs': {
     methods: ["POST"],
     pattern: '/api/v1/rapports/reglement-fournisseurs',

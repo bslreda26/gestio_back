@@ -1236,7 +1236,7 @@ export async function creerFactureRetour(
     await client.save()
     await facture.save()
 
-    return { retour, facture }
+    return { retour, facture, lettrage: null }
   })
 }
 

@@ -18,6 +18,7 @@ import {
   rapportQuantiteParDepot,
   rapportCertification,
 } from '#services/rapport_service'
+import { rapportLettrageClients, rapportLettrageFournisseurs } from '#services/lettrage_service'
 import {
   rapportBalanceClientsValidator,
   rapportBalanceFournisseursValidator,
@@ -34,6 +35,8 @@ import {
   rapportValeurStockValidator,
   rapportQuantiteParDepotValidator,
   rapportCertificationValidator,
+  rapportLettrageClientsValidator,
+  rapportLettrageFournisseursValidator,
 } from '#validators/rapport_validator'
 import type { HttpContext } from '@adonisjs/core/http'
 import Depot from '#models/depot'
@@ -373,6 +376,48 @@ export default class RapportsController {
         fournisseurId: payload.fournisseur_id,
         modePaiement: payload.mode_paiement,
         search: payload.search,
+      })
+      return sendSuccess(ctx, data, data.meta)
+    } catch (error) {
+      return handleRapportError(ctx, error)
+    }
+  }
+
+  /**
+   * Rapport lettrage clients — vue par client : factures, retours et badges lettré / non lettré / partiel
+   */
+  async lettrageClients(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(rapportLettrageClientsValidator)
+    try {
+      const pos = requirePointDeVente(ctx)
+      const data = await rapportLettrageClients({
+        pointDeVenteId: pos.pointDeVenteId,
+        dateFrom: payload.date_from,
+        dateTo: payload.date_to,
+        page: payload.page,
+        limit: payload.limit,
+        clientId: payload.client_id,
+      })
+      return sendSuccess(ctx, data, data.meta)
+    } catch (error) {
+      return handleRapportError(ctx, error)
+    }
+  }
+
+  /**
+   * Rapport lettrage fournisseurs — vue par fournisseur : achats, retours et badges lettré / non lettré / partiel
+   */
+  async lettrageFournisseurs(ctx: HttpContext) {
+    const payload = await ctx.request.validateUsing(rapportLettrageFournisseursValidator)
+    try {
+      const pos = requirePointDeVente(ctx)
+      const data = await rapportLettrageFournisseurs({
+        pointDeVenteId: pos.pointDeVenteId,
+        dateFrom: payload.date_from,
+        dateTo: payload.date_to,
+        page: payload.page,
+        limit: payload.limit,
+        fournisseurId: payload.fournisseur_id,
       })
       return sendSuccess(ctx, data, data.meta)
     } catch (error) {

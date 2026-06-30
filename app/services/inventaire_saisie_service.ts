@@ -52,9 +52,12 @@ function resolveInventaireMouvementQuantite(
 ): number {
   if (quantite <= 0) return 0
   try {
+    if (!produitSupportsModeVente(produit)) {
+      return resolveAjustementQuantite(produit, { quantite })
+    }
     return resolveAjustementQuantite(produit, {
       quantite,
-      mode_vente: mode ?? 'detail',
+      mode_vente: mode ?? 'piece',
     })
   } catch (error) {
     if (error instanceof AjustementQuantiteError) {
@@ -229,12 +232,14 @@ export async function enregistrerSaisieInventaire(
       let stockCourant = quantiteActuelle
 
       const modeEntree =
-        input.entree > 0 && produitSupportsModeVente(produit)
-          ? (input.mode_vente_entree ?? 'piece')
+        input.entree > 0
+          ? (input.mode_vente_entree ??
+            (produitSupportsModeVente(produit) ? 'piece' : undefined))
           : undefined
       const modeSortie =
-        input.sortie > 0 && produitSupportsModeVente(produit)
-          ? (input.mode_vente_sortie ?? 'piece')
+        input.sortie > 0
+          ? (input.mode_vente_sortie ??
+            (produitSupportsModeVente(produit) ? 'piece' : undefined))
           : undefined
 
       const entreeStock = resolveInventaireMouvementQuantite(produit, input.entree, modeEntree)

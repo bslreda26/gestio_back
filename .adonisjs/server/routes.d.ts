@@ -153,6 +153,8 @@ export type ScannedRoutes = {
     'rapports.balance_fournisseurs': { paramsTuple?: []; params?: {} }
     'rapports.releve_fournisseur': { paramsTuple?: []; params?: {} }
     'rapports.reglement_clients': { paramsTuple?: []; params?: {} }
+    'rapports.lettrage_clients': { paramsTuple?: []; params?: {} }
+    'rapports.lettrage_fournisseurs': { paramsTuple?: []; params?: {} }
     'rapports.reglement_fournisseurs': { paramsTuple?: []; params?: {} }
     'rapports.certification': { paramsTuple?: []; params?: {} }
   }
@@ -315,6 +317,8 @@ export type ScannedRoutes = {
     'rapports.balance_fournisseurs': { paramsTuple?: []; params?: {} }
     'rapports.releve_fournisseur': { paramsTuple?: []; params?: {} }
     'rapports.reglement_clients': { paramsTuple?: []; params?: {} }
+    'rapports.lettrage_clients': { paramsTuple?: []; params?: {} }
+    'rapports.lettrage_fournisseurs': { paramsTuple?: []; params?: {} }
     'rapports.reglement_fournisseurs': { paramsTuple?: []; params?: {} }
     'rapports.certification': { paramsTuple?: []; params?: {} }
   }

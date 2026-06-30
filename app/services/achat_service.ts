@@ -943,11 +943,11 @@ export async function creerAchatRetour(
       -totaux.totalTtc,
       trx
     )
-    achat.resteAPayer = roundMoney(Math.max(0, Number(achat.resteAPayer) - totaux.totalTtc))
+    // L'achat d'origine conserve son reste ; le crédit est porté par l'avoir (retour) séparément.
     achat.useTransaction(trx)
     await achat.save()
 
-    return { retour, achat }
+    return { retour, achat, lettrage: null }
   })
 }
 
@@ -1049,7 +1049,7 @@ export async function creerRetourDirect(
       trx
     )
 
-    return retour
+    return { retour, lettrage: null }
   })
 }
 
@@ -1080,6 +1080,22 @@ export type PaiementAchatInput = {
   date_paiement: DateTime
   reference_paiement?: string | null
   notes?: string | null
+}
+
+export function syncAchatPaiement(achat: {
+  montantPaye: number | string
+  resteAPayer: number | string
+  statutPaiement: string
+}) {
+  const reste = roundMoney(Number(achat.resteAPayer))
+  if (reste <= 0) {
+    achat.resteAPayer = '0'
+    achat.statutPaiement = 'paye'
+  } else if (Number(achat.montantPaye) > 0) {
+    achat.statutPaiement = 'partiel'
+  } else {
+    achat.statutPaiement = 'non_paye'
+  }
 }
 
 export async function enregistrerPaiementAchat(data: PaiementAchatInput, userId: number) {
@@ -1125,10 +1141,7 @@ export async function enregistrerPaiementAchat(data: PaiementAchatInput, userId:
 
     achat.montantPaye = roundMoney(Number(achat.montantPaye) + data.montant)
     achat.resteAPayer = roundMoney(Math.max(0, reste - data.montant))
-
-    if (achat.resteAPayer <= 0) achat.statutPaiement = 'paye'
-    else if (achat.montantPaye > 0) achat.statutPaiement = 'partiel'
-    else achat.statutPaiement = 'non_paye'
+    syncAchatPaiement(achat)
 
     achat.useTransaction(trx)
     await achat.save()

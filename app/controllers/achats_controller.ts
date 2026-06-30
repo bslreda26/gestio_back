@@ -249,7 +249,7 @@ export default class AchatsController {
 
     try {
       const pos = requirePointDeVente(ctx)
-      const retour = await creerRetourDirect(
+      const { retour, lettrage } = await creerRetourDirect(
         {
           fournisseur_id: payload.fournisseur_id,
           date_achat: payload.date_achat,
@@ -266,6 +266,7 @@ export default class AchatsController {
         message: 'Retour fournisseur créé — stock sorti',
         retour,
         lignes,
+        lettrage,
       })
     } catch (error) {
       return handleAchatError(ctx, error)
@@ -280,7 +281,7 @@ export default class AchatsController {
 
     try {
       const pos = requirePointDeVente(ctx)
-      const { retour, achat } = await creerAchatRetour(
+      const { retour, achat, lettrage } = await creerAchatRetour(
         payload.achat_id,
         payload.lignes,
         ctx.auth.getUserOrFail().id,
@@ -295,6 +296,7 @@ export default class AchatsController {
         retour,
         achat,
         lignes,
+        lettrage,
       })
     } catch (error) {
       return handleAchatError(ctx, error)

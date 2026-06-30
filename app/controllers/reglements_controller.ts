@@ -11,6 +11,7 @@ import {
   enregistrerReglementFournisseur,
   ReglementBusinessError,
 } from '#services/reglement_service'
+import { getLettrageLignesReglement } from '#services/lettrage_service'
 import {
   reglementClientCreateValidator,
   reglementClientSearchValidator,
@@ -52,7 +53,7 @@ export default class ReglementsController {
     const pos = requirePointDeVente(ctx)
 
     try {
-      const { reglement, client } = await enregistrerReglementClient(
+      const { reglement, client, lettrage } = await enregistrerReglementClient(
         {
           client_id: payload.client_id,
           montant: payload.montant,
@@ -69,6 +70,7 @@ export default class ReglementsController {
         message: 'Règlement client enregistré',
         reglement: serializeReglement(reglement),
         client: { id: client.id, code: client.code, nom: client.nom, solde: client.solde },
+        lettrage,
       })
     } catch (error) {
       return handleReglementError(ctx, error)
@@ -111,15 +113,17 @@ export default class ReglementsController {
 
     if (!reglement) return sendError(ctx, 'Règlement introuvable', 404)
 
-    const [client, user] = await Promise.all([
+    const [client, user, lettrage] = await Promise.all([
       reglement.clientId ? Client.find(reglement.clientId) : null,
       User.find(reglement.userId),
+      getLettrageLignesReglement(reglement.id),
     ])
 
     return sendSuccess(ctx, {
       reglement: serializeReglement(reglement),
       client,
       user: user ? { id: user.id, nom: user.nom, prenom: user.prenom } : null,
+      lettrage,
     })
   }
 
@@ -128,7 +132,7 @@ export default class ReglementsController {
     const pos = requirePointDeVente(ctx)
 
     try {
-      const { reglement, fournisseur } = await enregistrerReglementFournisseur(
+      const { reglement, fournisseur, lettrage } = await enregistrerReglementFournisseur(
         {
           fournisseur_id: payload.fournisseur_id,
           montant: payload.montant,
@@ -150,6 +154,7 @@ export default class ReglementsController {
           nom: fournisseur.nom,
           solde: fournisseur.solde,
         },
+        lettrage,
       })
     } catch (error) {
       return handleReglementError(ctx, error)
@@ -195,15 +200,17 @@ export default class ReglementsController {
 
     if (!reglement) return sendError(ctx, 'Règlement introuvable', 404)
 
-    const [fournisseur, user] = await Promise.all([
+    const [fournisseur, user, lettrage] = await Promise.all([
       reglement.fournisseurId ? Fournisseur.find(reglement.fournisseurId) : null,
       User.find(reglement.userId),
+      getLettrageLignesReglement(reglement.id),
     ])
 
     return sendSuccess(ctx, {
       reglement: serializeReglement(reglement),
       fournisseur,
       user: user ? { id: user.id, nom: user.nom, prenom: user.prenom } : null,
+      lettrage,
     })
   }
 }

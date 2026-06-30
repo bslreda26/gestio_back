@@ -131,6 +131,12 @@ export async function enregistrerReglementClientDansTransaction(
   client.useTransaction(trx)
   await client.save()
 
+  let lettrage = null
+  if (!data.vente_id && !data.paiement_id && data.montant > 0) {
+    const { appliquerLettrageReglementClient } = await import('#services/lettrage_service')
+    lettrage = await appliquerLettrageReglementClient(reglement, trx)
+  }
+
   if (data.mode_paiement === 'especes') {
     const motif = data.caisse_motif ?? 'reglement_client'
     const libelle =
@@ -147,7 +153,7 @@ export async function enregistrerReglementClientDansTransaction(
     )
   }
 
-  return { reglement, client }
+  return { reglement, client, lettrage }
 }
 
 export async function enregistrerReglementClient(
@@ -223,7 +229,13 @@ export async function enregistrerReglementFournisseur(
       )
     }
 
-    return { reglement, fournisseur }
+    let lettrage = null
+    if (data.montant > 0) {
+      const { appliquerLettrageReglementFournisseur } = await import('#services/lettrage_service')
+      lettrage = await appliquerLettrageReglementFournisseur(reglement, trx)
+    }
+
+    return { reglement, fournisseur, lettrage }
   })
 }
 

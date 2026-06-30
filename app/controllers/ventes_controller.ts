@@ -405,7 +405,7 @@ export default class VentesController {
     const pos = requirePointDeVente(ctx)
     try {
       await acquireVenteLock(payload.facture_id, ctx.auth.getUserOrFail().id)
-      const { retour, facture } = await creerFactureRetour(
+      const { retour, facture, lettrage } = await creerFactureRetour(
         payload.facture_id,
         payload.lignes,
         ctx.auth.getUserOrFail().id,
@@ -420,6 +420,7 @@ export default class VentesController {
         retour,
         lignes: await serializeVenteLignesForApi(lignes, getVenteLigneVisibility(ctx)),
         facture,
+        lettrage,
       })
     } catch (error) {
       return handleVenteError(ctx, error)

@@ -546,6 +546,14 @@ router
               .as('reglement_clients')
               .use(middleware.role({ permission: 'rapports' }))
             router
+              .post('lettrage-clients', [RapportsController, 'lettrageClients'])
+              .as('lettrage_clients')
+              .use(middleware.role({ permission: 'rapports' }))
+            router
+              .post('lettrage-fournisseurs', [RapportsController, 'lettrageFournisseurs'])
+              .as('lettrage_fournisseurs')
+              .use(middleware.role({ permission: 'rapports' }))
+            router
               .post('reglement-fournisseurs', [RapportsController, 'reglementFournisseurs'])
               .as('reglement_fournisseurs')
               .use(middleware.role({ permission: 'rapports' }))

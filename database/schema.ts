@@ -492,6 +492,37 @@ export class InventaireSaisySchema extends BaseModel {
   declare valeurSortie: string
 }
 
+export class LettrageLigneSchema extends BaseModel {
+  static $columns = ['achatId', 'clientId', 'createdAt', 'fournisseurId', 'id', 'montant', 'pointDeVenteId', 'reglementId', 'retourAchatId', 'retourVenteId', 'type', 'updatedAt', 'venteId'] as const
+  $columns = LettrageLigneSchema.$columns
+  @column()
+  declare achatId: number | null
+  @column()
+  declare clientId: number | null
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column()
+  declare fournisseurId: number | null
+  @column({ isPrimary: true })
+  declare id: number
+  @column()
+  declare montant: string
+  @column()
+  declare pointDeVenteId: number
+  @column()
+  declare reglementId: number | null
+  @column()
+  declare retourAchatId: number | null
+  @column()
+  declare retourVenteId: number | null
+  @column()
+  declare type: string
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime | null
+  @column()
+  declare venteId: number | null
+}
+
 export class PaiementSchema extends BaseModel {
   static $columns = ['createdAt', 'datePaiement', 'id', 'modePaiement', 'montant', 'notes', 'referenceId', 'referencePaiement', 'type', 'updatedAt', 'userId'] as const
   $columns = PaiementSchema.$columns

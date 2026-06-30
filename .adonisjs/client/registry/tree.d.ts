@@ -217,6 +217,8 @@ export interface ApiDefinition {
     balanceFournisseurs: typeof routes['rapports.balance_fournisseurs']
     releveFournisseur: typeof routes['rapports.releve_fournisseur']
     reglementClients: typeof routes['rapports.reglement_clients']
+    lettrageClients: typeof routes['rapports.lettrage_clients']
+    lettrageFournisseurs: typeof routes['rapports.lettrage_fournisseurs']
     reglementFournisseurs: typeof routes['rapports.reglement_fournisseurs']
     certification: typeof routes['rapports.certification']
   }

@@ -142,6 +142,26 @@ export const rapportReglementClientsValidator = vine.compile(
   })
 )
 
+export const rapportLettrageClientsValidator = vine.compile(
+  vine.object({
+    client_id: vine.number().positive(),
+    date_from: vine.date({ formats: ['iso8601'] }).optional(),
+    date_to: vine.date({ formats: ['iso8601'] }).optional(),
+    page: vine.number().min(1).optional(),
+    limit: vine.number().min(1).max(100).optional(),
+  })
+)
+
+export const rapportLettrageFournisseursValidator = vine.compile(
+  vine.object({
+    fournisseur_id: vine.number().positive(),
+    date_from: vine.date({ formats: ['iso8601'] }).optional(),
+    date_to: vine.date({ formats: ['iso8601'] }).optional(),
+    page: vine.number().min(1).optional(),
+    limit: vine.number().min(1).max(100).optional(),
+  })
+)
+
 export const rapportReglementFournisseursValidator = vine.compile(
   vine.object({
     date_from: vine.date({ formats: ['iso8601'] }),
