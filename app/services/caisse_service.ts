@@ -54,6 +54,7 @@ export type HistoriqueFilters = {
   limit?: number
   type?: 'entree' | 'sortie'
   motif?: string
+  designation?: string
   dateFrom?: DateTime
   dateTo?: DateTime
   caisseSessionId?: number
@@ -363,6 +364,7 @@ export async function getHistorique(
 
   if (filters.type) query.where('type', filters.type)
   if (filters.motif) query.where('motif', filters.motif)
+  if (filters.designation) query.whereILike('libelle', `%${filters.designation}%`)
   if (filters.caisseSessionId) query.where('caisse_session_id', filters.caisseSessionId)
   if (filters.dateFrom) query.where('date_mouvement', '>=', filters.dateFrom.startOf('day').toSQL()!)
   if (filters.dateTo) query.where('date_mouvement', '<=', filters.dateTo.endOf('day').toSQL()!)

@@ -5,6 +5,7 @@ const caisseMouvementsCriteriaFields = {
   limit: vine.number().min(1).max(100).optional(),
   type: vine.enum(['entree', 'sortie'] as const).optional(),
   motif: vine.string().trim().optional(),
+  designation: vine.string().trim().minLength(1).maxLength(200).optional(),
   caisse_id: vine.number().positive().optional(),
   caisse_session_id: vine.number().positive().optional(),
 }

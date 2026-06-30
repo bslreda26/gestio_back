@@ -1,4 +1,5 @@
 import vine from '@vinejs/vine'
+import { sortOrderSchema } from '#validators/common_validator'
 
 const stockAlertValues = ['rupture', 'alerte', 'normal', 'surstock'] as const
 
@@ -36,6 +37,7 @@ export const produitSearchValidator = vine.compile(
     is_active: vine.boolean().optional(),
     stock_alert: vine.enum(stockAlertValues).optional(),
     search: vine.string().trim().minLength(1).maxLength(200).optional(),
+    stock_order: sortOrderSchema,
   })
 )
 

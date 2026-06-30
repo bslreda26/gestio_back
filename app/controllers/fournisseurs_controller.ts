@@ -25,8 +25,21 @@ export default class FournisseursController {
   async search(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(fournisseurSearchValidator)
     const { page, limit, offset } = parsePagination(payload)
+    const pos = requirePointDeVente(ctx)
 
-    const query = Fournisseur.query().orderBy('nom', 'asc')
+    const query = Fournisseur.query()
+
+    if (payload.solde_order) {
+      const direction = payload.solde_order === 'desc' ? 'DESC' : 'ASC'
+      query
+        .orderByRaw(
+          `(SELECT COALESCE(fs.solde, 0) FROM fournisseur_soldes fs WHERE fs.fournisseur_id = fournisseurs.id AND fs.point_de_vente_id = ?) ${direction}`,
+          [pos.pointDeVenteId]
+        )
+        .orderBy('nom', 'asc')
+    } else {
+      query.orderBy('nom', 'asc')
+    }
 
     if (payload.nom) query.whereILike('nom', `%${payload.nom}%`)
     if (payload.code) query.whereILike('code', `%${payload.code}%`)
@@ -46,7 +59,6 @@ export default class FournisseursController {
     const total = await query.clone().count('* as total')
     const fournisseurs = await query.offset(offset).limit(limit)
 
-    const pos = requirePointDeVente(ctx)
     const soldes = await getFournisseurSoldesPdv(
       pos.pointDeVenteId,
       fournisseurs.map((f) => f.id)

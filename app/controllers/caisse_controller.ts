@@ -58,6 +58,7 @@ export default class CaisseController {
       limit?: number
       type?: 'entree' | 'sortie'
       motif?: string
+      designation?: string
       caisse_id?: number
       caisse_session_id?: number
       statut?: 'ouverte' | 'fermee'
@@ -84,6 +85,7 @@ export default class CaisseController {
       limit: payload.limit,
       type: payload.type,
       motif: payload.motif,
+      designation: payload.designation,
       caisseSessionId: payload.caisse_session_id,
       dateFrom: payload.date_from,
       dateTo: payload.date_to,

@@ -1,5 +1,6 @@
 import vine from '@vinejs/vine'
 import { CLIENT_TYPES } from '#constants/client_types'
+import { soldeOrderSchema } from '#validators/common_validator'
 
 export type { ClientType } from '#constants/client_types'
 export { CLIENT_TYPES }
@@ -30,6 +31,7 @@ export const clientSearchValidator = vine.compile(
     type: vine.enum(CLIENT_TYPES).optional(),
     is_active: vine.boolean().optional(),
     search: vine.string().trim().minLength(1).maxLength(200).optional(),
+    solde_order: soldeOrderSchema,
   })
 )
 

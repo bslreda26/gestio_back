@@ -104,7 +104,13 @@ export default class ProduitsController {
     const { page, limit, offset } = parsePagination(payload)
 
     const pos = requirePointDeVente(ctx)
-    const query = scopeByPointDeVente(Produit.query().orderBy('nom', 'asc'), pos.pointDeVenteId)
+    const query = scopeByPointDeVente(Produit.query(), pos.pointDeVenteId)
+
+    if (payload.stock_order) {
+      query.orderBy('stock_actuel', payload.stock_order).orderBy('nom', 'asc')
+    } else {
+      query.orderBy('nom', 'asc')
+    }
 
     if (payload.nom) query.whereILike('nom', `%${payload.nom}%`)
     if (payload.code) query.whereILike('code', `%${payload.code}%`)

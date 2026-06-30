@@ -28,6 +28,12 @@ export const searchTextSchema = vine.object({
   search: vine.string().trim().minLength(1).maxLength(200).optional(),
 })
 
+export const SORT_ORDERS = ['asc', 'desc'] as const
+export type SortOrder = (typeof SORT_ORDERS)[number]
+
+export const sortOrderSchema = vine.enum(SORT_ORDERS).optional()
+export const soldeOrderSchema = sortOrderSchema
+
 export const idWithPaginationSchema = vine.compile(
   vine.object({
     id: vine.number().positive(),

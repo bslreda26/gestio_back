@@ -1,4 +1,5 @@
 import vine from '@vinejs/vine'
+import { soldeOrderSchema } from '#validators/common_validator'
 
 const fournisseurFields = {
   nom: vine.string().trim().minLength(1).maxLength(150),
@@ -20,6 +21,7 @@ export const fournisseurSearchValidator = vine.compile(
     ville: vine.string().trim().optional(),
     is_active: vine.boolean().optional(),
     search: vine.string().trim().minLength(1).maxLength(200).optional(),
+    solde_order: soldeOrderSchema,
   })
 )
 

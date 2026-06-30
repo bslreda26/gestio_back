@@ -28,7 +28,13 @@ export default class ClientsController {
     const { page, limit, offset } = parsePagination(payload)
 
     const pos = requirePointDeVente(ctx)
-    const query = scopeByPointDeVente(Client.query().orderBy('nom', 'asc'), pos.pointDeVenteId)
+    const query = scopeByPointDeVente(Client.query(), pos.pointDeVenteId)
+
+    if (payload.solde_order) {
+      query.orderBy('solde', payload.solde_order).orderBy('nom', 'asc')
+    } else {
+      query.orderBy('nom', 'asc')
+    }
 
     if (payload.nom) query.whereILike('nom', `%${payload.nom}%`)
     if (payload.code) query.whereILike('code', `%${payload.code}%`)
