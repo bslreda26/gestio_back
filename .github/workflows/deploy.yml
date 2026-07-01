@@ -9,10 +9,6 @@ concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  # App directory on the VPS (change if your server layout differs)
-  DEPLOY_PATH: ~/backend/gestio_back
-
 jobs:
   verify:
     name: Verify build
@@ -42,15 +38,23 @@ jobs:
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          DEPLOY_DIR: backend/gestio_back
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
+          envs: DEPLOY_DIR
           script_stop: true
           script: |
             set -euo pipefail
-            cd ${{ env.DEPLOY_PATH }}
+            APP_DIR="$HOME/$DEPLOY_DIR"
+            echo "SSH user: $(whoami)"
+            echo "HOME: $HOME"
+            echo "Deploy dir: $APP_DIR"
+            ls -la "$HOME/backend/" || echo "No $HOME/backend/ directory"
+            cd "$APP_DIR"
             git pull
             npm install
             node ace build --ignore-ts-errors
