@@ -7,6 +7,18 @@ Step-by-step guide to host the **gestio_backend** AdonisJS API on a Contabo VPS 
 **API base path:** `/api/v1`  
 **Health check:** `GET /health`
 
+### Server layout (deploy user home)
+
+All project code lives under `/home/deploy/`:
+
+```
+/home/deploy/
+├── backend/    # gestio_backend — AdonisJS API (this guide)
+└── frontend/   # gestio frontend — deploy separately (see Step 15)
+```
+
+In commands below, `~/backend` means `/home/deploy/backend`.
+
 ---
 
 ## What you need before starting
@@ -152,19 +164,33 @@ sudo npm install -g pm2
 
 ---
 
-## Step 6 — Clone the project
+## Step 6 — Create folders and clone the backend
+
+As the `deploy` user, create the app directories (skip if you already did):
 
 ```bash
-sudo mkdir -p /var/www
-sudo chown deploy:deploy /var/www
-cd /var/www
-git clone https://github.com/YOUR_USER/gestio_backend.git
-cd gestio_backend
+mkdir -p ~/frontend ~/backend
+```
+
+Clone the API into `~/backend` (the folder must be **empty**):
+
+```bash
+cd ~/backend
+git clone https://github.com/YOUR_USER/gestio_backend.git .
 ```
 
 Replace the Git URL with your actual repository.
 
 If the repo is private, set up a deploy key or use a personal access token.
+
+Verify:
+
+```bash
+ls -la ~/backen
+# You should see package.json, app/, start/, etc.
+```
+
+`~/frontend` is reserved for the web app — you will use it when connecting the frontend (Step 15).
 
 ---
 
@@ -185,7 +211,7 @@ Copy the generated `APP_KEY` value.
 On the **server**, create the env file inside the project root (before build):
 
 ```bash
-cd /var/www/gestio_backend
+cd ~/backend
 nano .env
 ```
 
@@ -238,7 +264,7 @@ Save: `Ctrl+O`, Enter, `Ctrl+X`.
 ## Step 9 — Build the application
 
 ```bash
-cd /var/www/gestio_backend
+cd ~/backend
 npm install
 npm run build
 ```
@@ -262,7 +288,7 @@ cp ../.env .env
 
 ## Step 10 — Run database migrations
 
-Still inside `/var/www/gestio_backend/build`:
+Still inside `~/backend/build`:
 
 ```bash
 node ace migration:run --force
@@ -281,7 +307,7 @@ After seeding, **change default user passwords** from the app or database. Do no
 ## Step 11 — Start the API with PM2
 
 ```bash
-cd /var/www/gestio_backend/build
+cd ~/backend/build
 pm2 start bin/server.js --name gestio-api
 pm2 save
 pm2 startup
@@ -401,7 +427,7 @@ Update `.env` if needed so `APP_URL` uses `https://`.
 After changing `.env`:
 
 ```bash
-cd /var/www/gestio_backend/build
+cd ~/backend/build
 pm2 restart gestio-api
 ```
 
@@ -409,13 +435,15 @@ pm2 restart gestio-api
 
 ## Step 15 — Connect your frontend
 
+Deploy your frontend app into `~/frontend` (build static files or run a Node server — depends on your frontend stack).
+
 Set your frontend API base URL to:
 
 ```
 https://api.yourdomain.com/api/v1
 ```
 
-Make sure `CORS_ORIGIN` in `.env` includes your frontend URL exactly, e.g.:
+Make sure `CORS_ORIGIN` in `~/backend/.env` includes your frontend URL exactly, e.g.:
 
 ```env
 CORS_ORIGIN=https://app.yourdomain.com,https://www.yourdomain.com
@@ -434,7 +462,7 @@ pm2 restart gestio-api
 When you push new code to Git:
 
 ```bash
-cd /var/www/gestio_backend
+cd ~/backend
 git pull
 npm install
 npm run build
@@ -525,7 +553,7 @@ Use `http://YOUR_SERVER_IP/health` — but for production and frontend CORS, a r
 
 ```bash
 # On server (as deploy user)
-cd /var/www/gestio_backend
+cd ~/backend
 npm install && npm run build
 cd build && npm ci --omit=dev && cp ../.env .env
 node ace migration:run --force
