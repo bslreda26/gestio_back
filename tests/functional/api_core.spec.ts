@@ -1940,19 +1940,19 @@ test.group('API — achats & plancher', (group) => {
     const adminToken = await loginAsAdmin(client)
     const produit = await Produit.findByOrFail('code', 'PRD-0003')
 
-    const gerant = await User.create({
-      email: 'gerant.plancher@test.local',
+    const caissier = await User.create({
+      email: 'caissier.plancher@test.local',
       password: 'Test@12345',
-      nom: 'Gest',
+      nom: 'Cais',
       prenom: 'Plancher',
-      fullName: 'Gest Plancher',
-      role: 'gerant',
+      fullName: 'Cais Plancher',
+      role: 'caissier',
       pointDeVenteId: DEFAULT_POINT_DE_VENTE_ID,
       isActive: true,
     })
 
     const login = await client.post('/api/v1/auth/login').json({
-      email: gerant.email,
+      email: caissier.email,
       password: 'Test@12345',
     })
     login.assertStatus(200)
@@ -1974,19 +1974,19 @@ test.group('API — achats & plancher', (group) => {
     const produit = await Produit.findByOrFail('code', 'PRD-0003')
     const avant = Number(produit.frais)
 
-    const gerant = await User.create({
-      email: 'gerant.frais@test.local',
+    const caissier = await User.create({
+      email: 'caissier.frais@test.local',
       password: 'Test@12345',
-      nom: 'Gest',
+      nom: 'Cais',
       prenom: 'Frais',
-      fullName: 'Gest Frais',
-      role: 'gerant',
+      fullName: 'Cais Frais',
+      role: 'caissier',
       pointDeVenteId: DEFAULT_POINT_DE_VENTE_ID,
       isActive: true,
     })
 
     const login = await client.post('/api/v1/auth/login').json({
-      email: gerant.email,
+      email: caissier.email,
       password: 'Test@12345',
     })
     login.assertStatus(200)
