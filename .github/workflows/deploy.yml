@@ -1,0 +1,61 @@
+name: Deploy to Contabo
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # App directory on the VPS (change if your server layout differs)
+  DEPLOY_PATH: ~/backend/gestio_backend
+
+jobs:
+  verify:
+    name: Verify build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: node ace build --ignore-ts-errors
+
+  deploy:
+    name: Deploy API
+    runs-on: ubuntu-latest
+    needs: verify
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd ${{ env.DEPLOY_PATH }}
+            git pull
+            npm install
+            node ace build --ignore-ts-errors
+            cd build
+            npm ci --omit=dev
+            cp ../.env .env
+            node ace migration:run --force
+            pm2 restart gestio-api
