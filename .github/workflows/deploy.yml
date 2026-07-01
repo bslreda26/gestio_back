@@ -11,7 +11,7 @@ concurrency:
 
 env:
   # App directory on the VPS (change if your server layout differs)
-  DEPLOY_PATH: ~/backend/gestio_backend
+  DEPLOY_PATH: ~/backend/gestio_back
 
 jobs:
   verify:
