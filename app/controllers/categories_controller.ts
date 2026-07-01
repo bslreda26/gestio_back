@@ -3,6 +3,7 @@ import Produit from '#models/produit'
 import { sendError, sendPaginated, sendSuccess } from '#helpers/api_response'
 import {
   assertRecordAccessible,
+  loadActivePointDeVente,
   requirePointDeVente,
   scopeByPointDeVente,
 } from '#helpers/point_de_vente_context'
@@ -42,6 +43,11 @@ async function resolveCategoriePointDeVenteId(
   try {
     return requirePointDeVente(ctx).pointDeVenteId
   } catch {
+    const user = ctx.auth.user
+    if (user?.pointDeVenteId) {
+      const pos = await loadActivePointDeVente(user.pointDeVenteId)
+      return pos?.id ?? null
+    }
     return null
   }
 }
