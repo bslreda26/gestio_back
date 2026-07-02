@@ -109,6 +109,7 @@ export interface ApiDefinition {
     getByCriteria: typeof routes['ventes.get_by_criteria']
     show: typeof routes['ventes.show']
     ligneInfo: typeof routes['ventes.ligne_info']
+    defaults: typeof routes['ventes.defaults']
     create: typeof routes['ventes.create']
     update: typeof routes['ventes.update']
     annuler: typeof routes['ventes.annuler']

@@ -21,7 +21,7 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
   { key: 'produits', label: 'Produits (consultation)', group: 'Produits' },
   { key: 'produits_write', label: 'Modifier produit', group: 'Produits' },
   { key: 'produits_cmup_plancher', label: 'Voir CMUP et plancher (catalogue)', group: 'Produits' },
-  { key: 'produits_plancher', label: 'Modifier plancher et CMUP manuellement', group: 'Produits' },
+  { key: 'produits_plancher', label: 'Modifier CMUP et frais catalogue manuellement', group: 'Produits' },
   { key: 'ventes', label: 'Ventes (consultation)', group: 'Ventes' },
   { key: 'ventes_write', label: 'Créer / modifier vente', group: 'Ventes' },
   { key: 'ventes_ligne_marge', label: 'Marge ligne vente', group: 'Ventes' },

@@ -75,7 +75,8 @@ export const venteIdValidator = vine.compile(vine.object({ id: vine.number().pos
 export const venteCreateValidator = vine.compile(
   vine.object({
     statut: vine.enum(VENTE_CREATE_STATUTS),
-    client_id: vine.number().positive(),
+    client_id: vine.number().positive().optional(),
+    clientId: vine.number().positive().optional(),
     date_vente: vine.date({ formats: ['iso8601'] }),
     date_echeance: vine.date({ formats: ['iso8601'] }).optional(),
     remise_pct: vine.number().min(0).max(100).optional(),

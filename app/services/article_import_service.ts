@@ -2,7 +2,10 @@ import Produit from '#models/produit'
 import TvaGroupe from '#models/tva_groupe'
 import { pickNumber, pickString, validateRequiredFields } from '#helpers/excel_import'
 import type { ImportRequiredField } from '#helpers/excel_import'
-import { calcProduitPricingFromVenteTtc } from '#services/pricing_service'
+import {
+  calcProduitPricingFromVenteTtc,
+  derivePrixAchatHtFromPlancher,
+} from '#services/pricing_service'
 import { toProduitPrixStockage } from '#services/vente_unite_service'
 import type { ImportSummary } from '#types/import_result'
 import { emptyImportSummary } from '#types/import_result'
@@ -15,6 +18,7 @@ const FIELD_ALIASES = {
   plancher: ['plancher', 'prix_plancher', 'prix_min'],
   prix_vente_ttc: ['prix_vente_ttc', 'prix_ttc', 'prix_vente', 'pv_ttc'],
   prix_achat_ht: ['prix_achat_ht', 'pa_ht', 'prix_achat', 'cout_ht'],
+  frais: ['frais', 'frais_ttc', 'frais_unitaire', 'cout_frais'],
   stock_minimum: ['stock_minimum', 'seuil_min', 'stock_min', 'alerte_min'],
   stock_maximum: ['stock_maximum', 'seuil_max', 'stock_max', 'alerte_max'],
   tva_groupe_id: ['tva_groupe_id', 'id_tva', 'tva_id'],
@@ -143,15 +147,76 @@ async function resolveDefaultTvaGroupeId(explicitId?: number): Promise<number> {
   return fallback.id
 }
 
+function hasFraisInRow(row: Record<string, unknown>): boolean {
+  return pickNumber(row, [...FIELD_ALIASES.frais]) !== undefined
+}
+
+function resolveFraisForImport(row: Record<string, unknown>, existingFrais = 0): number {
+  const frais = pickNumber(row, [...FIELD_ALIASES.frais])
+  if (frais !== undefined) {
+    if (frais < 0) {
+      throw new Error('Frais invalide — doit être positif ou nul')
+    }
+    return frais
+  }
+  return existingFrais
+}
+
+/** Frais TTC pris en compte dans le dérivé plancher → prix achat (colonne Excel uniquement). */
+function resolveFraisForDerivation(row: Record<string, unknown>): number {
+  if (!hasFraisInRow(row)) {
+    return 0
+  }
+  return resolveFraisForImport(row)
+}
+
+function resolvePrixAchatHtForImport(
+  row: Record<string, unknown>,
+  tvaGroupe: TvaGroupe,
+  options: {
+    fraisForDerivation: number
+    existingPrixAchatHt?: number
+    existingPlancher?: number
+    deriveFromExistingPlancher?: boolean
+  }
+): number {
+  const prixAchatFromFile = pickNumber(row, [...FIELD_ALIASES.prix_achat_ht])
+  if (prixAchatFromFile !== undefined) {
+    return prixAchatFromFile
+  }
+
+  const plancherFromFile = pickNumber(row, [...FIELD_ALIASES.plancher])
+  const plancherForDerivation =
+    plancherFromFile ??
+    (options.deriveFromExistingPlancher ? options.existingPlancher : undefined)
+
+  if (plancherForDerivation !== undefined) {
+    return derivePrixAchatHtFromPlancher(
+      plancherForDerivation,
+      options.fraisForDerivation,
+      Number(tvaGroupe.taux)
+    )
+  }
+
+  return options.existingPrixAchatHt ?? 0
+}
+
 function buildPricingForRow(
   row: Record<string, unknown>,
   tvaGroupe: TvaGroupe,
-  existing?: Produit
+  existing?: Produit,
+  options?: { deriveFromExistingPlancher?: boolean }
 ) {
-  const prixAchatHt = pickNumber(row, [...FIELD_ALIASES.prix_achat_ht]) ?? Number(existing?.prixAchatHt ?? 0)
+  const frais = resolveFraisForImport(row, Number(existing?.frais ?? 0))
+  const fraisForDerivation = resolveFraisForDerivation(row)
+  const prixAchatHt = resolvePrixAchatHtForImport(row, tvaGroupe, {
+    fraisForDerivation,
+    existingPrixAchatHt: existing ? Number(existing.prixAchatHt) : undefined,
+    existingPlancher: existing ? Number(existing.plancher) : undefined,
+    deriveFromExistingPlancher: options?.deriveFromExistingPlancher,
+  })
   const prixVenteTtc =
     pickNumber(row, [...FIELD_ALIASES.prix_vente_ttc]) ?? Number(existing?.prixVenteTtc ?? 0)
-  const frais = Number(existing?.frais ?? 0)
 
   const prixStockage = toProduitPrixStockage(prixAchatHt, frais, {
     unite: existing?.unite ?? 'pièce',
@@ -178,8 +243,13 @@ async function applyProduitUpdatesFromRow(
   const plancher = pickNumber(row, [...FIELD_ALIASES.plancher])
   const stockMinimum = pickNumber(row, [...FIELD_ALIASES.stock_minimum])
   const stockMaximum = pickNumber(row, [...FIELD_ALIASES.stock_maximum])
-  const prixAchatHt = pickNumber(row, [...FIELD_ALIASES.prix_achat_ht])
+  const prixAchatFromFile = pickNumber(row, [...FIELD_ALIASES.prix_achat_ht])
+  const fraisFromFile = pickNumber(row, [...FIELD_ALIASES.frais])
   const prixVenteTtc = pickNumber(row, [...FIELD_ALIASES.prix_vente_ttc])
+  const plancherSetsPrixAchat =
+    prixAchatFromFile === undefined &&
+    (plancher !== undefined ||
+      (fraisFromFile !== undefined && Number(produit.plancher) > 0))
 
   const tvaChanged = hasTvaInRow(row)
   const tvaGroupeId = tvaChanged
@@ -203,25 +273,43 @@ async function applyProduitUpdatesFromRow(
     merge.airsiPct = String(resolveAirsiPctFromRow(row))
   }
 
-  if (tvaChanged || prixAchatHt !== undefined || prixVenteTtc !== undefined) {
-    const pricing = buildPricingForRow(row, tvaGroupe, produit)
-    const prixStockage = toProduitPrixStockage(
-      prixAchatHt ?? Number(produit.prixAchatHt),
-      Number(produit.frais),
-      {
-        unite: produit.unite,
-        uniteGros: produit.uniteGros,
-        contenance: produit.contenance,
-      }
-    )
+  if (
+    tvaChanged ||
+    prixAchatFromFile !== undefined ||
+    plancherSetsPrixAchat ||
+    prixVenteTtc !== undefined ||
+    fraisFromFile !== undefined
+  ) {
+    const resolvedFrais = resolveFraisForImport(row, Number(produit.frais))
+    const fraisForDerivation = resolveFraisForDerivation(row)
+    const deriveFromExistingPlancher =
+      plancher === undefined &&
+      fraisFromFile !== undefined &&
+      prixAchatFromFile === undefined &&
+      Number(produit.plancher) > 0
+    const resolvedPrixAchatHt = resolvePrixAchatHtForImport(row, tvaGroupe, {
+      fraisForDerivation,
+      existingPrixAchatHt: Number(produit.prixAchatHt),
+      existingPlancher: Number(produit.plancher),
+      deriveFromExistingPlancher,
+    })
+    const pricing = buildPricingForRow(row, tvaGroupe, produit, { deriveFromExistingPlancher })
+    const prixStockage = toProduitPrixStockage(resolvedPrixAchatHt, resolvedFrais, {
+      unite: produit.unite,
+      uniteGros: produit.uniteGros,
+      contenance: produit.contenance,
+    })
 
     merge.prixAchatHt = String(prixStockage.prixAchatHt)
     merge.prixAchatTtc = String(pricing.prixAchatTtc)
     merge.prixVenteHt = String(pricing.prixVenteHt)
     merge.prixVenteTtc = String(pricing.prixVenteTtc)
+    if (fraisFromFile !== undefined) {
+      merge.frais = String(prixStockage.frais)
+    }
 
-    if (prixAchatHt !== undefined) {
-      merge.dernierPrixAchatHt = String(prixAchatHt)
+    if (prixAchatFromFile !== undefined || plancherSetsPrixAchat) {
+      merge.dernierPrixAchatHt = String(resolvedPrixAchatHt)
     }
 
     if (plancher === undefined && tvaChanged) {
@@ -246,9 +334,11 @@ async function createProduitFromRow(
   const tvaGroupeId = resolveTvaGroupeForRow(row, cache, options.defaultTvaGroupeId)
   const tvaGroupe = cache.byId.get(tvaGroupeId) ?? (await TvaGroupe.findOrFail(tvaGroupeId))
   const airsiPct = resolveAirsiPctFromRow(row)
-  const prixAchatHt = pickNumber(row, [...FIELD_ALIASES.prix_achat_ht]) ?? 0
+  const frais = resolveFraisForImport(row)
+  const fraisForDerivation = resolveFraisForDerivation(row)
+  const prixAchatHt = resolvePrixAchatHtForImport(row, tvaGroupe, { fraisForDerivation })
   const prixVenteTtc = pickNumber(row, [...FIELD_ALIASES.prix_vente_ttc]) ?? 0
-  const prixStockage = toProduitPrixStockage(prixAchatHt, 0, {
+  const prixStockage = toProduitPrixStockage(prixAchatHt, frais, {
     unite: 'pièce',
     uniteGros: null,
     contenance: '1',

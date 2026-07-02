@@ -1,4 +1,6 @@
-import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
+import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import Client from '#models/client'
 import { DateTime } from 'luxon'
 
 export default class PointDeVente extends BaseModel {
@@ -33,6 +35,12 @@ export default class PointDeVente extends BaseModel {
 
   @column()
   declare timbreReference: string | null
+
+  @column()
+  declare defaultClientId: number | null
+
+  @belongsTo(() => Client, { foreignKey: 'defaultClientId' })
+  declare defaultClient: BelongsTo<typeof Client>
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

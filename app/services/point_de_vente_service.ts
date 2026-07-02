@@ -1,4 +1,5 @@
 import Caisse from '#models/caisse'
+import Client from '#models/client'
 import PointDeVente from '#models/point_de_vente'
 import { creerDepotParDefaut } from '#services/depot_service'
 import db from '@adonisjs/lucid/services/db'
@@ -57,4 +58,38 @@ export async function creerPointDeVente(data: {
 
     return pos
   })
+}
+
+export async function assertDefaultClientForPointDeVente(
+  clientId: number | null | undefined,
+  pointDeVenteId: number
+): Promise<void> {
+  if (clientId === null || clientId === undefined) {
+    return
+  }
+
+  const client = await Client.query()
+    .where('id', clientId)
+    .where('point_de_vente_id', pointDeVenteId)
+    .where('is_active', true)
+    .first()
+
+  if (!client) {
+    throw new Error('Client par défaut introuvable, inactif ou hors point de vente')
+  }
+}
+
+export async function resolveDefaultClientForPointDeVente(
+  pointDeVenteId: number
+): Promise<Client | null> {
+  const pos = await PointDeVente.find(pointDeVenteId)
+  if (!pos?.defaultClientId) {
+    return null
+  }
+
+  return Client.query()
+    .where('id', pos.defaultClientId)
+    .where('point_de_vente_id', pointDeVenteId)
+    .where('is_active', true)
+    .first()
 }

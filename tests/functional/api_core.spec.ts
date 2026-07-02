@@ -6,7 +6,7 @@ import User from '#models/user'
 import Vente from '#models/vente'
 import Caisse from '#models/caisse'
 import { authedPos, DEFAULT_POINT_DE_VENTE_ID, loginAsAdmin, openCaisse } from '../helpers/auth.js'
-import { calcCmupHt, calcPlancher, calcTtc } from '#services/pricing_service'
+import { calcCmupHt, calcPlancher, calcTtc, derivePrixAchatHtFromCmup } from '#services/pricing_service'
 import TvaGroupe from '#models/tva_groupe'
 import { withIsolatedTest } from '../helpers/setup.js'
 
@@ -1013,6 +1013,67 @@ test.group('API — ventes & stock', (group) => {
   })
 })
 
+test.group('API — client par défaut facture', (group) => {
+  group.each.setup(withIsolatedTest)
+
+  test('admin sets default client on point de vente and vente create uses it', async ({
+    client,
+    assert,
+  }) => {
+    const token = await loginAsAdmin(client)
+    const defaultClient = await Client.findByOrFail('code', 'CLI-0001')
+    const produit = await Produit.findByOrFail('code', 'PRD-0001')
+
+    const updatePos = await client
+      .post('/api/v1/points-de-vente/update')
+      .bearerToken(token)
+      .json({
+        id: DEFAULT_POINT_DE_VENTE_ID,
+        default_client_id: defaultClient.id,
+      })
+    updatePos.assertStatus(200)
+    assert.equal(updatePos.body().data.default_client_id, defaultClient.id)
+    assert.equal(updatePos.body().data.default_client.id, defaultClient.id)
+
+    const defaults = await authedPos(client, token).post('/api/v1/ventes/defaults').json({})
+    defaults.assertStatus(200)
+    assert.equal(defaults.body().data.default_client_id, defaultClient.id)
+    assert.equal(defaults.body().data.default_client.nom, defaultClient.nom)
+
+    const create = await authedPos(client, token).post('/api/v1/ventes/create').json({
+      statut: 'non_valide',
+      date_vente: '2026-06-15',
+      lignes: [{ produit_id: produit.id, quantite: 1 }],
+    })
+    create.assertStatus(200)
+    assert.equal(create.body().data.vente.clientId, defaultClient.id)
+
+    await client
+      .post('/api/v1/points-de-vente/update')
+      .bearerToken(token)
+      .json({
+        id: DEFAULT_POINT_DE_VENTE_ID,
+        default_client_id: null,
+      })
+  })
+
+  test('vente create without client fails when no default configured', async ({ client }) => {
+    const token = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0001')
+
+    const response = await authedPos(client, token).post('/api/v1/ventes/create').json({
+      statut: 'non_valide',
+      date_vente: '2026-06-15',
+      lignes: [{ produit_id: produit.id, quantite: 1 }],
+    })
+
+    response.assertStatus(422)
+    response.assertBodyContains({
+      message: 'Client obligatoire — configurez un client par défaut dans Administration',
+    })
+  })
+})
+
 test.group('API — caisse & depenses', (group) => {
   group.each.setup(withIsolatedTest)
 
@@ -1843,21 +1904,43 @@ test.group('API — achats & plancher', (group) => {
     const produit = await Produit.findByOrFail('code', 'PRD-0003')
     const tvaGroupe = await TvaGroupe.findOrFail(produit.tvaGroupeId)
     const tauxTva = Number(tvaGroupe.taux)
-    const moyenneSaisie = 9000
+    const cmupSaisi = 9000
+    const frais = 500
 
     const response = await authedPos(client, token).post('/api/v1/produits/update').json({
       id: produit.id,
-      moyenne_achat_ht: moyenneSaisie,
+      frais,
+      moyenne_achat_ht: cmupSaisi,
     })
     response.assertStatus(200)
 
     const data = response.body().data
-    const frais = Number(data.frais)
-    const cmup = calcCmupHt(moyenneSaisie, frais, tauxTva)
+    const prixAchatHtAttendu = derivePrixAchatHtFromCmup(cmupSaisi, frais, tauxTva)
 
-    assert.equal(Number(data.moyenneAchatHt), cmup)
-    assert.equal(Number(data.prixAchatHt), moyenneSaisie)
-    assert.equal(Number(data.plancher), calcTtc(cmup, tauxTva))
+    assert.equal(Number(data.moyenneAchatHt), cmupSaisi)
+    assert.equal(Number(data.prixAchatHt), prixAchatHtAttendu)
+    assert.equal(Number(data.plancher), calcTtc(cmupSaisi, tauxTva))
+  })
+
+  test('moyenne achat ht update does not double-count frais', async ({ client, assert }) => {
+    const token = await loginAsAdmin(client)
+    const produit = await Produit.findByOrFail('code', 'PRD-0003')
+    const tvaGroupe = await TvaGroupe.findOrFail(produit.tvaGroupeId)
+    const tauxTva = Number(tvaGroupe.taux)
+    const frais = 63050
+    const cmupSaisi = 7050
+
+    const response = await authedPos(client, token).post('/api/v1/produits/update').json({
+      id: produit.id,
+      frais,
+      moyenne_achat_ht: cmupSaisi,
+    })
+    response.assertStatus(200)
+
+    const data = response.body().data
+    assert.equal(Number(data.moyenneAchatHt), cmupSaisi)
+    assert.notEqual(Number(data.moyenneAchatHt), cmupSaisi + frais)
+    assert.equal(Number(data.plancher), calcTtc(cmupSaisi, tauxTva))
   })
 
   test('non-admin cannot manually set moyenne achat ht on produit', async ({ client, assert }) => {
@@ -1894,16 +1977,22 @@ test.group('API — achats & plancher', (group) => {
     assert.equal(Number(show.body().data.produit.prixAchatHt), avant)
   })
 
-  test('admin can manually set plancher on produit', async ({ client, assert }) => {
+  test('plancher cannot be set manually on produit update', async ({ client, assert }) => {
     const token = await loginAsAdmin(client)
     const produit = await Produit.findByOrFail('code', 'PRD-0003')
+    const avant = Number(produit.plancher)
 
     const response = await authedPos(client, token).post('/api/v1/produits/update').json({
       id: produit.id,
       plancher: 1500,
     })
-    response.assertStatus(200)
-    assert.equal(Number(response.body().data.plancher), 1500)
+    response.assertStatus(422)
+    response.assertBodyContains({
+      message: 'Le plancher est calculé automatiquement — modifiez la moyenne achat HT (CMUP)',
+    })
+
+    await produit.refresh()
+    assert.equal(Number(produit.plancher), avant)
   })
 
   test('admin can enable vente_sous_plancher on produit', async ({ client, assert }) => {
@@ -1939,6 +2028,7 @@ test.group('API — achats & plancher', (group) => {
   test('non-admin cannot manually set plancher on produit', async ({ client, assert }) => {
     const adminToken = await loginAsAdmin(client)
     const produit = await Produit.findByOrFail('code', 'PRD-0003')
+    const avant = Number(produit.plancher)
 
     const caissier = await User.create({
       email: 'caissier.plancher@test.local',
@@ -1962,11 +2052,11 @@ test.group('API — achats & plancher', (group) => {
       id: produit.id,
       plancher: 1500,
     })
-    response.assertStatus(403)
+    response.assertStatus(422)
 
     const show = await authedPos(client, adminToken).post('/api/v1/produits/show').json({ id: produit.id })
     show.assertStatus(200)
-    assert.notEqual(Number(show.body().data.produit.plancher), 1500)
+    assert.equal(Number(show.body().data.produit.plancher), avant)
   })
 
   test('non-admin cannot manually set frais on produit', async ({ client, assert }) => {

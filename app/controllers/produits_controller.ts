@@ -13,7 +13,12 @@ import { applyLowStockAlertFilter, applyStockAlertFilter } from '#helpers/produi
 import { serializeProduit } from '#helpers/produit_serializer'
 import { canEditPlancherCmupManually, canViewPlancherCmup } from '#services/permission_service'
 import { generateProduitCode } from '#services/code_generator_service'
-import { calcProduitPricing, calcProduitPricingFromVenteTtc, calcCmupHt } from '#services/pricing_service'
+import {
+  calcProduitPricing,
+  calcProduitPricingFromVenteTtc,
+  calcCmupHt,
+  derivePrixAchatHtFromCmup,
+} from '#services/pricing_service'
 import { ajustementManuel } from '#services/stock_service'
 import { convertDepotStocksWhenEnablingDetailConfig, getStocksParDepotForProduit, getStocksParDepotForProduits } from '#services/depot_service'
 import {
@@ -22,7 +27,6 @@ import {
   fromProduitPrixStockage,
   resolveProduitUniteInput,
   resolveAjustementQuantite,
-  toPlancherStockage,
   toProduitPrixStockage,
 } from '#services/vente_unite_service'
 import {
@@ -54,6 +58,18 @@ function resolveMoyenneAchatHt(payload: {
   return payload.moyenne_achat_ht ?? payload.prix_achat_ht
 }
 
+/** `moyenne_achat_ht` = CMUP HT catalogue (gros) ; `prix_achat_ht` = hors frais. */
+function resolvePrixAchatHtGrosFromPayload(
+  payload: { prix_achat_ht?: number; moyenne_achat_ht?: number },
+  fraisGros: number,
+  tauxTva: number
+): number | undefined {
+  if (payload.moyenne_achat_ht !== undefined) {
+    return derivePrixAchatHtFromCmup(payload.moyenne_achat_ht, fraisGros, tauxTva)
+  }
+  return payload.prix_achat_ht
+}
+
 function assertManualPricingAllowed(
   ctx: HttpContext,
   payload: {
@@ -64,12 +80,16 @@ function assertManualPricingAllowed(
     frais?: number
   }
 ) {
+  if (payload.plancher !== undefined) {
+    return sendError(
+      ctx,
+      'Le plancher est calculé automatiquement — modifiez la moyenne achat HT (CMUP)',
+      422
+    )
+  }
+
   const canEdit = canEditPlancherCmupManually(ctx.auth.getUserOrFail())
   if (canEdit) return null
-
-  if (payload.plancher !== undefined) {
-    return sendError(ctx, 'Accès refusé — modification du plancher non autorisée', 403)
-  }
   if (resolveMoyenneAchatHt(payload) !== undefined) {
     return sendError(
       ctx,
@@ -193,14 +213,15 @@ export default class ProduitsController {
 
     const unites = resolveProduitUniteInput(payload)
     const uniteProduit = produitUniteShape(unites)
-    const moyenneAchatGros = resolveMoyenneAchatHt(payload) ?? 0
     const fraisGros = payload.frais ?? 0
-    const prixStockage = toProduitPrixStockage(moyenneAchatGros, fraisGros, uniteProduit)
+    const tauxTva = Number(tvaGroupe.taux)
+    const prixHtGros = resolvePrixAchatHtGrosFromPayload(payload, fraisGros, tauxTva) ?? 0
+    const prixStockage = toProduitPrixStockage(prixHtGros, fraisGros, uniteProduit)
     const pricing = calcProduitPricingFromVenteTtc({
       prixAchatHt: prixStockage.prixAchatHt,
       prixVenteTtc: payload.prix_vente_ttc ?? 0,
       frais: prixStockage.frais,
-      tauxTva: Number(tvaGroupe.taux),
+      tauxTva,
     })
 
     const pos = requirePointDeVente(ctx)
@@ -215,7 +236,7 @@ export default class ProduitsController {
       tvaGroupeId: payload.tva_groupe_id,
       prixAchatHt: prixStockage.prixAchatHt,
       prixAchatTtc: pricing.prixAchatTtc,
-      dernierPrixAchatHt: payload.dernier_prix_achat_ht ?? moyenneAchatGros,
+      dernierPrixAchatHt: payload.dernier_prix_achat_ht ?? prixStockage.prixAchatHt,
       prixVenteHt: pricing.prixVenteHt,
       prixVenteTtc: pricing.prixVenteTtc,
       frais: prixStockage.frais,
@@ -245,9 +266,6 @@ export default class ProduitsController {
 
     const pricingDenied = assertManualPricingAllowed(ctx, payload)
     if (pricingDenied) return pricingDenied
-
-    const canEditPricing = canEditPlancherCmupManually(ctx.auth.getUserOrFail())
-    const moyenneAchatPayload = resolveMoyenneAchatHt(payload)
 
     const tvaGroupeId = payload.tva_groupe_id ?? produit!.tvaGroupeId
     let tvaGroupe: TvaGroupe
@@ -280,7 +298,7 @@ export default class ProduitsController {
     frais = pricingConverted.frais
     plancher = pricingConverted.plancher
 
-    if (moyenneAchatPayload !== undefined) {
+    if (payload.moyenne_achat_ht !== undefined || payload.prix_achat_ht !== undefined) {
       const catalogue = fromProduitPrixStockage({
         ...produit,
         prixAchatHt: String(prixAchatHt),
@@ -292,8 +310,15 @@ export default class ProduitsController {
       })
       const fraisGros =
         catalogue.mode === 'detail' ? catalogue.fraisGros : catalogue.frais
+      const fraisForDerivation =
+        payload.frais !== undefined ? payload.frais : fraisGros
+      const prixHtGros = resolvePrixAchatHtGrosFromPayload(
+        payload,
+        fraisForDerivation,
+        Number(tvaGroupe.taux)
+      )!
       const stockage = toProduitPrixStockage(
-        moyenneAchatPayload,
+        prixHtGros,
         payload.frais !== undefined ? payload.frais : fraisGros,
         uniteProduit
       )
@@ -364,10 +389,7 @@ export default class ProduitsController {
       payload.prix_vente_ttc !== undefined ? pricing.prixVenteHt : produit.prixVenteHt
     produit.prixAchatTtc = pricing.prixAchatTtc
     produit.prixVenteTtc = pricing.prixVenteTtc
-    produit.plancher =
-      canEditPricing && payload.plancher !== undefined
-        ? toPlancherStockage(payload.plancher, uniteProduit)
-        : pricing.plancher
+    produit.plancher = pricing.plancher
     await produit.save()
 
     return sendSuccess(ctx, serializeProduit(produit, {}, {

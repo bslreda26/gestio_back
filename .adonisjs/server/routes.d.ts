@@ -74,6 +74,7 @@ export type ScannedRoutes = {
     'ventes.get_by_criteria': { paramsTuple?: []; params?: {} }
     'ventes.show': { paramsTuple?: []; params?: {} }
     'ventes.ligne_info': { paramsTuple?: []; params?: {} }
+    'ventes.defaults': { paramsTuple?: []; params?: {} }
     'ventes.create': { paramsTuple?: []; params?: {} }
     'ventes.update': { paramsTuple?: []; params?: {} }
     'ventes.annuler': { paramsTuple?: []; params?: {} }
@@ -242,6 +243,7 @@ export type ScannedRoutes = {
     'ventes.get_by_criteria': { paramsTuple?: []; params?: {} }
     'ventes.show': { paramsTuple?: []; params?: {} }
     'ventes.ligne_info': { paramsTuple?: []; params?: {} }
+    'ventes.defaults': { paramsTuple?: []; params?: {} }
     'ventes.create': { paramsTuple?: []; params?: {} }
     'ventes.update': { paramsTuple?: []; params?: {} }
     'ventes.annuler': { paramsTuple?: []; params?: {} }

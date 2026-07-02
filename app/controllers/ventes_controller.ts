@@ -18,6 +18,7 @@ import { serializeVenteForApi } from '#helpers/vente_serializer'
 import { getVenteLigneVisibility, denyVenteRemiseWrite, denyLigneRemisePreview } from '#helpers/vente_ligne_visibility'
 import { buildMeta, parsePagination, type PaginationInput } from '#helpers/pagination'
 import { CaisseBusinessError } from '#services/caisse_service'
+import { resolveDefaultClientForPointDeVente } from '#services/point_de_vente_service'
 import {
   acquireVenteLock,
   assertVenteLockHeld,
@@ -257,17 +258,52 @@ export default class VentesController {
     }
   }
 
+  async defaults(ctx: HttpContext) {
+    const pos = requirePointDeVente(ctx)
+    const defaultClient = await resolveDefaultClientForPointDeVente(pos.pointDeVenteId)
+
+    return sendSuccess(ctx, {
+      default_client_id: defaultClient?.id ?? null,
+      default_client: defaultClient
+        ? {
+            id: defaultClient.id,
+            code: defaultClient.code,
+            nom: defaultClient.nom,
+            type: defaultClient.type,
+            telephone: defaultClient.telephone,
+            ville: defaultClient.ville,
+            is_active: defaultClient.isActive,
+          }
+        : null,
+    })
+  }
+
   async create(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(venteCreateValidator)
     const denied = denyVenteRemiseWrite(ctx, payload)
     if (denied) return denied
 
     const pos = requirePointDeVente(ctx)
+    const clientId = payload.client_id ?? payload.clientId
+    let resolvedClientId = clientId
+
+    if (!resolvedClientId) {
+      const defaultClient = await resolveDefaultClientForPointDeVente(pos.pointDeVenteId)
+      if (!defaultClient) {
+        return sendError(
+          ctx,
+          'Client obligatoire — configurez un client par défaut dans Administration',
+          422
+        )
+      }
+      resolvedClientId = defaultClient.id
+    }
+
     try {
       const vente = await creerVente(
         {
           statut: payload.statut,
-          client_id: payload.client_id,
+          client_id: resolvedClientId,
           date_vente: payload.date_vente,
           date_echeance: payload.date_echeance ?? null,
           remise_pct: payload.remise_pct,

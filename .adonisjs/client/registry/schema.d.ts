@@ -847,6 +847,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ventes_controller').default['ligneInfo']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'ventes.defaults': {
+    methods: ["POST"]
+    pattern: '/api/v1/ventes/defaults'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: {}
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/ventes_controller').default['defaults']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/ventes_controller').default['defaults']>>>
+    }
+  }
   'ventes.create': {
     methods: ["POST"]
     pattern: '/api/v1/ventes/create'

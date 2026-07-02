@@ -1,4 +1,4 @@
-import { calcCmupHt, calcPlancherFromCmup, roundMoney } from '#services/pricing_service'
+import { calcCmupHt, roundMoney } from '#services/pricing_service'
 import type Produit from '#models/produit'
 
 export type ModeVente = 'piece' | 'detail'
@@ -256,10 +256,7 @@ export function fromProduitPrixStockage(
     tauxTva !== undefined
       ? calcCmupHt(prixAchatHtDetail, fraisDetail, tauxTva)
       : prixAchatHtDetail
-  const plancherDetail =
-    tauxTva !== undefined
-      ? calcPlancherFromCmup(moyenneAchatHtDetail, tauxTva)
-      : roundMoney(Number(produit.plancher))
+  const plancherDetail = roundMoney(Number(produit.plancher))
 
   if (isProduitGrosSimple(produit)) {
     return {

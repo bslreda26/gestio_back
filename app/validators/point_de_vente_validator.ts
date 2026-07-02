@@ -53,5 +53,6 @@ export const pointDeVenteUpdateValidator = vine.compile(
     point_of_sale: vine.string().trim().maxLength(150).nullable().optional(),
     establishment: vine.string().trim().maxLength(150).nullable().optional(),
     timbre_reference: vine.string().trim().maxLength(50).nullable().optional(),
+    default_client_id: vine.number().positive().nullable().optional(),
   })
 )

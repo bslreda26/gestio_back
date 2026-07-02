@@ -426,6 +426,12 @@ const routes = {
     tokens: [{"old":"/api/v1/ventes/ligne-info","type":0,"val":"api","end":""},{"old":"/api/v1/ventes/ligne-info","type":0,"val":"v1","end":""},{"old":"/api/v1/ventes/ligne-info","type":0,"val":"ventes","end":""},{"old":"/api/v1/ventes/ligne-info","type":0,"val":"ligne-info","end":""}],
     types: placeholder as Registry['ventes.ligne_info']['types'],
   },
+  'ventes.defaults': {
+    methods: ["POST"],
+    pattern: '/api/v1/ventes/defaults',
+    tokens: [{"old":"/api/v1/ventes/defaults","type":0,"val":"api","end":""},{"old":"/api/v1/ventes/defaults","type":0,"val":"v1","end":""},{"old":"/api/v1/ventes/defaults","type":0,"val":"ventes","end":""},{"old":"/api/v1/ventes/defaults","type":0,"val":"defaults","end":""}],
+    types: placeholder as Registry['ventes.defaults']['types'],
+  },
   'ventes.create': {
     methods: ["POST"],
     pattern: '/api/v1/ventes/create',

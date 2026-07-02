@@ -1,7 +1,11 @@
 import PointDeVente from '#models/point_de_vente'
+import Client from '#models/client'
 import { sendError, sendPaginated, sendSuccess } from '#helpers/api_response'
 import { buildMeta, parsePagination } from '#helpers/pagination'
-import { creerPointDeVente } from '#services/point_de_vente_service'
+import {
+  assertDefaultClientForPointDeVente,
+  creerPointDeVente,
+} from '#services/point_de_vente_service'
 import {
   pointDeVenteCreateValidator,
   pointDeVenteIdValidator,
@@ -10,7 +14,20 @@ import {
 } from '#validators/point_de_vente_validator'
 import type { HttpContext } from '@adonisjs/core/http'
 
-function serializePointDeVente(pos: PointDeVente) {
+function serializeDefaultClient(client: Client | null) {
+  if (!client) return null
+  return {
+    id: client.id,
+    code: client.code,
+    nom: client.nom,
+    type: client.type,
+    telephone: client.telephone,
+    ville: client.ville,
+    is_active: client.isActive,
+  }
+}
+
+function serializePointDeVente(pos: PointDeVente, defaultClient?: Client | null) {
   return {
     id: pos.id,
     code: pos.code,
@@ -21,6 +38,8 @@ function serializePointDeVente(pos: PointDeVente) {
     point_of_sale: pos.pointOfSale,
     establishment: pos.establishment,
     timbre_reference: pos.timbreReference,
+    default_client_id: pos.defaultClientId,
+    default_client: serializeDefaultClient(defaultClient ?? null),
     is_active: pos.isActive,
     created_at: pos.createdAt,
     updated_at: pos.updatedAt,
@@ -46,21 +65,21 @@ export default class PointsDeVenteController {
     }
 
     const total = await query.clone().count('* as total')
-    const points = await query.offset(offset).limit(limit)
+    const points = await query.preload('defaultClient').offset(offset).limit(limit)
 
     return sendPaginated(
       ctx,
-      points.map(serializePointDeVente),
+      points.map((pos) => serializePointDeVente(pos, pos.defaultClient)),
       buildMeta(Number(total[0].$extras.total), page, limit)
     )
   }
 
   async show(ctx: HttpContext) {
     const { id } = await ctx.request.validateUsing(pointDeVenteIdValidator)
-    const pos = await PointDeVente.find(id)
+    const pos = await PointDeVente.query().where('id', id).preload('defaultClient').first()
     if (!pos) return sendError(ctx, 'Point de vente introuvable', 404)
 
-    return sendSuccess(ctx, serializePointDeVente(pos))
+    return sendSuccess(ctx, serializePointDeVente(pos, pos.defaultClient))
   }
 
   async create(ctx: HttpContext) {
@@ -102,9 +121,23 @@ export default class PointsDeVenteController {
     if (payload.timbre_reference !== undefined) pos.timbreReference = payload.timbre_reference ?? null
     if (payload.is_active !== undefined) pos.isActive = payload.is_active
 
-    await pos.save()
+    if (payload.default_client_id !== undefined) {
+      try {
+        await assertDefaultClientForPointDeVente(payload.default_client_id, pos.id)
+      } catch (error) {
+        return sendError(
+          ctx,
+          error instanceof Error ? error.message : 'Client par défaut invalide',
+          422
+        )
+      }
+      pos.defaultClientId = payload.default_client_id
+    }
 
-    return sendSuccess(ctx, serializePointDeVente(pos))
+    await pos.save()
+    await pos.load('defaultClient')
+
+    return sendSuccess(ctx, serializePointDeVente(pos, pos.defaultClient))
   }
 
   async deactivate(ctx: HttpContext) {

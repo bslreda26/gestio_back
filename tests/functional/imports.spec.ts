@@ -147,6 +147,93 @@ test.group('API — import Excel', (group) => {
     }
   })
 
+  test('imports article with plancher only and derives prix achat ht for cmup', async ({
+    client,
+    assert,
+  }) => {
+    const token = await loginAsAdmin(client)
+
+    const filePath = await buildExcelFile(
+      ['Code', 'Désignation', 'TVA', 'Plancher', 'Prix vente TTC'],
+      [['PRD-PLANCHER-ONLY', 'Produit plancher seul', 0, 10050, 12000]]
+    )
+
+    try {
+      const response = await authedPos(client, token)
+        .post('/api/v1/imports/articles')
+        .file('file', filePath)
+
+      response.assertStatus(200)
+      const body = response.body() as {
+        data: { created: number; errors: unknown[] }
+      }
+      assert.equal(body.data.created, 1)
+      assert.equal(body.data.errors.length, 0)
+
+      const imported = await Produit.query()
+        .where('code', 'PRD-PLANCHER-ONLY')
+        .where('point_de_vente_id', 1)
+        .firstOrFail()
+
+      assert.equal(Number(imported.plancher), 10050)
+      assert.equal(Number(imported.prixAchatHt), 10050)
+      assert.equal(Number(imported.dernierPrixAchatHt), 10050)
+      assert.equal(Number(imported.prixVenteTtc), 12000)
+    } finally {
+      await cleanupExcelFile(filePath)
+    }
+  })
+
+  test('imports article with plancher and frais and derives prix achat ht', async ({
+    client,
+    assert,
+  }) => {
+    const token = await loginAsAdmin(client)
+
+    const filePath = await buildExcelFile(
+      ['Code', 'Désignation', 'TVA', 'Plancher', 'Frais', 'Prix vente TTC'],
+      [
+        ['PRD-PLANCHER-FRAIS-0', 'Produit plancher frais TVA0', 0, 15000, 50, 18000],
+        ['PRD-PLANCHER-FRAIS-9', 'Produit plancher frais TVA9', 9, 15000, 50, 18000],
+      ]
+    )
+
+    try {
+      const response = await authedPos(client, token)
+        .post('/api/v1/imports/articles')
+        .file('file', filePath)
+
+      response.assertStatus(200)
+      const body = response.body() as {
+        data: { created: number; errors: unknown[] }
+      }
+      assert.equal(body.data.created, 2)
+      assert.equal(body.data.errors.length, 0)
+
+      const tva0 = await Produit.query()
+        .where('code', 'PRD-PLANCHER-FRAIS-0')
+        .where('point_de_vente_id', 1)
+        .firstOrFail()
+
+      assert.equal(Number(tva0.plancher), 15000)
+      assert.equal(Number(tva0.frais), 50)
+      assert.equal(Number(tva0.prixAchatHt), 14950)
+      assert.equal(Number(tva0.dernierPrixAchatHt), 14950)
+
+      const tva9 = await Produit.query()
+        .where('code', 'PRD-PLANCHER-FRAIS-9')
+        .where('point_de_vente_id', 1)
+        .firstOrFail()
+
+      assert.equal(Number(tva9.plancher), 15000)
+      assert.equal(Number(tva9.frais), 50)
+      assert.equal(Number(tva9.prixAchatHt), 13715.6)
+      assert.equal(Number(tva9.dernierPrixAchatHt), 13715.6)
+    } finally {
+      await cleanupExcelFile(filePath)
+    }
+  })
+
   test('rejects client row missing required code or type', async ({ client, assert }) => {
     const token = await loginAsAdmin(client)
     const filePath = await buildExcelFile(

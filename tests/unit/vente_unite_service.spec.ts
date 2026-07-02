@@ -346,7 +346,7 @@ test.group('vente_unite_service — achat pricing', () => {
     assert.equal(catalogue.plancherGros, 44550)
   })
 
-  test('catalogue plancher is CMUP HT times TVA when taux provided', ({ assert }) => {
+  test('catalogue plancher uses stored DB value when taux provided', ({ assert }) => {
     const catalogue = fromProduitPrixStockage(
       {
         prixAchatHt: '10588.24',
@@ -360,7 +360,7 @@ test.group('vente_unite_service — achat pricing', () => {
     assert.equal(catalogue.mode, 'gros')
     if (catalogue.mode !== 'gros') return
     assert.equal(catalogue.moyenneAchatHt, 10671.82)
-    assert.equal(catalogue.plancher, 12592.75)
+    assert.equal(catalogue.plancher, 12589.56)
   })
 
   test('catalogue prix stays gros when no contenance', ({ assert }) => {

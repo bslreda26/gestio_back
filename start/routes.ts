@@ -298,6 +298,10 @@ router
               .post('ligne-info', [VentesController, 'ligneInfo'])
               .as('ligne_info')
               .use(middleware.role({ permission: 'ventes' }))
+            router
+              .post('defaults', [VentesController, 'defaults'])
+              .as('defaults')
+              .use(middleware.role({ permission: 'ventes' }))
             router.post('create', [VentesController, 'create']).as('create').use(middleware.role({ permission: 'ventes_write' }))
             router.post('update', [VentesController, 'update']).as('update').use(middleware.role({ permission: 'ventes_write' }))
             router.post('annuler', [VentesController, 'annuler']).as('annuler').use(middleware.role({ permission: 'ventes_write' }))

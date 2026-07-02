@@ -9,6 +9,9 @@ import {
   calcCmup,
   calcProduitPricingFromVenteTtc,
   calcTtc,
+  derivePrixAchatHtFromPlancher,
+  derivePrixAchatHtFromCmup,
+  deriveCmupHtFromPlancher,
   roundMoney,
   updateProduitFromAchatReception,
   validatePrixPlancher,
@@ -39,6 +42,27 @@ test.group('pricing_service', () => {
   test('calcPlancher is CMUP HT plus TVA', ({ assert }) => {
     assert.equal(calcPlancher(20000, 0, 9), 21800)
     assert.equal(calcPlancher(8000, 500, 18), 9940)
+  })
+
+  test('derivePrixAchatHtFromCmup inverts calcCmupHt', ({ assert }) => {
+    assert.equal(derivePrixAchatHtFromCmup(20045.87, 50, 9), 20000)
+    assert.equal(derivePrixAchatHtFromCmup(7050, 63050, 0), 0)
+    assert.equal(
+      derivePrixAchatHtFromCmup(calcCmupHt(10000, 50, 18), 50, 18),
+      10000
+    )
+  })
+
+  test('derivePrixAchatHtFromPlancher inverts calcPlancher', ({ assert }) => {
+    assert.equal(deriveCmupHtFromPlancher(15000, 9), roundMoney(15000 / 1.09))
+    assert.equal(derivePrixAchatHtFromPlancher(10050, 0, 0), 10050)
+    assert.equal(derivePrixAchatHtFromPlancher(15000, 50, 0), 14950)
+    assert.equal(
+      derivePrixAchatHtFromPlancher(15000, 50, 9),
+      roundMoney(15000 / 1.09 - 50 / 1.09)
+    )
+    assert.equal(derivePrixAchatHtFromPlancher(calcPlancher(10000, 50, 18), 50, 18), 10000)
+    assert.equal(derivePrixAchatHtFromPlancher(calcPlancher(1200, 0, 18), 0, 18), 1200)
   })
 
   test('calcMargeLigne is prix vente TTC minus plancher', ({ assert }) => {

@@ -92,6 +92,30 @@ export function calcPlancher(prixAchatHt: number, fraisTtc: number, tauxTva: num
   return calcPlancherFromCmup(calcCmupHt(prixAchatHt, fraisTtc, tauxTva), tauxTva)
 }
 
+/** CMUP HT déduit du plancher TTC catalogue (import Excel). */
+export function deriveCmupHtFromPlancher(plancher: number, tauxTva: number): number {
+  return calcHt(plancher, tauxTva)
+}
+
+/** Moyenne achat HT déduite du plancher TTC (import article sans prix achat explicite). */
+export function derivePrixAchatHtFromPlancher(
+  plancher: number,
+  fraisTtc: number,
+  tauxTva: number
+): number {
+  const cmupHt = deriveCmupHtFromPlancher(plancher, tauxTva)
+  return derivePrixAchatHtFromCmup(cmupHt, fraisTtc, tauxTva)
+}
+
+/** Prix achat HT (hors frais) déduit du CMUP HT catalogue. */
+export function derivePrixAchatHtFromCmup(
+  cmupHt: number,
+  fraisTtc: number,
+  tauxTva: number
+): number {
+  return Math.max(0, roundMoney(cmupHt - calcFraisHt(fraisTtc, tauxTva)))
+}
+
 export function calcProduitPricing(input: ProduitPricingInput): ProduitPricingResult {
   const prixAchatTtc = calcTtc(input.prixAchatHt, input.tauxTva)
   const prixVenteTtc = calcTtc(input.prixVenteHt, input.tauxTva)

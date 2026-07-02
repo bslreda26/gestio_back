@@ -551,7 +551,7 @@ export class PaiementSchema extends BaseModel {
 }
 
 export class PointsDeVenteSchema extends BaseModel {
-  static $columns = ['adresse', 'code', 'createdAt', 'establishment', 'id', 'isActive', 'nom', 'pointOfSale', 'telephone', 'timbreReference', 'updatedAt', 'ville'] as const
+  static $columns = ['adresse', 'code', 'createdAt', 'defaultClientId', 'establishment', 'id', 'isActive', 'nom', 'pointOfSale', 'telephone', 'timbreReference', 'updatedAt', 'ville'] as const
   $columns = PointsDeVenteSchema.$columns
   @column()
   declare adresse: string | null
@@ -559,6 +559,8 @@ export class PointsDeVenteSchema extends BaseModel {
   declare code: string
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
+  @column()
+  declare defaultClientId: number | null
   @column()
   declare establishment: string | null
   @column({ isPrimary: true })
