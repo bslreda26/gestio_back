@@ -12,6 +12,11 @@ export type PermissionDefinition = {
  */
 export const PERMISSION_CATALOG: PermissionDefinition[] = [
   { key: 'dashboard', label: 'Tableau de bord', group: 'Général' },
+  {
+    key: 'documents_date_libre',
+    label: 'Modifier la date des documents (devis, ventes, achats, paiements, dépenses)',
+    group: 'Général',
+  },
   { key: 'clients', label: 'Clients (consultation)', group: 'Clients' },
   { key: 'clients_write', label: 'Modifier client', group: 'Clients' },
   { key: 'clients_solde', label: 'Solde client', group: 'Clients' },
@@ -74,6 +79,7 @@ export const ROLE_PERMISSIONS = {
   points_de_vente: ['admin'],
   users: ['admin'],
   dashboard: ['admin', 'gerant'],
+  documents_date_libre: ['admin'],
   clients: ['admin', 'gerant', 'caissier', 'facturation'],
   clients_write: ['admin', 'gerant'],
   clients_solde: ['admin', 'gerant', 'caissier'],

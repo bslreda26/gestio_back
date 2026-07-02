@@ -16,6 +16,7 @@ import { serializeVentesForList } from '#helpers/vente_list_serializer'
 import { serializeVenteLignesForApi } from '#helpers/vente_ligne_serializer'
 import { serializeVenteForApi } from '#helpers/vente_serializer'
 import { getVenteLigneVisibility, denyVenteRemiseWrite, denyLigneRemisePreview } from '#helpers/vente_ligne_visibility'
+import { denyDocumentDateWrite } from '#helpers/document_date'
 import { buildMeta, parsePagination, type PaginationInput } from '#helpers/pagination'
 import { CaisseBusinessError } from '#services/caisse_service'
 import { resolveDefaultClientForPointDeVente } from '#services/point_de_vente_service'
@@ -283,6 +284,9 @@ export default class VentesController {
     const denied = denyVenteRemiseWrite(ctx, payload)
     if (denied) return denied
 
+    const dateDenied = denyDocumentDateWrite(ctx, payload.date_vente, 'La date de vente')
+    if (dateDenied) return dateDenied
+
     const pos = requirePointDeVente(ctx)
     const clientId = payload.client_id ?? payload.clientId
     let resolvedClientId = clientId
@@ -332,6 +336,11 @@ export default class VentesController {
     const payload = await ctx.request.validateUsing(venteUpdateValidator)
     const denied = denyVenteRemiseWrite(ctx, payload)
     if (denied) return denied
+
+    if (payload.date_vente !== undefined) {
+      const dateDenied = denyDocumentDateWrite(ctx, payload.date_vente, 'La date de vente')
+      if (dateDenied) return dateDenied
+    }
 
     const vente = await Vente.find(payload.id)
     if (!(await assertRecordBelongsToPointDeVente(ctx, vente, 'Vente'))) return
@@ -465,6 +474,9 @@ export default class VentesController {
 
   async paiement(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(ventePaiementValidator)
+    const dateDenied = denyDocumentDateWrite(ctx, payload.date_paiement, 'La date de paiement')
+    if (dateDenied) return dateDenied
+
     try {
       await assertVenteLockHeld(payload.vente_id, ctx.auth.getUserOrFail().id)
       const result = await enregistrerPaiementVente(

@@ -8,6 +8,7 @@ import {
   scopeByPointDeVente,
 } from '#helpers/point_de_vente_context'
 import { buildMeta, parsePagination } from '#helpers/pagination'
+import { denyDocumentDateWrite } from '#helpers/document_date'
 import {
   CaisseBusinessError,
   creerDepense,
@@ -72,6 +73,9 @@ export default class DepensesController {
 
   async create(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(depenseCreateValidator)
+    const dateDenied = denyDocumentDateWrite(ctx, payload.date_depense, 'La date de dépense')
+    if (dateDenied) return dateDenied
+
     try {
       const pos = requirePointDeVente(ctx)
       const depense = await creerDepense(
@@ -94,6 +98,11 @@ export default class DepensesController {
 
   async update(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(depenseUpdateValidator)
+    if (payload.date_depense !== undefined) {
+      const dateDenied = denyDocumentDateWrite(ctx, payload.date_depense, 'La date de dépense')
+      if (dateDenied) return dateDenied
+    }
+
     try {
       const depense = await mettreAJourDepense(
         payload.id,

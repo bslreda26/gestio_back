@@ -13,6 +13,7 @@ import {
   scopeByPointDeVente,
 } from '#helpers/point_de_vente_context'
 import { buildMeta, parsePagination, type PaginationInput } from '#helpers/pagination'
+import { denyDocumentDatesWrite } from '#helpers/document_date'
 import { CaisseBusinessError } from '#services/caisse_service'
 import {
   AchatBusinessError,
@@ -155,6 +156,11 @@ export default class AchatsController {
 
   async create(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(achatCreateValidator)
+    const dateDenied = denyDocumentDatesWrite(ctx, [
+      { date: payload.date_achat, label: "La date d'achat" },
+    ])
+    if (dateDenied) return dateDenied
+
     try {
       const pos = requirePointDeVente(ctx)
       const achat = await creerAchat(
@@ -179,6 +185,13 @@ export default class AchatsController {
 
   async update(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(achatUpdateValidator)
+    if (payload.date_achat !== undefined) {
+      const dateDenied = denyDocumentDatesWrite(ctx, [
+        { date: payload.date_achat, label: "La date d'achat" },
+      ])
+      if (dateDenied) return dateDenied
+    }
+
     const achat = await Achat.find(payload.id)
     if (!achat) return sendError(ctx, 'Achat introuvable', 404)
     if (!(await assertRecordBelongsToPointDeVente(ctx, achat, 'Achat'))) return
@@ -222,6 +235,13 @@ export default class AchatsController {
 
   async recevoir(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(achatRecevoirValidator)
+    if (payload.date_reception !== undefined) {
+      const dateDenied = denyDocumentDatesWrite(ctx, [
+        { date: payload.date_reception, label: 'La date de réception' },
+      ])
+      if (dateDenied) return dateDenied
+    }
+
     const achat = await Achat.find(payload.id)
     if (!achat) return sendError(ctx, 'Achat introuvable', 404)
     if (!(await assertRecordBelongsToPointDeVente(ctx, achat, 'Achat'))) return
@@ -246,6 +266,12 @@ export default class AchatsController {
 
   async retourCreate(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(achatRetourCreateValidator)
+    if (payload.date_achat !== undefined) {
+      const dateDenied = denyDocumentDatesWrite(ctx, [
+        { date: payload.date_achat, label: "La date d'achat" },
+      ])
+      if (dateDenied) return dateDenied
+    }
 
     try {
       const pos = requirePointDeVente(ctx)
@@ -305,6 +331,11 @@ export default class AchatsController {
 
   async paiement(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(achatPaiementValidator)
+    const dateDenied = denyDocumentDatesWrite(ctx, [
+      { date: payload.date_paiement, label: 'La date de paiement' },
+    ])
+    if (dateDenied) return dateDenied
+
     const achat = await Achat.find(payload.achat_id)
     if (!achat) return sendError(ctx, 'Achat introuvable', 404)
     if (!(await assertRecordBelongsToPointDeVente(ctx, achat, 'Achat'))) return

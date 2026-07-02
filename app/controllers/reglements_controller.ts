@@ -5,6 +5,7 @@ import User from '#models/user'
 import { sendError, sendPaginated, sendSuccess } from '#helpers/api_response'
 import { requirePointDeVente, scopeByPointDeVente } from '#helpers/point_de_vente_context'
 import { buildMeta, parsePagination } from '#helpers/pagination'
+import { denyDocumentDateWrite } from '#helpers/document_date'
 import { CaisseBusinessError } from '#services/caisse_service'
 import {
   enregistrerReglementClient,
@@ -50,6 +51,9 @@ function serializeReglement(reglement: Reglement) {
 export default class ReglementsController {
   async clientCreate(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(reglementClientCreateValidator)
+    const dateDenied = denyDocumentDateWrite(ctx, payload.date_reglement, 'La date de règlement')
+    if (dateDenied) return dateDenied
+
     const pos = requirePointDeVente(ctx)
 
     try {
@@ -129,6 +133,9 @@ export default class ReglementsController {
 
   async fournisseurCreate(ctx: HttpContext) {
     const payload = await ctx.request.validateUsing(reglementFournisseurCreateValidator)
+    const dateDenied = denyDocumentDateWrite(ctx, payload.date_reglement, 'La date de règlement')
+    if (dateDenied) return dateDenied
+
     const pos = requirePointDeVente(ctx)
 
     try {

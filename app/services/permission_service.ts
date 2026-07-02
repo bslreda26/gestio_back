@@ -71,6 +71,13 @@ export function canEditPlancherCmupManually(
   return hasUserPermission(user, 'produits_plancher')
 }
 
+/** Choisir une date autre que celle du jour sur les documents (vente, achat, paiement, dépense…). */
+export function canEditDocumentDate(
+  user: User | { role?: string | null; permissions?: string[] | null }
+): boolean {
+  return hasUserPermission(user, 'documents_date_libre')
+}
+
 export function hasRolePermission(role: UserRole | null, permission: PermissionKey): boolean {
   if (!role) return false
   return (ROLE_PERMISSIONS[permission] as readonly string[]).includes(role)
